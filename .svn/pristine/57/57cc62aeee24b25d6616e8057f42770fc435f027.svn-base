@@ -1,0 +1,5 @@
+@media (min-width: 768px) {
+  .row-span-5 {
+    height: 50px;
+  }
+}

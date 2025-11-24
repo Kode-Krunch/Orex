@@ -1,0 +1,273 @@
+import { Button, Checkbox, FormContainer, Input } from 'components/ui';
+import { Field, useFormikContext } from 'formik';
+import { useEffect, useState } from 'react';
+import CustomFormItem from 'views/Controls/CustomFormItem';
+import SelectXs from 'views/Controls/SelectXs/SelectXs';
+import { v4 as uuid } from 'uuid';
+import {
+  getCityOptions,
+  getStateOptions,
+} from 'views/Master/ClientMaster/utils';
+import {
+  GST_NUMBER_REGEX,
+  ONLY_NUMBERS_REGEX,
+} from 'views/Master/ClientMaster/regex';
+
+/* CONSTANTS */
+const DEFAULT_REQUIRED_MSG_STATE = {
+  fullAddress: false,
+  country: false,
+  state: false,
+  city: false,
+  postalCode: false,
+  gstNumber: false,
+};
+
+function AddressDetailsForm({
+  countryOptions,
+  stateOptions,
+  cityOptions,
+  setStateOptions,
+  setCityOptions,
+  fullAddress,
+  setFullAddress,
+  country,
+  setCountry,
+  state,
+  setState,
+  city,
+  setCity,
+  postalCode,
+  setPostalCode,
+  isGstRegistered,
+  setIsGstRegistered,
+  gstNumber,
+  setGstNumber,
+  editAddressId,
+  resetForm,
+}) {
+  /* STATES */
+  const [errorMsg, setErrorMsg] = useState(DEFAULT_REQUIRED_MSG_STATE);
+
+  /* USE EFFECTS */
+  useEffect(() => {
+    return resetForm;
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        if (country?.CountryCode)
+          setStateOptions(await getStateOptions(country.CountryCode));
+      } catch (error) {
+        console.error(error);
+      }
+    })();
+  }, [country]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        if (state?.StateCode)
+          setCityOptions(await getCityOptions(state.StateCode));
+      } catch (error) {
+        console.error(error);
+      }
+    })();
+  }, [state]);
+
+  /* HOOKS */
+  const { values, setFieldValue } = useFormikContext();
+
+  /* EVENT HANDLERS */
+  const handleSubmit = () => {
+    if (isAllFieldsValid()) {
+      const newAddress = {
+        id: editAddressId ? editAddressId : uuid(),
+        fullAddress,
+        country,
+        state,
+        city,
+        postalCode,
+        isGstRegistered,
+        gstNumber,
+      };
+      const selAddressIndex = values.multipleAddresses.findIndex(
+        (address) => address.id === editAddressId,
+      );
+      let newMultipleAddresses = [...values.multipleAddresses];
+      if (editAddressId) newMultipleAddresses[selAddressIndex] = newAddress;
+      else newMultipleAddresses = [...newMultipleAddresses, newAddress];
+      setFieldValue('multipleAddresses', newMultipleAddresses);
+      resetForm();
+    }
+  };
+
+  /* HELPER FUNCTIONS */
+  const isAllFieldsValid = () => {
+    const fullAddress = isFieldValid('fullAddress');
+    const country = isFieldValid('country');
+    const state = isFieldValid('state');
+    const city = isFieldValid('city');
+    const postalCode = isFieldValid('postalCode');
+    const gstNumber = isFieldValid('gstNumber');
+    return (
+      !fullAddress &&
+      !country &&
+      !state &&
+      !city &&
+      !postalCode &&
+      (!isGstRegistered ? true : gstNumber ? false : true)
+    );
+  };
+
+  const isFieldValid = (field) => {
+    let error = false;
+    if (field === 'fullAddress') {
+      if (!fullAddress) error = 'Required';
+      else if (fullAddress.length < 3) error = 'Too Short';
+      else error = false;
+    } else if (field === 'country') {
+      if (!country) error = 'Required';
+      else error = false;
+    } else if (field === 'state') {
+      if (!state) error = 'Required';
+      else error = false;
+    } else if (field === 'city') {
+      if (!city) error = 'Required';
+      else error = false;
+    } else if (field === 'postalCode') {
+      if (!postalCode) error = 'Required';
+      else if (postalCode.length < 3) error = 'Too Short';
+      else error = false;
+    } else if (field === 'gstNumber') {
+      if (isGstRegistered && !gstNumber) error = 'Required';
+      else if (
+        isGstRegistered &&
+        (!GST_NUMBER_REGEX.test(gstNumber) ||
+          !gstNumber.startsWith(state.tinNo))
+      )
+        error = `Invalid GST Number`;
+      else error = false;
+    }
+    setErrorMsg((prev) => ({ ...prev, [field]: error }));
+    return error;
+  };
+
+  return (
+    <FormContainer size="sm" className="grid grid-cols-12 gap-x-3 gap-y-5">
+      <CustomFormItem label="Address" className="col-span-12" asterisk={true}>
+        <Field
+          type="text"
+          placeholder="Full Address"
+          textArea={true}
+          component={Input}
+          rows={6}
+          value={fullAddress}
+          onChange={(event) => setFullAddress(event.target.value)}
+          onBlur={() => isFieldValid('fullAddress')}
+        />
+        {errorMsg.fullAddress && (
+          <span className="text-red-500">{errorMsg.fullAddress}</span>
+        )}
+      </CustomFormItem>
+      <CustomFormItem label="Country" className="col-span-6" asterisk={true}>
+        <Field
+          placeholder="Select"
+          component={SelectXs}
+          options={countryOptions}
+          value={country}
+          onChange={(value) => {
+            setCountry(value);
+            setState(null);
+            setCity(null);
+          }}
+          onBlur={() => isFieldValid('country')}
+        />
+        {errorMsg.country && (
+          <span className="text-red-500">{errorMsg.country}</span>
+        )}
+      </CustomFormItem>
+      <CustomFormItem label="State" className="col-span-6" asterisk={true}>
+        <Field
+          placeholder="Select"
+          component={SelectXs}
+          options={stateOptions}
+          value={state}
+          onChange={(value) => {
+            setState(value);
+            setCity(null);
+          }}
+          onBlur={() => isFieldValid('state')}
+        />
+        {errorMsg.state && (
+          <span className="text-red-500">{errorMsg.state}</span>
+        )}
+      </CustomFormItem>
+      <CustomFormItem label="City" className="col-span-6" asterisk={true}>
+        <Field
+          placeholder="Select"
+          component={SelectXs}
+          options={cityOptions}
+          value={city}
+          onChange={setCity}
+          onBlur={() => isFieldValid('city')}
+        />
+        {errorMsg.city && <span className="text-red-500">{errorMsg.city}</span>}
+      </CustomFormItem>
+      <CustomFormItem
+        label="Postal Code"
+        className="col-span-6"
+        asterisk={true}
+      >
+        <Field
+          placeholder="Postal Code"
+          component={Input}
+          maxLength={10}
+          value={postalCode}
+          onChange={(event) =>
+            event.target.value === ''
+              ? setPostalCode('')
+              : ONLY_NUMBERS_REGEX.test(event.target.value) &&
+              setPostalCode(Number(event.target.value))
+          }
+          onBlur={() => isFieldValid('postalCode')}
+        />
+        {errorMsg.postalCode && (
+          <span className="text-red-500">{errorMsg.postalCode}</span>
+        )}
+      </CustomFormItem>
+      <div className="col-span-6">
+        <Checkbox
+          className="text-gray-300"
+          checked={isGstRegistered}
+          onChange={(value) => {
+            if (!value) setGstNumber('');
+            setIsGstRegistered(value);
+            setErrorMsg((prev) => ({ ...prev, gstNumber: false }));
+          }}
+        >
+          GST Registered
+        </Checkbox>
+        <Field
+          placeholder="GST Number"
+          component={Input}
+          disabled={!isGstRegistered}
+          value={gstNumber}
+          onChange={(event) => setGstNumber(event.target.value.toUpperCase())}
+          onBlur={() => isFieldValid('gstNumber')}
+        />
+        {errorMsg.gstNumber && (
+          <span className="text-red-500">{errorMsg.gstNumber}</span>
+        )}
+      </div>
+      <div className="col-span-12 flex justify-end">
+        <Button type="button" size="sm" onClick={handleSubmit}>
+          {editAddressId ? 'Save' : 'Add'}
+        </Button>
+      </div>
+    </FormContainer>
+  );
+}
+
+export default AddressDetailsForm;

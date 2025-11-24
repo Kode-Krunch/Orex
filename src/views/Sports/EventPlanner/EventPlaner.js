@@ -1,0 +1,317 @@
+import React, { useEffect, useState } from 'react';
+import { apiCallstoreprocedure } from 'services/CommonService';
+import { convertDateToYMD } from 'components/validators';
+import { useSelector } from 'react-redux';
+import { Button, Card, Dialog, Radio, Select } from 'components/ui';
+import {
+  apiGetContentmaster,
+  apiGetContentmasterDrop,
+  apiGetContentmasterDropEventWise,
+  apiPosteventplanner,
+} from 'services/ProgrammingService';
+import HeaderExtra from '../../Controls/HeaderExtra';
+import { openNotification } from '../../Controls/GLOBALFUNACTION';
+import WeeklyCalendar from './WeeklyCalendar';
+import { StickyFooter } from 'components/shared';
+
+const EventPlaner = () => {
+  const Channel = useSelector((state) => state.locale.selectedChannel);
+  const [ContentList, setContentList] = useState([]);
+  const [EventName, setEventName] = useState({ label: '', value: '' });
+  const [currentDate, setCurrentDate] = useState({
+    start: '',
+    end: '',
+  });
+  const [dialogIsOpen, setIsOpen] = useState(false);
+  const [eventsData, seteventsData] = useState([]);
+  const [contentListType, setContentListType] = useState('Map Teams');
+  const [selectedEventId, setSelectedEventId] = useState(null);
+  const onChangeContentListType = (val) => {
+    setContentListType(val);
+    if (val === 'ALL') {
+      GetContents();
+    } else {
+      GetTeams();
+    }
+  };
+
+  const openDialog = (eventId) => {
+    setSelectedEventId(eventId);
+    setIsOpen(true);
+  };
+
+  const closeDialog = () => {
+    setIsOpen(false);
+    setEventName({ label: '', value: '' });
+    setSelectedEventId(null);
+  };
+
+  const GetContents = async (ContentCode) => {
+    let Parameters = {
+      LocationCode: Channel.LocationCode,
+      ChannelCode: Channel.ChannelCode,
+      IsGroup: 0,
+      EventContentCode: Number(ContentCode),
+    };
+    const Content = await apiGetContentmaster(Parameters);
+    if (Content.status == 204) {
+      setContentList([]);
+      return;
+    }
+    const OldExistData = eventsData.filter((item) => item.MapEventCode);
+    const ConditionalData = Content.data
+      .filter((itemk) => {
+        const match = OldExistData.find(
+          (items) => items.MapEventCode == itemk.ContentCode,
+        );
+        return !match;
+      })
+      .map((itemk) => {
+        return {
+          value: itemk.ContentCode,
+          label: itemk.ContentName,
+        };
+      });
+    setContentList(ConditionalData);
+  };
+  const GetTeams = async () => {
+    try {
+      const Content = await apiGetContentmasterDropEventWise(1);
+      if (Content.status == 204) {
+        setContentList([]);
+        return;
+      }
+      const formattedOptions = Content.data.map((option) => ({
+        value: option.ContentCode,
+        label: option.ContentName,
+      }));
+      setContentList(formattedOptions);
+    } catch (error) { }
+  };
+  const PostData = async (data) => {
+    try {
+      const resp = await apiPosteventplanner(data);
+      if (resp.status === 200) {
+        openNotification('success', 'Events saved successfully.');
+      } else if (resp.status == 204) {
+        openNotification('danger', 'data not found');
+      }
+    } catch (error) {
+      if (error.response.status == 500) {
+        openNotification('danger', 'Server Error.');
+      }
+      if (error.response.status == 422) {
+        openNotification('danger', 'Server Error.');
+      }
+    }
+  };
+  function getAmPm(time) {
+    const [hours, minutes] = time.split(':').map(Number);
+    return hours >= 12 ? 'PM' : 'AM';
+  }
+  useEffect(() => {
+    const fetchData2 = async () => {
+      try {
+        const resp = await apiCallstoreprocedure('USP_PG_GetWeeklyFPC', {
+          Locationcode: Channel.LocationCode,
+          ChannelCode: Channel.ChannelCode,
+          FromDate: currentDate.start,
+          Todate: currentDate.end,
+        });
+
+        const OldExistData = eventsData.filter((item) => item.MapEventName);
+        const NewData = resp.data
+          .filter((item) => item.GroupName === 1)
+          .map((item, key) => ({
+            id: key,
+            title: ` ${item.ContentName} `,
+            start: `${item.TelecastDate}T${item.TelecastStartTime}:00`,
+            startlabel: `${item.TelecastStartTime}`,
+            endlabel: `${item.TelecastEndTime}`,
+            NewContent: `${item.TelecastStartTime}`,
+            isAMPM: getAmPm(item.TelecastEndTime),
+            end: `${item.TelecastDate}T${item.TelecastEndTime}:00`,
+            eventColor: item.MapEventCode ? 'emerald-500' : 'orange-500',
+            MapEventCode: item.MapEventCode,
+            MapEventName: item.MapEventName,
+            ContentCode: item.ContentCode,
+          }));
+
+        // Merge OldExistData and NewData arrays, ensuring OldExistData entries are included
+        const finalEventsData = OldExistData.some((item) =>
+          NewData.some(
+            (newItem) =>
+              newItem.ContentCode === item.ContentCode &&
+              newItem.start === item.start &&
+              newItem.end === item.end,
+          ),
+        );
+        const ConditionalData = NewData.map((itemk) => {
+          const match = OldExistData.find(
+            (items) =>
+              items.ContentCode === itemk.ContentCode &&
+              items.start === itemk.start &&
+              items.end === itemk.end,
+          );
+
+          if (match) {
+            // If a match is found, return the `OldExistData` item
+            return { ...match };
+          } else {
+            // If no match is found, return the modified `NewData` item
+            return {
+              id: itemk.id,
+              title: itemk.title,
+              start: itemk.start,
+              startlabel: itemk.startlabel,
+              endlabel: itemk.endlabel,
+              NewContent: itemk.NewContent,
+              isAMPM: itemk.isAMPM,
+              end: itemk.end,
+              eventColor: itemk.MapEventCode ? 'emerald-500' : 'orange-500',
+              MapEventCode: itemk.MapEventCode,
+              MapEventName: itemk.MapEventName,
+              ContentCode: itemk.ContentCode,
+            };
+          }
+        });
+        if (finalEventsData) {
+          seteventsData(ConditionalData);
+        } else {
+          seteventsData([...NewData, ...OldExistData]);
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
+    };
+
+    fetchData2();
+    GetTeams();
+  }, [currentDate, Channel]);
+
+  const handleEventClick = (arg) => {
+    const { id, extendedProps } = arg.event;
+    GetContents(extendedProps.ContentCode);
+    openDialog(id);
+  };
+  const handleSave = () => {
+    if (selectedEventId !== null) {
+      seteventsData((prevEvents) => {
+        return prevEvents.map((event) => {
+          if (event.id == selectedEventId) {
+            return {
+              ...event,
+              MapEventCode: EventName.value, // Replace "1" with the actual value you want to assign
+              MapEventName: EventName.label, // Replace "2" with the actual value you want to assign
+              eventColor: 'emerald-500',
+            };
+          }
+          return event;
+        });
+      });
+    }
+    closeDialog();
+  };
+  return (
+    <Card
+      header={<HeaderExtra />}
+    // className="flex flex-col"
+    // bodyClass="grow"
+    >
+      <WeeklyCalendar
+        initialView="timeGridWeek"
+        allDaySlot={false}
+        dayHeaderFormat={{
+          weekday: 'short',
+          day: 'numeric',
+        }}
+        headerToolbar={{
+          left: 'title',
+          center: '',
+          right: 'prev,next',
+        }}
+        selectable
+        eventClick={handleEventClick}
+        events={eventsData}
+        select={handleEventClick}
+        datesSet={(dateInfo) => {
+          setCurrentDate({
+            start: convertDateToYMD(dateInfo.start),
+            end: convertDateToYMD(dateInfo.end),
+          });
+        }}
+      />
+      <StickyFooter
+        className="-mx-8 px-8 flex items-center justify-end py-4 z-10"
+        stickyClass="border-t bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+      >
+        <div className="flex gap-3">
+          <Button
+            variant="solid"
+            onClick={() => {
+              const transformedData = eventsData
+                .filter((condition) => condition.MapEventCode != null && condition.MapEventCode !== 0 && condition.MapEventCode !== '')
+                .map((item) => ({
+                  EventCode: item.EventCode || 0,
+                  LocationCode: Channel.LocationCode || 0,
+                  ChannelCode: Channel.ChannelCode || 0,
+                  EventContentCode: item.ContentCode || 0,
+                  ContentCode: item.MapEventCode || 0,
+                  EventDate: item.start.split('T')[0],
+                  StartTime: item.start, // Adjust this as needed
+                }));
+              PostData(transformedData);
+            }}
+          >
+            Save
+          </Button>
+        </div>
+      </StickyFooter>
+      <Dialog
+        isOpen={dialogIsOpen}
+        onClose={closeDialog}
+        onRequestClose={closeDialog}
+      >
+        <h4 className="mb-4">{'Add New Event'}</h4>
+        <div className="grid grid-cols-1 gap-4 h-28">
+          <div>
+            <div>
+              <Radio.Group
+                value={contentListType}
+                onChange={onChangeContentListType}
+              >
+                <Radio value={'Map Teams'}>Mapped Event</Radio>
+                <Radio value={'ALL'}>ALL</Radio>
+              </Radio.Group>
+            </div>
+            <p className="text-white mb-1 mt-4">Event Name</p>
+            <Select
+              options={ContentList}
+              value={ContentList.filter(
+                (option) => option.value === EventName.value,
+              )}
+              onChange={(e) => setEventName(e)}
+              size="sm"
+              placeholder="Select"
+            />
+          </div>
+        </div>
+        <div className="text-right mt-6">
+          <Button
+            className="ltr:mr-2 rtl:ml-2"
+            variant="plain"
+            onClick={closeDialog}
+          >
+            Cancel
+          </Button>
+
+          <Button variant="solid" onClick={handleSave}>
+            Okay
+          </Button>
+        </div>
+      </Dialog>
+    </Card>
+  );
+};
+
+export default EventPlaner;

@@ -1,0 +1,3432 @@
+import React from 'react';
+import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
+import {
+  Table,
+  Card,
+  Button as ButtonE,
+  Input,
+  Select,
+  Tooltip,
+  ScrollBar,
+  FormItem,
+  FormContainer,
+  TimeInput,
+  Progress,
+  Notification,
+  toast as toaste,
+  Dialog as Dial,
+  Alert,
+  Avatar,
+} from 'components/ui';
+import { useState, useEffect, useRef } from 'react';
+import { convertDateToDMSTRIY, convertDateToYMD } from 'components/validators';
+import {
+  Postcolumnsetting,
+  Postpromoscheduling,
+  apiGetPromoScheduling2,
+  apiGetRestoreDropDown,
+  apiGetRestoreScheduling,
+  apiGetgetauditpromoscheduling,
+  apiGetrestorepromoscheduling,
+} from 'services/SchedulingService';
+import { Toast } from 'primereact/toast';
+import {
+  updateStartTimes,
+  hideStackedSideNav,
+  FilldraggedRow,
+  Clock,
+} from '../general';
+import { Button } from 'primereact/button';
+import '../style.css';
+import {
+  HiBackspace,
+  HiFilter,
+  HiOutlineAdjustments,
+  HiOutlineArrowsExpand,
+  HiOutlineCog,
+  HiOutlineFilter,
+  HiOutlineRefresh,
+  HiOutlineServer,
+  HiOutlineUpload,
+  HiOutlineX,
+} from 'react-icons/hi';
+import {
+  CgCheck,
+  CgClose,
+  CgLogIn,
+  CgLogOut,
+  CgRedo,
+  CgSearch,
+  CgUndo,
+} from 'react-icons/cg';
+import { apiGetPromotypemaster } from 'services/ProgrammingService';
+import { useDispatch, useSelector } from 'react-redux';
+import { InputGroup } from 'components/ui';
+import { StickyFooter } from 'components/shared';
+import { ConfirmPopup, confirmPopup } from 'primereact/confirmpopup';
+import { Checkbox } from 'components/ui';
+import { Dialog } from 'primereact/dialog';
+import { ExportxlswithColor } from 'views/Controls/ExportxlswithColor';
+import { ContextMenu } from 'primereact/contextmenu';
+import {
+  addTimeDurations,
+  convertDateFormatyyyyMMdd,
+  formatDurationHHMMSSFF,
+  formatOnHHMMSSFFBlur,
+  handleChangeWithFrameSingleValue,
+  millisecondsToTime,
+  parseDuration,
+  shuffleArray,
+  timeToMilliseconds,
+} from 'views/Controls/GLOBALFUNACTION';
+import Breakwise from 'views/Controls/Breakwise';
+import FilterColumn from '../FilterColumn';
+import { Badge } from 'primereact/badge';
+import {
+  FaCompressArrowsAlt,
+  FaCopy,
+  FaRegCopy,
+  FaStopwatch,
+} from 'react-icons/fa';
+import {
+  setDatainPromo,
+  setdatestore,
+  settimestore,
+} from 'store/auth/scheduling';
+import useTimeOutMessage from 'utils/hooks/useTimeOutMessage';
+import {
+  apiautoshufflepromo,
+  apiautoshufflepromoId,
+} from 'services/LibraryService';
+import { BsFillBadgeAdFill, BsViewList } from 'react-icons/bs';
+import { setdateForm } from 'store/locale/localeSlice';
+import { GetBreakwiseDuration } from '../FinalLog/Cols';
+import classNames from 'classnames';
+import { AiOutlineSave } from 'react-icons/ai';
+import Loader from 'views/Controls/Loader';
+import { format } from 'date-fns';
+// import { FaPause, FaPlay } from 'react-icons/fa';
+const { Tr, Th, Td, THead, TBody } = Table;
+
+var SelectedBrkNo = [];
+
+const PromoSchedulingPage = ({
+  table1Data,
+  setTable1Data,
+  cities,
+  setcities,
+  Columnright,
+  setColumnright,
+  table2Data,
+  setTable2Data,
+  table3Data,
+  setTable3Data,
+  fpcTimes,
+  value,
+  value2,
+  setValue,
+  breaknumbers,
+  setbreaknumbers,
+  Columnleft,
+  setColumnleft,
+  onCellSelect,
+  evendata,
+  setheadername,
+}) => {
+  console.log('Columnright', Columnright);
+  const dispatch = useDispatch();
+  const Channel = useSelector((state) => state.locale.selectedChannel);
+  const [nonselectedCities, setnonSelectedCities] = useState([]);
+  const [nonselectedCities1, setnonSelectedCities1] = useState([]);
+  const [cities1, setcities1] = useState([]);
+  useEffect(() => {
+    dispatch(setdateForm([value, 'Promo Scheduling']));
+    setheadername('');
+    return () => {
+      setheadername('Promo Scheduling');
+    };
+  }, []);
+  const [undo, setundo] = useState(false);
+  const [redo, setredo] = useState(false);
+  const [MaxBrk, setMaxBrk] = useState(0);
+
+  const [table2DataCopy, setTable2DataCopy] = useState(false);
+  const [table1DataCopy, setTable1DataCopy] = useState([...table1Data]);
+  const [fpcTimes2, setfpcTimes2] = useState([]);
+  const [promodata, setpromodata] = useState([]);
+  const [selectedPromos, setselectedPromos] = useState(null);
+  const [selectedPromoDuration, setselectedPromoDuration] = useState(null);
+  const [isProgrambase, setIsProgrambase] = useState(true);
+  const [isComBrk, setIsComBrk] = useState(true);
+  const [Display, setDisplay] = useState(true);
+  const [dialogIsOpen1, setIsOpen1] = useState(false);
+  const [DisplayNTC, setDisplayNTC] = useState(false);
+  const [DisplayS, setDisplayS] = useState(false);
+  const [selectedEventType, setSelectedEventType] = useState(1);
+  const [startTimeArray, setStartTimeArray] = useState([]);
+  const [CountData, setCountData] = useState({
+    NTC: [],
+    Promos: [],
+    Songs: [],
+    Commercial: [],
+    Programs: [],
+  });
+  const [DisplayFilter, setDisplayFilter] = useState(false);
+  const [EventDataName, setEventDataName] = useState('');
+  const [screenminimisze, setscreenminimisze] = useState(false);
+  const [ren, setren] = useState('Maximize');
+  const toggleFullScreen = () => {
+    setscreenminimisze(!screenminimisze);
+    const doc = window.document;
+    const docEl = doc.documentElement;
+
+    const requestFullScreen =
+      docEl.requestFullscreen ||
+      docEl.mozRequestFullScreen ||
+      docEl.webkitRequestFullScreen ||
+      docEl.msRequestFullscreen;
+    const cancelFullScreen =
+      doc.exitFullscreen ||
+      doc.mozCancelFullScreen ||
+      doc.webkitExitFullscreen ||
+      doc.msExitFullscreen;
+
+    if (
+      !doc.fullscreenElement &&
+      !doc.mozFullScreenElement &&
+      !doc.webkitFullscreenElement &&
+      !doc.msFullscreenElement
+    ) {
+      setren('Minimize');
+      requestFullScreen.call(docEl);
+    } else {
+      setren(' Maximize');
+      cancelFullScreen.call(doc);
+    }
+  };
+  const GetDataCount = (table1Data) => {
+    const filteredNTC = table1Data.filter((obj) => obj.F_C_S_P === 'NTC');
+    const filteredPR = table1Data.filter((obj) => obj.F_C_S_P === 'PR');
+    const filteredSG = table1Data.filter((obj) => obj.F_C_S_P === 'SG');
+    const filteredC = table1Data.filter((obj) => obj.F_C_S_P === 'C');
+    const filteredP = table1Data.filter((obj) => obj.F_C_S_P === 'CT');
+
+    //const sum = table1Data.reduce((total, currentValue) => total + parseDuration(currentValue.Duration), 0);
+    const sum = table1Data.reduce((total, currentValue) => {
+      if (currentValue.F_C_S_P === 'PR') {
+        return total + parseDuration(currentValue.Duration);
+      } else {
+        return total;
+      }
+    }, 0);
+    const filterPRDuration = sum;
+
+    setCountData({
+      NTC: [],
+      Promos: [],
+      Songs: [],
+      Commercial: [],
+      Programs: [],
+      Duration: [],
+    });
+
+    setCountData((prevState) => ({
+      ...prevState,
+      NTC: [...prevState.NTC, ...filteredNTC],
+      Promos: [...prevState.Promos, ...filteredPR],
+      Songs: [...prevState.Songs, ...filteredSG],
+      Commercial: [...prevState.Commercial, ...filteredC],
+      Programs: [...prevState.Programs, ...filteredP],
+      Duration: [...prevState.Duration, filterPRDuration],
+    }));
+  };
+  // console.log(promodata)
+  const options1 = [
+    { value: '.com', label: '.com' },
+    { value: '.net', label: '.net' },
+    { value: '.io', label: '.io' },
+  ];
+  const [by, setby] = useState();
+
+  const [columnFilters, setColumnFilters] = useState([
+    {
+      columnName: '',
+      filterValue: '',
+      filterOption: 'contains',
+    },
+  ]);
+  function findIndicesWithSameFPC_ID(array, fpcId) {
+    const indices = [];
+    for (let i = 0; i < array.length; i++) {
+      if (array[i].FPC_ID === fpcId) {
+        indices.push(i);
+      }
+    }
+    return indices;
+  }
+
+  const LoadMasters = async (selectedEventTypes) => {
+    if (selectedEventTypes == 1) {
+      const promomst = await apiGetPromotypemaster(LoginId);
+      const formattedOptions = promomst.data.map((option) => ({
+        value: option.PromoTypeCode,
+        label: option.PromoTypeName,
+      }));
+      setoptions([...formattedOptions]);
+    }
+    if (selectedEventTypes == 2) {
+    }
+    if (selectedEventTypes == 3) {
+    }
+  };
+  function MaxBreakNumberComponent() {
+    const breakNumbers = table1Data.map((item) => parseInt(item.BreakNumber));
+    const maxBreakNumber = Math.max(...breakNumbers);
+    return maxBreakNumber;
+  }
+
+  const toast = useRef(null);
+  let height = `${Number(window.innerHeight - 140)}px`;
+
+  const op = useRef(null);
+  const op2 = useRef(null);
+  const cm = useRef(null);
+  const cm2 = useRef(0);
+
+  const references = [];
+  references[0] = useRef(null);
+  references[1] = useRef(null);
+  references[2] = useRef(null);
+  references[3] = useRef(null);
+  references[4] = useRef(null);
+  references[5] = useRef(null);
+  references[6] = useRef(null);
+  references[7] = useRef(null);
+  references[8] = useRef(null);
+  references[9] = useRef(null);
+  references[10] = useRef(null);
+
+  const [filters, setfilters] = useState([]);
+  const [filteroptions, setfilteroptions] = useState({
+    0: 'contains',
+    1: 'contains',
+    2: 'contains',
+    3: 'contains',
+    4: 'contains',
+    5: 'contains',
+    6: 'contains',
+    7: 'contains',
+    8: 'contains',
+    9: 'contains',
+    10: 'contains',
+  });
+
+  const tableContainerRef = useRef(null);
+
+  const handleRowDeleteButtonClick = () => {
+    removepromo();
+  };
+
+  const handleRowFilterButtonClick = () => {
+    setEventDataName('Rotation Info');
+    all();
+  };
+  const discard = () => {
+    let ogversion = table1dataversions[1];
+    cm2.current = 1;
+    setTable1Data(ogversion);
+    settable1dataversions([[]]);
+    setValue(null);
+  };
+  const discard2 = () => {
+    if (table1dataversions.length <= 2) return;
+
+    let finalversion = table1dataversions[table1dataversions.length - 1];
+    cm2.current = 2;
+    settable1dataversions([[], finalversion]);
+  };
+
+  const [dialogIsOpen, setIsOpen] = useState(false);
+  const [isOpenAutoShuffle, setIsOpenAutoShuffle] = useState(false);
+  const [autoShuffleID, setAutoShuffleID] = useState(0);
+  const [DialIsOpen, setDialIsOpen] = useState(false);
+  const openDialog = () => {
+    auditpromoscheduling(Channel, convertDateToYMD(value));
+    setIsOpen(true);
+  };
+
+  const openAutoShuffleDialog = () => {
+    setIsOpenAutoShuffle(true);
+  };
+  const AutoShuffleDialogClose = (e) => {
+    setIsOpenAutoShuffle(false);
+  };
+
+  const onDialogClose = (e) => {
+    console.log('onDialogClose', e);
+    setIsOpen(false);
+  };
+
+  const handleBlur = (event) => {
+    const { name, value } = event.target;
+    const formattedValue = formatOnHHMMSSFFBlur(value);
+    console.log('formattedValue', formattedValue);
+    setPromoDuration(formattedValue);
+  };
+
+  const AutoShuffles = async () => {
+    if (parseDuration(promoDuration) < 10) {
+      openNotification2('info', 'Kindly enter correct Duration.');
+      return;
+    }
+
+    let Totaltimeuse = '00:00:00:00';
+    let mergedDataIndex = 0;
+    setShowLoader(true);
+    const resp = await apiautoshufflepromoId(autoShuffleID);
+
+    const mergedData = resp.data.map((item) => ({
+      TapeId: item.PromoMaster.VideoID,
+      VideoID: item.PromoMaster.VideoID,
+      PromoCode: item.PromoMaster.PromoCode,
+      PromoCaption: item.PromoMaster.PromoCaption,
+      PromoDuration: item.PromoMaster.PromoDuration,
+    }));
+
+    let shuffledData = shuffleArray(mergedData);
+    setShowLoader(false);
+    AutoShuffleDialogClose();
+    const updatedArray = [];
+    table1Data.forEach((item, index) => {
+      updatedArray.push(item);
+      let currentId = table1Data[table1Data.length - 1].Id + 1;
+      shuffledData = shuffleArray(mergedData);
+
+      if (item.F_C_S_P === 'S') {
+        Totaltimeuse = '00:00:00:00';
+
+        for (let i = 0; i < shuffledData.length; i++) {
+          const promoItem = shuffledData[mergedDataIndex];
+          console.log(mergedDataIndex, 'Totaltimeuse', Totaltimeuse, promoItem);
+          Totaltimeuse = addTimeDurations(
+            Totaltimeuse,
+            promoItem.PromoDuration,
+          );
+          if (compareTimes(item.Start_Time, starttime) == 0) return;
+          if (compareTimes(item.Start_Time, endtime) == 1) return;
+
+          if (parseDuration(Totaltimeuse) < parseDuration(promoDuration)) {
+            updatedArray.push({
+              Id: currentId++, // Increment index to insert below
+              FPC_ID: item.FPC_ID,
+              LocationCode: null,
+              ChannelCode: null,
+              FPC_Time: '',
+              Start_Time: '00:00:00:00',
+              Event_Name: promoItem.PromoCaption,
+              ContentCode: item.ContentCode,
+              PromoTypeCode: 1,
+              SeasonNo: item.SeasonNo,
+              Ep_No: item.Ep_No,
+              Tape_ID: promoItem.TapeId,
+              BreakNumber: item.BreakNumber,
+              Duration: promoItem.PromoDuration,
+              F_C_S_P: 'PR',
+              PromoCode: promoItem.PromoCode,
+              EventDefaultFrontColor: '#333333',
+              EventDefaultBackColor: '#4DD4DF',
+              VideoID: promoItem.VideoID,
+            });
+            if (mergedDataIndex + 1 >= shuffledData.length) {
+              mergedDataIndex = 0;
+            } else {
+              mergedDataIndex = mergedDataIndex + 1;
+            }
+          }
+        }
+      }
+    });
+
+    setShowLoader(false);
+    AutoShuffleDialogClose();
+    setTable1Data(updatedArray);
+  };
+
+  const onDialogOk = async (e) => {
+    setShowLoader(true);
+    try {
+      console.log('auditValue', auditValue);
+      console.log('auditValue.value)', auditValue.value);
+
+      let param = {
+        LocationCode: Channel.LocationCode,
+        ChannelCode: Channel.ChannelCode,
+        FormName: 'PromoScheduling',
+        TelecastDate: convertDateToYMD(value),
+        D_date: auditValue.value,
+      };
+      const resp = await apiGetRestoreScheduling(param);
+      console.log(resp);
+      console.log(resp.status);
+      if (resp.status == 200) {
+        onCellSelect(evendata, false);
+        openNotification2('success', 'Data Saved Successfully.');
+        setShowLoader(false);
+      }
+      if (resp.status === 204) {
+        openNotification2('danger', 'Data Already Exists.');
+        setShowLoader(false);
+        return;
+      }
+    } catch (errors) {
+      if (errors.response.status == 500) {
+        openNotification2('danger', 'Server Error.');
+        setShowLoader(false);
+      }
+    }
+    setShowLoader(false);
+    setIsOpen(false);
+  };
+
+  const [table1dataversions, settable1dataversions] = useState([]);
+  const [Insertpromo, setInsertpromo] = useState(true);
+  const [copypromo, setCopypromo] = useState(false);
+  const [selectedRows, setSelectedRows] = useState([]);
+  const [selectedRowsCopy, setSelectedRowsCopy] = useState([]);
+  const [selectedRows2, setSelectedRows2] = useState([]);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [tobepastedrow, settobepastedrow] = useState(null);
+  const [draggedRows, setdraggedRows] = useState([]);
+  const [iscopy, setiscopy] = useState(false);
+  const [isdisplaysetting, setisdisplaysetting] = useState(false);
+  const [AutoSchdulevisible, setAutoSchdulevisible] = useState(false);
+
+  const [BreakwiseData, setBreakwiseData] = useState([]);
+  console.log('BreakwiseData', BreakwiseData);
+  const [visible, setVisible] = useState(false);
+  const [PromototalDuration, setPromototalDuration] = useState(false);
+  const [segmenttotalDuration, setSegmenttotalDuration] = useState(false);
+  const [commercialDuration, setCommercialDuration] = useState(false);
+  const [promoDuration, setPromoDuration] = useState('');
+
+  const [SlotDuration, setSlotDuration] = useState('');
+
+  const [starttime, setstarttime] = useState('00:00');
+  const [endtime, setendtime] = useState('23:59');
+  const [selectedChannel, setSelectedChannel] = useState(null);
+  const [showLoader, setShowLoader] = useState(false);
+  const token = useSelector((state) => state.auth.session.token);
+  const items = [
+    {
+      label: 'Copy',
+      icon: 'pi pi-fw pi-copy',
+      command: () => {
+        copy();
+      },
+    },
+    {
+      label: 'Cut',
+      icon: 'pi pi-fw pi-search',
+      command: () => {
+        cut();
+        setiscopy(false);
+      },
+    },
+    {
+      label: 'Paste',
+      icon: 'pi pi-fw pi-search',
+      command: () => {
+        paste();
+      },
+    },
+
+    {
+      label: 'Rotation Info',
+      icon: 'pi pi-fw pi-info-circle',
+      command: () => {
+        all();
+      },
+    },
+    {
+      label: 'Remove',
+      icon: 'pi pi-fw pi-trash',
+      command: () => {
+        removepromo();
+      },
+    },
+  ];
+
+  const all = () => {
+    console.log('table1Data', table1Data);
+    setEventDataName('Rotation Info');
+    setIsPanelOpen(false);
+    setIsPanelOpen1(true);
+    setIsPanelOpen2(false);
+    let Event_Name = table1Data[selectedRows[0]]['Event_Name'];
+    let res = table1Data.filter(
+      (row, index) => row.Event_Name == Event_Name,
+      // selectedRows.includes(index)
+    );
+    setTable3Data([...res]);
+    setActiveIndex(1);
+  };
+  const PromoSchdulingSave = async () => {
+    setShowLoader(true);
+    const filteredData = table1Data
+      .map((item, index) => ({ Position: index + 1, ...item }))
+      .filter((item) => item.F_C_S_P === 'PR');
+
+    // Do something with the filtered and indexed data
+
+    const transformedData = filteredData.map((item) => ({
+      LocationCode: value2.LocationCode,
+      ChannelCode: value2.ChannelCode,
+      TelecastDate: convertDateToYMD(value),
+      NewTelecastDate: convertDateToYMD(value),
+      TelecastTime: item.Start_Time, // Replace with actual value
+      PromoCode: item.PromoCode,
+      ContentCode: item.ContentCode,
+      BreakNumber: item.BreakNumber,
+      SeasonNo: item.SeasonNo,
+      EpisodeNo: item.Ep_No,
+      Position: item.Position,
+      PromoTypeCode: Number(item.PromoTypeCode),
+      ActualTelecastTime: item.Start_Time, // Replace with actual value
+      DayOfWeek: 0, // Replace with actual value
+      NewDayOfWeek: 0, // Replace with actual value
+      FPC_ID: item.FPC_ID,
+      IsActive: 1,
+    }));
+    try {
+      // console.log(transformedData)
+      const resp = await Postpromoscheduling(transformedData, token);
+      console.log(resp);
+      console.log(resp.status);
+      if (resp.status == 200) {
+        openNotification2('success', 'Data Saved Successfully.');
+        setShowLoader(false);
+      }
+      if (resp.status === 204) {
+        openNotification2('danger', 'Data Already Exists.');
+        setShowLoader(false);
+        return;
+      }
+    } catch (errors) {
+      if (errors.response.status == 500) {
+        openNotification2('danger', 'Server Error.');
+        setShowLoader(false);
+      }
+    }
+    discard2();
+    setShowLoader(false);
+  };
+  const openNotification2 = (type, m) => {
+    toaste.push(
+      <Notification title={type} type={type}>
+        {m}
+      </Notification>,
+    );
+  };
+
+  //Comman Function Start
+
+  // Comm Fun End
+
+  const cut = () => {
+    setiscopy(false);
+    let res = table1Data.filter((row, index) => selectedRows.includes(index));
+    // console.log(selectedRows);
+    setdraggedRows(res);
+    setSelectedRowsCopy([...selectedRows]);
+    // setTable1Data(table1Data.filter((row, index) => !selectedRows.includes(index)));
+  };
+  // const getpromo = async (data) => {
+  //   // alert('hh')
+  //   {
+  //     const datsa = await apiUSP_Sch_Promo_GetContaintDetails(
+  //       data,
+  //       convertDateToYMD(value),
+  //       value2,
+  //     );
+  //     setpromodata(datsa.data);
+  //   }
+  // };
+  const copy = () => {
+    cut();
+    setiscopy(true);
+  };
+  const paste = () => {
+    const filteredTable1Data = draggedRows.filter(
+      (row) => row.F_C_S_P === 'PR',
+    );
+    if (filteredTable1Data.length <= 0) {
+      return;
+    }
+
+    let res1 = table1Data.slice(0, tobepastedrow + 1);
+    let res2 = table1Data.slice(tobepastedrow + 1, table1Data.length);
+    let referencerow = table1Data[tobepastedrow];
+
+    let Updatetobepastedrow = FilldraggedRow(filteredTable1Data, referencerow);
+
+    const updatedTable1Data = [...res1, ...Updatetobepastedrow, ...res2];
+
+    if (!iscopy) {
+      console.log(selectedRowsCopy);
+      setTable1Data(
+        updatedTable1Data.filter(
+          (row, index) => !selectedRowsCopy.includes(index),
+        ),
+      );
+    } else {
+      setTable1Data(updatedTable1Data);
+    }
+
+    setSelectedRows([]);
+
+    setiscopy(false);
+  };
+
+  function sumDurations(data, eventtype, startindex, endindex) {
+    let totalDuration = 0;
+
+    const filterdata = data.slice(startindex, endindex);
+    console.log('filterdata', filterdata);
+
+    filterdata.forEach((item) => {
+      if (item.F_C_S_P === eventtype) {
+        console.log('F_C_S_P', item.F_C_S_P);
+
+        // const durationParts = item.Duration.split(':');
+        // const hours = parseInt(durationParts[0], 10);
+        // const minutes = parseInt(durationParts[1], 10);
+        // const seconds = parseInt(durationParts[2], 10);
+        // const frames = parseInt(durationParts[3], 10);
+
+        // const totalSeconds =
+        //   hours * 3600 + minutes * 60 + seconds + frames / 30;
+        // totalDuration += totalSeconds;
+        totalDuration += parseDuration(item.Duration);
+      }
+    });
+
+    return formatDurationHHMMSSFF(totalDuration);
+  }
+  useEffect(() => {
+    let Event_Name = table1Data[selectedRows[0]]?.Event_Name;
+
+    let res = table1Data.filter((row, index) => row.Event_Name == Event_Name);
+    setTable3Data([...res]);
+  }, [selectedRows]);
+  const handleDragEnd = (result) => {
+    if (EventDataName != 'Drop Spot') {
+      if (result.destination.droppableId == 'table2') {
+        return;
+      }
+    }
+    if (!result.destination) return;
+    console.log(table1Data[result.destination.index].ContentCode);
+    console.log(result.destination.index);
+    // console.log(result.source); console.log(result.destination); console.log(selectedRows);
+
+    let draggedrow =
+      result.source.droppableId == 'table2'
+        ? table2Data[result.source.index]
+        : table1Data[result.source.index];
+
+    // console.log('draggedRows.F_C_S_P', draggedrow.F_C_S_P)
+    if (draggedrow.F_C_S_P === 'S') {
+      openNotification2('warning', 'Content segment cannot be dragged');
+      console.log('not dragg');
+      return;
+    }
+    // if (
+    //   draggedrow.ContentCode ===
+    //   table1Data[result.destination.index].ContentCode
+    // ) {
+    //   openNotification2('warning', 'Promo Not Allowed In Same Program!!');
+    //   console.log('not dragg');
+    //   return;
+    // }
+    if (draggedrow.F_C_S_P === 'CT') {
+      openNotification2('warning', 'Content cannot be dragged');
+      console.log('not dragg');
+      return;
+    }
+    if (draggedrow.F_C_S_P === 'C') {
+      openNotification2('warning', 'Cannot drag');
+      console.log('not dragg');
+      return;
+    }
+
+    // console.log(result); //return;
+    // console.log(result.source.index,result.destination.index);
+
+    if (
+      result.source.droppableId === 'table1' &&
+      result.destination.droppableId == 'table2'
+    ) {
+      if (!selectedRows.length) {
+        let draggedrow = table1Data[result.source.index];
+        let clonedRow = { ...draggedrow };
+        setTable1Data(table1Data.filter((row) => row !== draggedrow));
+
+        let res1 = table2Data.slice(0, result.destination.index);
+        let res2 = table2Data.slice(
+          result.destination.index,
+          table2Data.length,
+        );
+
+        const updatedTable2Data = [...res1, clonedRow, ...res2];
+        setTable2Data(updatedTable2Data);
+      } else {
+        const draggedrows = table1Data.filter((row, index) =>
+          selectedRows.includes(index),
+        );
+        setTable1Data(
+          table1Data.filter((row, index) => !selectedRows.includes(index)),
+        );
+
+        let res1 = table2Data.slice(0, result.destination.index);
+        let res2 = table2Data.slice(
+          result.destination.index,
+          table2Data.length,
+        );
+        const updatedTable2Data = [...res1, ...draggedrows, ...res2];
+
+        setSelectedRows([]);
+      }
+    } else if (
+      result.source.droppableId === 'table2' &&
+      result.destination.droppableId == 'table1'
+    ) {
+      if (!selectedRows2.length) {
+        let draggedRow = table2Data[result.source.index];
+        let referencerow = table1Data[result.destination.index - 1];
+        let clonedRow = FilldraggedRow(draggedRow, referencerow);
+
+        let res1 = table1Data.slice(0, result.destination.index);
+        let res2 = table1Data.slice(
+          result.destination.index,
+          table1Data.length,
+        );
+        const updatedTable1Data = [...res1, clonedRow, ...res2];
+
+        let res = updateStartTimes(updatedTable1Data, isProgrambase, isComBrk);
+        setTable1Data(res);
+        // console.log(updatedTable1Data);
+      } else {
+        const draggedRows = table2Data.filter((row, index) =>
+          selectedRows2.includes(index),
+        );
+        let referencerow = table1Data[result.destination.index - 1];
+        let clonedRows = FilldraggedRow(draggedRows, referencerow);
+
+        let res1 = table1Data.slice(0, result.destination.index);
+        let res2 = table1Data.slice(
+          result.destination.index,
+          table1Data.length,
+        );
+
+        const updatedTable1Data = [...res1, ...clonedRows, ...res2];
+        let res = updateStartTimes(updatedTable1Data, isProgrambase, isComBrk);
+        setTable1Data(res);
+        setSelectedRows2([]);
+      }
+    } else if (
+      result.source.droppableId === 'table1' &&
+      result.destination.droppableId == 'table1'
+    ) {
+      console.log('selectedRows', selectedRows);
+
+      let index1 = result.source.index;
+      let index2 = result.destination.index;
+      let draggedRow = table1Data[index1];
+      let updatedTable1Data = [];
+
+      if (selectedRows.length) {
+        const draggedRows = table1Data.filter((row, index) =>
+          selectedRows.includes(index),
+        );
+        let rowdiff = 0;
+        let rowdownDiff = 0;
+        if (index1 > index2) {
+          rowdiff = 1;
+        } else {
+          rowdownDiff = 1;
+        }
+
+        let referencerow = table1Data[result.destination.index - rowdiff];
+        let clonedRows = FilldraggedRow(draggedRows, referencerow);
+
+        const updttable1Data = table1Data.map((row, index) => {
+          if (selectedRows.includes(index)) {
+            return {
+              ...row,
+              F_C_S_P: copypromo ? row.F_C_S_P : 'DELETE',
+            };
+          }
+          return row;
+        });
+
+        console.log('updttable1Data', updttable1Data);
+
+        let index = result.destination.index;
+        console.log('index', index);
+        let res1 = updttable1Data.slice(0, index + rowdownDiff);
+        let res2 = updttable1Data.slice(
+          index + rowdownDiff,
+          updttable1Data.length,
+        );
+        const updatedTable1Data = [...res1, ...clonedRows, ...res2];
+
+        const ActualTable1Data = updatedTable1Data.filter(
+          (row) => row.F_C_S_P !== 'DELETE',
+        );
+        console.log(ActualTable1Data);
+        let res = updateStartTimes(ActualTable1Data, isProgrambase, isComBrk);
+
+        setTable1Data(res);
+        setSelectedRows([]);
+        return;
+      } else {
+        if (index1 > index2) {
+          console.log('index1 > index2');
+          let referencerow = table1Data[index2 - 1];
+          let draggedRow2 = FilldraggedRow(draggedRow, referencerow);
+          // let draggedRow2 = { ...draggedRow };
+
+          // draggedRow2.BreakNumber = referencerow.BreakNumber;
+          // draggedRow2.SeasonNo = referencerow.SeasonNo;
+          // draggedRow2.Ep_No = referencerow.Ep_No;
+          // draggedRow2.ContentCode = referencerow.ContentCode;
+          // draggedRow2.FPC_ID = referencerow.FPC_ID;
+
+          let temp = index1;
+
+          index1 = index2;
+          index2 = temp;
+
+          let res1 = table1Data.slice(0, index1);
+          let res2 = table1Data.slice(index1, index2);
+          let res3 = table1Data.slice(index2 + 1, table1Data.length);
+
+          updatedTable1Data = [...res1, draggedRow2, ...res2, ...res3];
+
+          if (copypromo) {
+            updatedTable1Data = [
+              ...res1,
+              draggedRow2,
+              ...res2,
+              draggedRow,
+              ...res3,
+            ];
+          }
+        } else {
+          let res1 = table1Data.slice(0, index1);
+          let res2 = table1Data.slice(index1 + 1, index2 + 1);
+          let res3 = table1Data.slice(index2 + 1, table1Data.length);
+          let referencerow = table1Data[index2];
+
+          //let draggedRow2 = { ...draggedRow };
+          let draggedRow2 = FilldraggedRow(draggedRow, referencerow);
+          // draggedRow2.BreakNumber = referencerow.BreakNumber;
+          // draggedRow2.SeasonNo = referencerow.SeasonNo;
+          // draggedRow2.Ep_No = referencerow.Ep_No;
+          // draggedRow2.ContentCode = referencerow.ContentCode;
+          // draggedRow2.FPC_ID = referencerow.FPC_ID;
+
+          updatedTable1Data = [...res1, ...res2, draggedRow2, ...res3];
+
+          if (copypromo) {
+            updatedTable1Data = [
+              ...res1,
+              draggedRow,
+              ...res2,
+              draggedRow2,
+              ...res3,
+            ];
+          }
+        }
+      }
+
+      let res = updateStartTimes(updatedTable1Data, isProgrambase, isComBrk);
+
+      setTable1Data(res);
+    } else if (
+      result.source.droppableId === 'table2' &&
+      result.destination.droppableId == 'table2'
+    ) {
+      let index1 = result.source.index;
+      let index2 = result.destination.index;
+
+      if (index1 > index2) {
+        let temp = index1;
+        index1 = index2;
+        index2 = temp;
+      }
+      let draggedRow = table2Data[index1];
+      let res1 = table2Data.slice(0, index1);
+      let res2 = table2Data.slice(index1 + 1, index2 + 1);
+      let res3 = table2Data.slice(index2 + 1, table2Data.length);
+      const updatedTable2Data = [...res1, ...res2, draggedRow, ...res3];
+      // updatedTable2Data.splice(result.destination.index, 0, draggedRow);
+      let res = updateStartTimes(updatedTable2Data, isProgrambase, isComBrk);
+      console.log('updatedTable2Data', updatedTable2Data);
+      console.log('res', res);
+      setTable2Data(updatedTable2Data);
+    }
+  };
+
+  function createArray(max, index) {
+    if (max > index) {
+      let temp = max;
+      max = index;
+      index = temp;
+    }
+
+    const arrayLength = index - max + 1; // Calculate the necessary array length
+    const resultArray = Array(arrayLength).fill(0); // Create an array filled with zeros
+
+    for (let i = 0; i < arrayLength; i++) {
+      resultArray[i] = max + i; // Fill the array with the desired values
+    }
+
+    return resultArray;
+  }
+
+  function compareTimes(time1, time2) {
+    const [hours1, minutes1] = time1.split(':').slice(0, 2);
+    // Extract hours and minutes for time2:
+    // const [hours2, minutes2] = time2.split(':')
+    let hours2 = time2.getHours();
+    let minutes2 = time2.getMinutes();
+
+    // Convert hours and minutes to numbers:
+
+    const time1InMinutes = Number(hours1) * 60 + Number(minutes1);
+    const time2InMinutes = Number(hours2) * 60 + Number(minutes2);
+
+    if (time1InMinutes < time2InMinutes) {
+      return 0;
+    } else if (time1InMinutes > time2InMinutes) {
+      return 1;
+    } else {
+      return 2;
+    }
+  }
+
+  function promoinsert() {
+    let promos = selectedRows2.map((index) => table2Data[index]);
+    console.log('SelectedBrkNo', SelectedBrkNo);
+    console.log('promoinsert');
+    // let promo=table2Data[selectedRows2[0]];
+    let cnt = 1;
+    let res = [...table1Data];
+    table1Data.forEach((row, index) => {
+      if (
+        SelectedBrkNo.includes(Number(row.BreakNumber)) &&
+        row.F_C_S_P !== 'PR'
+      ) {
+        console.log('promoinsert');
+        console.log(row.Start_Time);
+        console.log(starttime);
+        console.log(compareTimes(row.Start_Time, starttime));
+
+        if (compareTimes(row.Start_Time, starttime) == 0) return;
+        if (compareTimes(row.Start_Time, endtime) == 1) return;
+
+        // console.log('index',index)
+        // console.log('res[index]',table1Data[index])
+        const updtpromos = FilldraggedRow(promos, table1Data[index]);
+        res.splice(index + cnt, 0, ...updtpromos); // Insert promo below the matching row
+        cnt = cnt + promos.length;
+      } else {
+        // console.log('else index', index, row.BreakNumber, row.F_C_S_P)
+      }
+    });
+    let restime = updateStartTimes(res, isProgrambase, isComBrk);
+    setTable1Data(restime);
+  }
+
+  function promoinsert2() {
+    let promos = selectedRows2.map((index) => table2Data[index]);
+    let index = selectedRows[0];
+    let RefPromos = table1Data[index];
+
+    const updtpromos = FilldraggedRow(promos, RefPromos);
+
+    let res1 = table1Data.slice(0, index + 1);
+
+    let res2 = table1Data.slice(index + 1, table1Data.length);
+
+    const updatedTable1Data = [...res1, ...updtpromos, ...res2];
+    setTable1Data(updatedTable1Data);
+  }
+  function replace() {
+    if (selectedRows.length > 1) {
+      openNotification2('warning', 'Kindly select atleast one Promo.');
+      return;
+    }
+
+    if (selectedRows2.length > 1) {
+      openNotification2('warning', 'Kindly select one Promo only.');
+      return;
+    }
+
+    let promos = selectedRows2.map((index) => table2Data[index]);
+    let index = selectedRows[0];
+
+    //let referencerow = table1Data[index];
+    let referencerow = { ...table1Data[index] };
+    console.log('promos', promos);
+    if (referencerow.F_C_S_P !== 'PR') {
+      openNotification2('warning', 'Kindly select promo.');
+      return;
+    }
+
+    referencerow.Event_Name = promos[0].Event_Name;
+    referencerow.Duration = promos[0].Duration;
+    referencerow.Tape_ID = promos[0].Tape_ID;
+    referencerow.VideoID = promos[0].VideoID;
+
+    let res1 = table1Data.slice(0, index);
+
+    let res2 = table1Data.slice(index + 1, table1Data.length);
+
+    const updatedTable1Data = [...res1, referencerow, ...res2];
+
+    let res = updateStartTimes(updatedTable1Data, isProgrambase, isComBrk);
+    setTable1Data(res);
+  }
+  function removepromo() {
+    console.log('removepromo');
+    let remcheck = table1Data.filter(
+      (row, index) => selectedRows.includes(index) && row.F_C_S_P !== 'PR',
+    );
+
+    if (remcheck.length > 0) {
+      openNotification2('warning', 'Kindly Select Only Promo.');
+      return;
+    }
+
+    let rem = table1Data.filter((row, index) => !selectedRows.includes(index));
+
+    let res = updateStartTimes(rem, isProgrambase, isComBrk);
+    setTable1Data(res);
+
+    setSelectedRows([]);
+  }
+
+  useEffect(() => {
+    hideStackedSideNav();
+
+    const gboxElement2 = document.getElementsByClassName('Gbox2')[0];
+    const gboxElementchild =
+      document.getElementsByClassName('Gbox2')[0].children[1];
+    gboxElement2.style.display = 'block';
+    gboxElementchild.style.display = 'block';
+    return () => {
+      gboxElement2.style.display = 'none';
+      gboxElementchild.style.display = 'none';
+    };
+  }, []);
+
+  useEffect(() => {
+    console.log('starttime', starttime);
+    console.log('endtime', endtime);
+  }, [starttime, endtime]);
+
+  useEffect(() => {
+    const selectedItems = table1Data.filter(
+      (item, index) => selectedRows.includes(index) && item.F_C_S_P === 'PR',
+    );
+
+    const sumOfDuration = selectedItems.reduce((sum, item) => {
+      return sum + parseDuration(item.Duration);
+    }, 0);
+    setselectedPromoDuration(formatDurationHHMMSSFF(sumOfDuration));
+
+    console.log(
+      'selectedItems Count',
+      selectedItems.length,
+      formatDurationHHMMSSFF(sumOfDuration),
+    );
+
+    const inputId = selectedRows[0];
+    console.log('inputId', inputId);
+    const nearestAboveCTRow = table1Data
+      .slice(
+        0,
+        table1Data.findIndex((row, index) => index === inputId),
+      )
+      .reverse()
+      .find((row) => row.F_C_S_P === 'CT');
+
+    const nearestbelowCTRow = table1Data
+      .slice(table1Data.indexOf(nearestAboveCTRow) + 1, table1Data.length)
+      .find((row) => row.F_C_S_P === 'CT');
+
+    if (nearestAboveCTRow && nearestbelowCTRow) {
+      const resultMilliseconds =
+        timeToMilliseconds(nearestbelowCTRow.FPC_Time + ':00:00') -
+        timeToMilliseconds(nearestAboveCTRow.FPC_Time + ':00:00');
+      const slotd = millisecondsToTime(resultMilliseconds);
+      setSlotDuration(slotd);
+    }
+
+    const PromototalDuration = sumDurations(
+      table1Data,
+      'PR',
+      table1Data.indexOf(nearestAboveCTRow),
+      table1Data.indexOf(nearestbelowCTRow),
+    );
+
+    const SegmenttotalDuration = sumDurations(
+      table1Data,
+      'S',
+      table1Data.indexOf(nearestAboveCTRow),
+      table1Data.indexOf(nearestbelowCTRow),
+    );
+    const CommercialDuration = sumDurations(
+      table1Data,
+      'C',
+      table1Data.indexOf(nearestAboveCTRow),
+      table1Data.indexOf(nearestbelowCTRow),
+    );
+
+    setPromototalDuration(PromototalDuration);
+    setSegmenttotalDuration(SegmenttotalDuration);
+    setCommercialDuration(CommercialDuration);
+
+    setselectedPromos(selectedItems.length);
+  }, [selectedRows]);
+  const [colorMapping, setColorMapping] = useState({});
+  useEffect(() => {
+    // console.log('table1Data', table1Data)
+    if (!undo && !redo) {
+      cm2.current++;
+      settable1dataversions([...table1dataversions, table1Data]);
+      // table1dataversions.push(table1Data)
+    } else if (cm2.current > 1) {
+      if (undo) {
+        setundo(false);
+      }
+      if (redo) {
+        setredo(false);
+      }
+    }
+    GetDataCount(table1Data);
+    GetBreakwiseDuration(
+      table1Data,
+      setBreakwiseData,
+      setStartTimeArray,
+      fpcTimes,
+    );
+    const mapColors = (data) => {
+      const result = {};
+
+      table1Data.forEach((item) => {
+        const { EventDefaultBackColor, F_C_S_P } = item;
+
+        if (!result[F_C_S_P]) {
+          result[F_C_S_P] = EventDefaultBackColor;
+        }
+      });
+
+      return result;
+    };
+
+    setColorMapping(mapColors(table1Data));
+  }, [table1Data]);
+
+  useEffect(() => {
+    dispatch(setDatainPromo(table1Data));
+
+    dispatch(settimestore(new Date().toLocaleString()));
+
+    dispatch(setdatestore(value));
+  }, [table1Data]);
+
+  useEffect(() => {
+    // console.log('table2Data', table2Data)
+  }, [table2Data]);
+
+  useEffect(() => {
+    // console.log('selectedCities', selectedCities)
+    const res = cities.filter((city) => {
+      return !Columnright.some(
+        (selectedCity) => selectedCity.code === city.code,
+      );
+    });
+    console.log(res);
+    setnonSelectedCities(res);
+  }, [Columnright]);
+
+  const combineRefs =
+    (...refs) =>
+    (el) => {
+      refs.forEach((ref) => {
+        if (typeof ref === 'function') {
+          ref(el);
+        } else if (ref) {
+          ref.current = el;
+        }
+      });
+    };
+
+  const Columns = () => {
+    console.log(Columnright);
+    return null;
+  };
+  const [isDialogOpen, setDialogOpen] = useState(false);
+
+  const handleItemClick = () => {
+    // Open the dialogbox and set the selected item
+
+    setDialogOpen(true);
+  };
+  const [selectedItemIndex, setSelectedItemIndex] = useState(null);
+  const [valueheader, setvalueheader] = useState('');
+  const handleHeaderUpdate = (index, newHeader) => {
+    if (by == 'he') {
+      const newHeaders = [...nonselectedCities];
+      newHeaders[index].header = newHeader;
+      setnonSelectedCities(newHeaders);
+    }
+    if (by == 'she') {
+      const newHeaders = [...nonselectedCities1];
+      newHeaders[index].header = newHeader;
+      setnonSelectedCities1(newHeaders);
+    }
+  };
+
+  const handleCloseDialog = () => {
+    // Close the dialog box
+    setDialogOpen(false);
+  };
+
+  const Columns2 = () => {
+    console.log('nonselectedCities', nonselectedCities);
+    const firstprfe = [
+      {
+        header: 'FPC Time',
+        name: 'FPC_Time',
+        code: 'FPC_Time',
+        width: 'auto',
+        ScreenType: 'Promo',
+        Sequence: 1,
+        isvisible: true,
+      },
+      {
+        header: 'Play Time',
+        name: 'Start_Time',
+        code: 'Start_Time',
+        width: 'auto',
+        ScreenType: 'Song',
+        Sequence: 1,
+        isvisible: true,
+      },
+      {
+        header: 'Event Name',
+        name: 'Event_Name',
+        code: 'Event_Name',
+        width: 'auto',
+        ScreenType: 'Promo',
+        Sequence: 1,
+        isvisible: true,
+      },
+    ];
+    const columnRightWithoutFirstprfe = Columnright.filter(
+      (item) => !firstprfe.some((fixedItem) => fixedItem.name === item.name),
+    );
+    return (
+      <div
+        className="grid grid-cols-2 gap-4"
+        style={{ background: 'transparent' }}
+      >
+        {by == 'he' && (
+          <Card header={<p style={{ fontSize: '16px' }}>Visible</p>}>
+            {Columnright != null && (
+              <DragDropContext
+                onDragEnd={(result) => {
+                  if (!result.destination) return;
+
+                  let index1 = result.source.index;
+                  let index2 = result.destination.index;
+
+                  if (index1 > index2) {
+                    let temp = index1;
+                    index1 = index2;
+                    index2 = temp;
+                  }
+
+                  let draggedRow = columnRightWithoutFirstprfe[index1];
+                  let res1 = columnRightWithoutFirstprfe.slice(0, index1);
+                  let res2 = columnRightWithoutFirstprfe.slice(
+                    index1 + 1,
+                    index2 + 1,
+                  );
+                  let res3 = columnRightWithoutFirstprfe.slice(
+                    index2 + 1,
+                    columnRightWithoutFirstprfe.length,
+                  );
+                  const updatedTable1Data = [
+                    ...res1,
+                    ...res2,
+                    draggedRow,
+                    ...res3,
+                  ];
+                  console.log('updatedTable1Data********', updatedTable1Data);
+                  setColumnright([...firstprfe, ...updatedTable1Data]);
+                }}
+              >
+                <Droppable droppableId="list">
+                  {(provided) => (
+                    <div ref={provided.innerRef} {...provided.droppableProps}>
+                      {firstprfe.map((fixedItem, index) => (
+                        <div className="flex" key={fixedItem.name}>
+                          {fixedItem.header}
+                        </div>
+                      ))}
+                      {columnRightWithoutFirstprfe.map((data, index) => (
+                        <Draggable
+                          key={data.name}
+                          draggableId={`item-${data.name}`}
+                          index={index}
+                        >
+                          {(provided) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              {...provided.dragHandleProps}
+                            >
+                              <div className="flex">
+                                <i
+                                  className="pi pi-bars mr-2"
+                                  onClick={() => {
+                                    let res =
+                                      columnRightWithoutFirstprfe.filter(
+                                        (row) => row.name != data.name,
+                                      );
+                                    console.log('setColumnright', res);
+                                    setColumnright([...firstprfe, ...res]);
+                                  }}
+                                ></i>
+                                <i
+                                  className="pi pi-minus-circle mr-2"
+                                  onClick={() => {
+                                    let res =
+                                      columnRightWithoutFirstprfe.filter(
+                                        (row) => row.name != data.name,
+                                      );
+                                    setColumnright([...firstprfe, ...res]);
+                                  }}
+                                ></i>
+                                {data.header}
+                              </div>
+                            </div>
+                          )}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </DragDropContext>
+            )}
+          </Card>
+        )}
+        {by == 'she' && (
+          <Card header={<p style={{ fontSize: '16px' }}>Visible</p>}>
+            {Columnleft != null && (
+              <DragDropContext
+                onDragEnd={(result) => {
+                  console.log(result);
+
+                  if (!result.destination) return;
+
+                  let index1 = result.source.index;
+                  let index2 = result.destination.index;
+
+                  if (index1 > index2) {
+                    let temp = index1;
+                    index1 = index2;
+                    index2 = temp;
+                  }
+
+                  let draggedRow = Columnleft[index1];
+                  let res1 = Columnleft.slice(0, index1);
+                  let res2 = Columnleft.slice(index1 + 1, index2 + 1);
+                  let res3 = Columnleft.slice(index2 + 1, Columnleft.length);
+                  const updatedTable1Data = [
+                    ...res1,
+                    ...res2,
+                    draggedRow,
+                    ...res3,
+                  ];
+                  setColumnleft(updatedTable1Data);
+                }}
+              >
+                <Droppable droppableId="list">
+                  {(provided) => (
+                    <div ref={provided.innerRef} {...provided.droppableProps}>
+                      {Columnleft.map((data, index) => (
+                        <Draggable
+                          key={data.name}
+                          draggableId={`item-${data.name}`}
+                          index={index}
+                        >
+                          {(provided) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              {...provided.dragHandleProps}
+                            >
+                              <div className="flex">
+                                <i
+                                  className="pi pi-bars mr-2"
+                                  onClick={() => {
+                                    let res = Columnleft.filter(
+                                      (row) => row.name != data.name,
+                                    );
+                                    setColumnleft(res);
+                                  }}
+                                ></i>
+                                {Columnleft.length < 4 ? (
+                                  <i className="pi pi-minus-circle mr-2"></i>
+                                ) : (
+                                  <i
+                                    className="pi pi-minus-circle mr-2"
+                                    onClick={() => {
+                                      let res = Columnleft.filter(
+                                        (row) => row.name != data.name,
+                                      );
+                                      setColumnleft(res);
+                                    }}
+                                  ></i>
+                                )}
+                                {data.header}
+                              </div>
+                            </div>
+                          )}
+                        </Draggable>
+                      ))}
+
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </DragDropContext>
+            )}
+          </Card>
+        )}
+        {by == 'he' && (
+          <Card header={<p style={{ fontSize: '16px' }}>Hidden</p>}>
+            {nonselectedCities.map((data, index) => (
+              <>
+                {' '}
+                <div key={index}>
+                  <i
+                    className="pi pi-plus-circle mr-2"
+                    onClick={() => {
+                      let res = nonselectedCities.filter(
+                        (row) => row.name != data.name,
+                      );
+                      console.log(res);
+                      console.log(data);
+                      setnonSelectedCities(res);
+                      setColumnright([data, ...Columnright]);
+                    }}
+                  ></i>
+                  <span
+                    onClick={() => {
+                      setSelectedItemIndex(index);
+                      setvalueheader('');
+                    }}
+                  >
+                    {data.header}
+                  </span>
+                </div>
+                {selectedItemIndex === index && (
+                  <div
+                    className="flex"
+                    style={{ marginBottom: '10px', marginTop: '10px' }}
+                  >
+                    <input
+                      style={{
+                        color: 'black',
+                        borderRadius: '5px',
+                        padding: '5px',
+                        height: '35px',
+                        width: '150px',
+                        background: 'transparent',
+                        border: '1px solid gray',
+                      }}
+                      placeholder="Header name"
+                      // value={valueheader}
+                      onBlur={(e) => {
+                        setvalueheader(e.target.value);
+                      }}
+                    />
+                    &nbsp;
+                    <ButtonE
+                      shape="circle"
+                      variant="plain"
+                      size="xs"
+                      style={{ padding: '5px', marginTop: '3px' }}
+                      onClick={() => {
+                        const myString = valueheader;
+                        const lengthOfString = myString.length;
+                        console.log(myString);
+                        console.log(lengthOfString);
+                        if (valueheader.length > 0) {
+                          handleHeaderUpdate(index, valueheader);
+                          setSelectedItemIndex(null);
+                        }
+                      }}
+                      icon={<CgCheck />}
+                    />
+                    &nbsp;
+                    <ButtonE
+                      shape="circle"
+                      variant="plain"
+                      size="xs"
+                      style={{ padding: '5px', marginTop: '3px' }}
+                      onClick={() => {
+                        setSelectedItemIndex(null);
+                      }}
+                      icon={<CgClose />}
+                    />
+                  </div>
+                )}
+              </>
+            ))}
+          </Card>
+        )}
+        {by == 'she' && (
+          <Card header={<p style={{ fontSize: '16px' }}>Hidden</p>}>
+            {nonselectedCities1.map((data, index) => (
+              <>
+                <div key={index}>
+                  <i
+                    className="pi pi-plus-circle mr-2"
+                    onClick={() => {
+                      let res = nonselectedCities1.filter(
+                        (row) => row.name != data.name,
+                      );
+                      console.log(res);
+                      console.log(data);
+                      console.log(Columnleft.length);
+                      if (Columnleft.length > 2) {
+                        setnonSelectedCities1(res);
+                        setColumnleft([data, ...Columnleft]);
+                      }
+                    }}
+                  ></i>
+                  <span
+                    onClick={() => {
+                      setSelectedItemIndex(index);
+                      setvalueheader('');
+                    }}
+                  >
+                    {data.header}
+                  </span>
+                </div>
+                {selectedItemIndex === index && (
+                  <div
+                    className="flex"
+                    style={{ marginBottom: '10px', marginTop: '10px' }}
+                  >
+                    <input
+                      style={{
+                        color: 'black',
+                        borderRadius: '5px',
+                        padding: '5px',
+                        height: '35px',
+                        width: '150px',
+                        background: 'transparent',
+                        border: '1px solid gray',
+                      }}
+                      placeholder="Header name"
+                      // value={valueheader}
+                      onBlur={(e) => {
+                        setvalueheader(e.target.value);
+                      }}
+                    />
+                    &nbsp;
+                    <ButtonE
+                      shape="circle"
+                      variant="plain"
+                      size="xs"
+                      style={{ padding: '5px', marginTop: '3px' }}
+                      onClick={() => {
+                        const myString = valueheader;
+                        const lengthOfString = myString.length;
+                        console.log(myString);
+                        console.log(lengthOfString);
+                        if (valueheader.length > 0) {
+                          handleHeaderUpdate(index, valueheader);
+                          setSelectedItemIndex(null);
+                        }
+                      }}
+                      icon={<CgCheck />}
+                    />
+                    &nbsp;
+                    <ButtonE
+                      shape="circle"
+                      variant="plain"
+                      size="xs"
+                      style={{ padding: '5px', marginTop: '3px' }}
+                      onClick={() => {
+                        setSelectedItemIndex(null);
+                      }}
+                      icon={<CgClose />}
+                    />
+                  </div>
+                )}
+              </>
+            ))}
+          </Card>
+        )}
+      </div>
+    );
+  };
+  //console.log(nonselectedCities);
+  const Toggle = <Button>Toggle as Button</Button>;
+  const [options, setoptions] = useState([{ value: 0, label: 'All' }]);
+  const [audit, setaudit] = useState([]);
+  const [name, setname] = useState('airtel');
+  const [value3, setValue3] = useState();
+  const [auditValue, setauditValue] = useState(0);
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [isPanelOpen1, setIsPanelOpen1] = useState(false);
+  const [isPanelOpen2, setIsPanelOpen2] = useState(false);
+  const [promoTemplate, setPromoTemplate] = useState([]);
+  // useEffect(()=>{console.log('options');console.log(options);},[options])
+  useEffect(() => {
+    Channelmaster();
+    auditpromoscheduling(Channel, convertDateToYMD(value));
+  }, []);
+  const LoginId = useSelector((state) => state.auth.session.LoginId);
+
+  useEffect(() => {
+    (async () => {
+      let param = {
+        LocationCode: Channel.LocationCode,
+        ChannelCode: Channel.ChannelCode,
+      };
+
+      const resp = await apiautoshufflepromo(param);
+      const mergedData = resp.data.map((option) => ({
+        value: option.TemplateNo,
+        label: option.TemplateNo,
+      }));
+      console.log('mergedData', mergedData);
+      setPromoTemplate(mergedData);
+    })();
+  }, []);
+
+  const Channelmaster = async () => {
+    const Channelmaster = await apiGetPromotypemaster(LoginId);
+    const formattedOptions = Channelmaster.data.map((option) => ({
+      value: option.PromoTypeCode,
+      label: option.PromoTypeName,
+    }));
+    setoptions([...options, ...formattedOptions]);
+  };
+
+  const auditpromoscheduling = async (data1, data2) => {
+    let param = {
+      LocationCode: Channel.LocationCode,
+      ChannelCode: Channel.ChannelCode,
+      FormName: 'PromoScheduling',
+      TelecastDate: data2,
+    };
+    const auditMaster = await apiGetRestoreDropDown(param);
+    console.log('auditMaster', auditMaster);
+    const formattedOptions = auditMaster.data?.map((option) => ({
+      value: option.D_date,
+      label: option.D_date,
+    }));
+    setaudit([...formattedOptions]);
+  };
+
+  const shworpomo = () => {
+    apiGetPromoScheduling2(value2, convertDateToYMD(value), value3, name)
+      .then((response) => response.data)
+      .then((data) => {
+        console.log(data);
+        setTable2Data(data);
+
+        let res = Object.keys(data[0]);
+
+        let columns = res.map((row) => {
+          let column = {};
+          column.name = row;
+          column.code = row;
+          column.width = 100;
+          column.header = row;
+          return column;
+        });
+        setcities1(columns);
+        console.log(res);
+        console.log(columns);
+        setTable2DataCopy(data);
+        const res1 = columns.filter((city) => {
+          return !Columnleft.some(
+            (selectedCity) => selectedCity.code === city.code,
+          );
+        });
+        console.log(res);
+        setnonSelectedCities1(res1);
+      });
+  };
+  // console.log(value)
+
+  const scrollToTable = (FPC_Time) => {
+    const tableRow = table1Data.find((item) => item.FPC_Time === FPC_Time);
+    console.log(tableRow);
+    if (tableRow && tableContainerRef.current) {
+      console.log(tableContainerRef.current);
+      const parentContainer = tableContainerRef.current.parentElement;
+      parentContainer.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    }
+  };
+
+  // const handleMouseDown = (e, index) => {
+  //     let startX = e.pageX
+  //     const startWidth = Columnright[index].width
+
+  //     const handleMouseMove = (e) => {
+  //         const newWidth = startWidth + (e.pageX - startX)
+  //         if (newWidth > 50) {
+  //             // Minimum width constraint
+  //             const newColumns = [...selectedCities]
+  //             newColumns[index].width = newWidth
+  //             setSelectedCities(newColumns)
+  //         }
+  //     }
+
+  //     const handleMouseUp = () => {
+  //         document.removeEventListener('mousemove', handleMouseMove)
+  //         document.removeEventListener('mouseup', handleMouseUp)
+  //     }
+
+  //     document.addEventListener('mousemove', handleMouseMove)
+  //     document.addEventListener('mouseup', handleMouseUp)
+  // }
+
+  function updatetabledata() {
+    let res = updateStartTimes(table1Data, isProgrambase, isComBrk);
+
+    setTable1Data(res);
+  }
+  const replaceall = () => {
+    if (selectedRows.length > 1) {
+      openNotification2('warning', 'Kindly select one promo only.');
+      return;
+    }
+
+    if (selectedRows2.length > 1) {
+      openNotification2('warning', 'Kindly Select one promo only.');
+      return;
+    }
+
+    let row1 = table1Data[selectedRows[0]];
+    let row2 = table2Data[selectedRows2[0]];
+
+    let res = table1Data.map((row) => {
+      if (row.Event_Name === row1.Event_Name && row.F_C_S_P === 'PR') {
+        return {
+          ...row,
+          Event_Name: row2.Event_Name,
+          Duration: row2.Duration,
+          Tape_ID: row2.Tape_ID,
+          VideoID: row2.VideoID,
+        };
+      }
+      return row;
+    });
+
+    console.log('res*', res);
+    let uptime = updateStartTimes(res, isProgrambase, isComBrk);
+    setTable1Data(uptime);
+  };
+
+  const confirm1 = (event) => {
+    confirmPopup({
+      target: event.currentTarget,
+      message: BreakNumbers,
+      // icon: 'pi pi-pause',
+      defaultFocus: 'accept',
+      accept: promoinsert,
+      reject,
+    });
+  };
+
+  const reject = () => {
+    // openNotification2('warning', 'You have rejected');
+  };
+
+  const [message, setMessage] = useTimeOutMessage();
+  const [log, setlog] = useState('');
+  const Addcolumnsetting = async () => {
+    const mergedData = Columnright.map((item, index) => ({
+      ScreenName: 'Promo',
+      ColumnName: item.code,
+      Header: item.header,
+      SequenceNo: index,
+      IsVisible: 1,
+    }));
+    console.log(Columnright);
+    console.log(mergedData);
+    if (mergedData.length > 4) {
+      try {
+        const resp = await Postcolumnsetting(mergedData, token);
+        if (resp.status === 200) {
+          setlog('success');
+          setMessage('Data Inserted Successfully.');
+          return;
+        }
+        if (resp.status === 204) {
+          openNotification2('danger', 'Data Already Exists.');
+          return;
+        }
+      } catch (errors) {
+        if (errors.response.status === 500) {
+          setlog('error');
+          setMessage('Server Error.');
+          return;
+        }
+      }
+    } else {
+      setlog('danger');
+      setMessage('Kindly Select minimum 5 Columns');
+    }
+  };
+  const Addcolumnsetting2 = async () => {
+    const mergedData = Columnleft.map((item, index) => ({
+      ScreenName: 'PromoLeft',
+      ColumnName: item.code,
+      Header: item.header,
+      SequenceNo: index,
+      IsVisible: 1,
+    }));
+    console.log(Columnleft);
+    console.log(mergedData);
+    if (mergedData.length > 2) {
+      try {
+        const resp = await Postcolumnsetting(mergedData, token);
+        if (resp.status === 200) {
+          setlog('success');
+          setMessage('Data Inserted Successfully.');
+          return;
+        }
+        if (resp.status === 204) {
+          openNotification2('danger', 'Data Already Exists.');
+          return;
+        }
+      } catch (errors) {
+        if (errors.response.status === 500) {
+          setlog('error');
+          setMessage('Server Error.');
+          return;
+        }
+      }
+    } else {
+      setlog('danger');
+      setMessage('Kindly select minimum 2 columns');
+    }
+  };
+  const AutoSchdulefooterContent = (
+    <div>
+      <ButtonE
+        size="sm"
+        icon={<CgClose />}
+        onClick={() => setAutoSchdulevisible(false)}
+      >
+        Cancel
+      </ButtonE>
+      <ButtonE
+        variant="solid"
+        icon={<CgCheck style={{ marginTop: '2px' }} />}
+        onClick={() => {
+          setAutoSchdulevisible(false);
+          if (by == 'he') {
+            Addcolumnsetting();
+          }
+          if (by == 'she') {
+            Addcolumnsetting2();
+          }
+        }}
+        autoFocus
+        size="sm"
+      >
+        Save&nbsp;&nbsp;
+      </ButtonE>
+    </div>
+  );
+
+  const HeaderTemplate = (options) => {
+    const className = `${options.className} justify-content-space-between`;
+
+    return (
+      <div className={className}>
+        <div className="flex justify-between">
+          <span className="font-bold">Promo Search</span>
+
+          <div className="flex ">
+            {selectedRows2 && selectedRows2.length > 0 && (
+              <Tooltip title="Columns Setting">
+                <span
+                  style={{
+                    fontSize: 20,
+                    marginRight: '10px',
+                    marginLeft: '10px',
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => {
+                    setAutoSchdulevisible(true);
+                    setby('she');
+                  }}
+                >
+                  <HiOutlineCog />
+                </span>
+              </Tooltip>
+            )}
+            <ButtonE
+              icon={<HiOutlineX />}
+              size="xs"
+              style={{
+                marginTop: -5,
+              }}
+              onClick={() => setEventDataName(' ')}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  };
+  const FilterheaderTemplate = (options) => {
+    const className = `${options.className} justify-content-space-between`;
+
+    return (
+      <div className={className}>
+        <div className="flex justify-between">
+          <span className="font-bold">Rotation Info</span>
+
+          <div>
+            <span className="mt-1 mr-1">
+              <Badge value={table3Data.length} severity="success"></Badge>
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+  const BreakwiseheaderTemplate = (options) => {
+    const className = `${options.className} justify-content-space-between`;
+
+    return (
+      <div className={className}>
+        <div className="flex align-items-center">
+          <span className="font-bold">Break Wise Duration</span>
+        </div>
+
+        <div className="flex align-items-end">
+          <div>{options.togglerElement}</div>
+        </div>
+      </div>
+    );
+  };
+  const FooterTemplate = (options) => {
+    const className = `${options.className} flex flex-wrap align-items-center justify-content-between gap-3`;
+    // console.log(activeIndex)
+    return (
+      <div className={className}>
+        <div className="flex items-center gap-2 p-1">
+          {/* <button className="buttonAkash" onClick={promoinsert2}>
+                        Insert
+                    </button>
+                    <button className="buttonAkash" onClick={confirm1}>
+                        Bulk Insert
+                    </button>
+                    <button className="buttonAkash" onClick={replace}>
+                        Replace
+                    </button>
+                    <button className="buttonAkash" onClick={replaceall}>
+                        Replace All
+                    </button> */}
+          {/* <Tooltip title="Insert Promo">
+            <button
+              onClick={promoinsert2}
+              className="p-panel-header-icon p-link mr-2 lbl "
+            >
+              <span className="lbl pi pi-caret-left text-xl"></span>
+            </button>
+          </Tooltip> */}
+          <Tooltip title="Bulk Insert">
+            <button
+              className="p-panel-header-icon p-link mr-2 lbl "
+              onClick={confirm1}
+            >
+              <span className="lbl pi pi-backward text-xl"></span>
+            </button>
+          </Tooltip>
+          <Tooltip title="Replace">
+            <button
+              className="p-panel-header-icon p-link mr-2 lbl "
+              onClick={replace}
+            >
+              <span className="lbl pi pi-file text-xl"></span>
+            </button>
+          </Tooltip>
+          <Tooltip title="Replace All">
+            <button
+              className="p-panel-header-icon p-link mr-2 lbl "
+              onClick={replaceall}
+            >
+              <span className="lbl pi pi-clone text-xl"></span>
+            </button>
+          </Tooltip>
+          <Tooltip title="Delete Selected Promos">
+            <button
+              className="p-panel-header-icon p-link mr-2 lbl "
+              onClick={removepromo}
+            >
+              <span className="lbl pi pi-trash text-xl"></span>
+            </button>
+          </Tooltip>
+          <Tooltip title="Delete All Promos">
+            <button
+              className="p-panel-header-icon p-link mr-2 lbl "
+              onClick={() => setDialIsOpen(true)}
+            >
+              <span className="lbl pi pi-minus-circle text-xl"></span>
+            </button>
+          </Tooltip>
+          {/* <Tooltip title="Copy Promo">
+            <div className="flex justify-end">
+              <Checkbox
+                onChange={(value) => {
+                  setCopypromo(value);
+                }}
+              >
+                Copy Promo
+              </Checkbox>
+            </div>
+          </Tooltip> */}
+        </div>
+      </div>
+    );
+  };
+
+  // const [breaknumbers,setbreaknumbers]=useState([])
+  // useEffect(() => {
+  //     console.log(breaknumbers)
+  // }, [breaknumbers])
+  const generateCheckboxes = () => {
+    const checkboxes = [];
+    for (let i = 1; i <= 6; i++) {
+      checkboxes.push(
+        <Checkbox key={i} value={i}>
+          Break {i}
+        </Checkbox>,
+      );
+    }
+    return checkboxes;
+  };
+
+  const BreakNumbers = () => {
+    return (
+      <div>
+        <div className="text-700 mb-6">
+          Are you sure you want to add promos at this breakes
+        </div>
+        <Checkbox.Group
+          value={breaknumbers}
+          onChange={(options) => {
+            console.log('options', options);
+            SelectedBrkNo = options;
+            setbreaknumbers(options);
+          }}
+        >
+          {generateCheckboxes()}
+        </Checkbox.Group>
+        <ul className="list-none p-0 m-0">
+          <li className="flex align-items-center py-3 px-2 border-top-1 border-300 flex-wrap">
+            <div className="mr-5 flex align-items-center mt-3">
+              <TimeInput
+                value={starttime}
+                onChange={setstarttime}
+                style={{ color: 'black' }}
+              />
+              <TimeInput
+                value={endtime}
+                onChange={setendtime}
+                style={{ color: 'black' }}
+              />
+            </div>
+          </li>
+        </ul>
+      </div>
+    );
+  };
+  // console.log('fpcTimes', fpcTimes)
+  const filterOptions = [
+    { value: 'starts_with', label: 'Starts With' },
+    { value: 'contains', label: 'Contains' },
+    { value: 'not_contains', label: 'Not Contains' },
+    { value: 'ends_with', label: 'Ends With' },
+    { value: 'equals', label: 'Equals' },
+    { value: 'not_equals', label: 'Not Equals' },
+    // { value: 'clear', label: 'Clear'},
+  ];
+
+  // Convert the string to a JavaScript Date object
+
+  // Get the day of the week (0 for Sunday, 1 for Monday, ..., 6 for Saturday)
+
+  const openNotification = (type) => {
+    toaste.push(
+      <Notification title="Api Hit" type={type}>
+        Timer End Api Hit
+      </Notification>,
+    );
+  };
+
+  const deleteallpromos = () => {
+    // console.log(table1Data);
+    let res = [...table1Data];
+    let filtereddata = res.filter((row) => row.F_C_S_P !== 'PR');
+    setDialIsOpen(false);
+    setTable1Data(filtereddata);
+  };
+
+  function adjustColorBrightness(hex, factor) {
+    // Parse hex color value to RGB
+    let r = parseInt(hex.slice(1, 3), 16);
+    let g = parseInt(hex.slice(3, 5), 16);
+    let b = parseInt(hex.slice(5, 7), 16);
+
+    // Adjust brightness
+    r = Math.floor(r * factor);
+    g = Math.floor(g * factor);
+    b = Math.floor(b * factor);
+
+    // Ensure values are in valid range
+    r = Math.min(255, Math.max(0, r));
+    g = Math.min(255, Math.max(0, g));
+    b = Math.min(255, Math.max(0, b));
+
+    // Convert back to hex
+    const result = `#${((r << 16) | (g << 8) | b)
+      .toString(16)
+      .padStart(6, '0')}`;
+
+    return result;
+  }
+  function toggleCircle() {
+    const circle = document.getElementsByClassName('circle')[0];
+
+    // Check the current display state and toggle accordingly
+    if (circle.style.display === 'none') {
+      circle.style.display = 'block'; // Show the element
+    } else {
+      circle.style.display = 'none'; // Hide the element
+    }
+  }
+  const capitalizeWords = (str) => {
+    return str.toLowerCase().replace(/(?:^|\s)\S/g, (char) => {
+      return char.toUpperCase();
+    });
+  };
+  let maxWidth = `${!Insertpromo ? '100%' : '80%'}`;
+  return (
+    <>
+      <Loader showLoader={showLoader} />
+      {message && (
+        <Alert className="mb-4" type={log} showIcon>
+          {message}
+        </Alert>
+      )}
+      <div>
+        {Channel.AutoSave ? (
+          <Tooltip title="Auto Save">
+            <Clock
+              Progress={Progress}
+              PromoSchdulingSave={PromoSchdulingSave}
+              openNotification={openNotification}
+            />
+          </Tooltip>
+        ) : null}
+      </div>
+      <div style={{ marginBottom: '5px' }}>
+        <div className="flex justify-between ">
+          {isdisplaysetting && (
+            <div className="flex justify-start">
+              <Tooltip title="Columns Setting">
+                <span
+                  style={{
+                    fontSize: 25,
+                    marginTop: '5px',
+                    marginRight: '10px',
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => {
+                    setAutoSchdulevisible(true);
+                    setby('he');
+                  }}
+                >
+                  <HiOutlineCog />
+                </span>
+              </Tooltip>
+            </div>
+          )}
+          <div className="flex justify-end">
+            {isdisplaysetting && (
+              <div className="flex justify-end gap-2">
+                <div className="flex justify-justify-end gap-2">
+                  <div
+                    className=""
+                    style={{
+                      overflow: 'auto',
+                      whiteSpace: 'nowrap',
+                      width: 600,
+                      height: 45,
+                    }}
+                  >
+                    {startTimeArray.map((item, key) => (
+                      <ButtonE
+                        size="xs"
+                        className="ml-1 fpctimebtn"
+                        key={key}
+                        onClick={() => {
+                          const div1 = document.getElementById('div1');
+                          let targetElement = div1.querySelector(
+                            `.row-${item.columnIndex}`,
+                          );
+                          targetElement.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'center',
+                          });
+                        }}
+                        style={{
+                          backgroundColor:
+                            item.Diffrance > 0 ? '#f26f7f' : '#6ff2b9',
+                          //adjustColorBrightness('#b3ffec', 1 - item.totalDuration / 1000),
+                          color: 'black',
+                        }}
+                      >
+                        {item.StartTime}
+                      </ButtonE>
+                    ))}
+                  </div>
+
+                  <div className="flex justify-end gap-1">
+                    <Tooltip title="Undo">
+                      <ButtonE
+                        shape="circle"
+                        size="sm"
+                        variant="twoTone"
+                        onClick={() => {
+                          let currentversion =
+                            table1dataversions[cm2.current - 1];
+                          let previousversion =
+                            table1dataversions[cm2.current - 2];
+                          if (cm2.current > 1) {
+                            setundo(true);
+                            cm2.current--;
+                            setTable1Data(previousversion);
+                          }
+                        }}
+                        icon={<CgUndo />}
+                      />
+                    </Tooltip>
+                    {cm2.current < table1dataversions.length && (
+                      <Tooltip title="Redo">
+                        <ButtonE
+                          shape="circle"
+                          size="sm"
+                          variant="twoTone"
+                          onClick={() => {
+                            let nextversion = table1dataversions[cm2.current];
+                            setredo(true);
+                            cm2.current++;
+                            setTable1Data(nextversion);
+                          }}
+                          icon={<CgRedo />}
+                        />
+                      </Tooltip>
+                    )}
+
+                    <Tooltip title="Hide">
+                      <ButtonE
+                        shape="circle"
+                        size="sm"
+                        variant="twoTone"
+                        onClick={() => setInsertpromo(!Insertpromo)}
+                        icon={Insertpromo ? <CgLogIn /> : <CgLogOut />}
+                      />
+                    </Tooltip>
+                  </div>
+                  {/* <button onClick={() => console.log(breaknumbers)}>
+                                breaknumbers
+                            </button> */}
+                  {/* <button onClick={removepromos}>
+                                    removepromos
+                                </button> */}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      <Toast ref={toast} />
+      {/* add here froheaderadd code */}
+      <ContextMenu model={items} ref={cm} breakpoint="767px" />
+      <DragDropContext onDragEnd={handleDragEnd}>
+        {/* <Splitter style={{ height: '800px', border: 'none' }}>
+                    <SplitterPanel size={100}> */}
+        <div className={!Insertpromo ? 'flex-full-width' : 'flex gap-1'}>
+          <div
+            className="grid grid-cols-1 gap-2  table-container"
+            style={{
+              backgroundColor: '#1F2937',
+              overflow: 'auto',
+              maxHeight: '100vh',
+              maxWidth: maxWidth,
+              height: '80vh',
+            }}
+            id="div1"
+          >
+            {/* <Card className="pt-0"> */}
+            <ScrollBar>
+              <Droppable droppableId="table1">
+                {(provided) =>
+                  Columnright != null && (
+                    <Table
+                      ref={combineRefs(provided.innerRef, tableContainerRef)}
+                      className="resizable-table"
+                    >
+                      <THead className="theade">
+                        <Tr className="tre">
+                          {Columnright.map((city, index) => (
+                            <>
+                              <FilterColumn
+                                columnName={city.name}
+                                table2Data={table1Data}
+                                setTable2Data={setTable1Data}
+                                table2DataCopy={table1DataCopy}
+                                filterOptions={filterOptions}
+                                columnFilters={columnFilters}
+                                setColumnFilters={setColumnFilters}
+                                IsSortingAllow={false}
+                                selectedCities={Columnright}
+                                setSelectedCities={setColumnright}
+                                ColIndex={index}
+                                ColumnInfo={city}
+                                DisplayFilter={DisplayFilter}
+                              />
+                              {/* <OverlayPanel ref={op}>
+                              <Columns />
+                            </OverlayPanel>
+                            <OverlayPanel ref={op2}
+                              <Columns2 />
+                            </OverlayPanel> */}
+                            </>
+                          ))}
+                        </Tr>
+                      </THead>
+
+                      <TBody {...provided.droppableProps}>
+                        {table1Data.map((data, index) => (
+                          <>
+                            {/* data.F_C_S_P === 'C' && */}
+
+                            <Draggable
+                              key={data.id}
+                              draggableId={`row-${index}`}
+                              index={index}
+                            >
+                              {(provided) => (
+                                // (isComBrk || data.F_C_S_P !== 'C') && (
+                                <Tr
+                                  ref={combineRefs(
+                                    provided.innerRef,
+                                    tableContainerRef,
+                                  )}
+                                  {...provided.draggableProps}
+                                  {...provided.dragHandleProps}
+                                  // className={`draggble-row row-${data.Id}`}
+                                  className={`backcolor draggble-row row-${
+                                    data.Id
+                                  } ${
+                                    !isComBrk && data.F_C_S_P === 'CM'
+                                      ? 'Rowhidden'
+                                      : ''
+                                  }`}
+                                  onClick={(e) => {
+                                    // getpromo(data);
+                                    if (e.ctrlKey) {
+                                      setSelectedRows((prevSelectedRows) => {
+                                        if (prevSelectedRows.includes(index)) {
+                                          return prevSelectedRows.filter(
+                                            (row) => row !== index,
+                                          );
+                                        } else {
+                                          // If not selected, add it
+                                          return [...prevSelectedRows, index];
+                                        }
+                                      });
+                                    } else {
+                                      setSelectedRows([index]);
+                                    }
+                                  }}
+                                  onContextMenu={(e) => {
+                                    cm.current.show(e);
+                                    settobepastedrow(index);
+                                  }}
+                                >
+                                  {Columnright.map((city) => (
+                                    <Td
+                                      className={'jhh '}
+                                      key={city.name}
+                                      style={{
+                                        borderBottom: '1px solid #8c7777',
+                                        borderRight: '1px solid #8c7777',
+                                        ...(selectedRows.includes(index)
+                                          ? style.pressed
+                                          : {
+                                              backgroundColor:
+                                                data.EventDefaultBackColor,
+                                              color:
+                                                data.EventDefaultFrontColor,
+                                            }),
+                                      }}
+                                    >
+                                      <div
+                                        className={
+                                          city.name === 'Event_Name'
+                                            ? 'flex items-center '
+                                            : 'flex justify-center items-center'
+                                        }
+                                      >
+                                        {city.name === 'Event_Name' &&
+                                          data['Event_Name'] &&
+                                          data['F_C_S_P'] && (
+                                            <Avatar
+                                              size={20}
+                                              shape="circle"
+                                              className={classNames(
+                                                'mr-4 text-white dark:text-white bg-black dark:bg-black',
+                                              )}
+                                            >
+                                              {data['F_C_S_P']}
+                                            </Avatar>
+                                          )}
+                                        {data[city.name]}
+
+                                        {data['FPC_Time'].length === 0 &&
+                                          city.name === 'FPC_Time' &&
+                                          data['F_C_S_P'] === 'PR' &&
+                                          selectedRows.includes(index) && (
+                                            <div className="flex gap-2">
+                                              <button
+                                                onClick={() =>
+                                                  handleRowDeleteButtonClick(
+                                                    index,
+                                                  )
+                                                }
+                                              >
+                                                <span className="  pi pi-trash text-base"></span>
+                                              </button>
+                                              <button
+                                                onClick={() =>
+                                                  handleRowFilterButtonClick(
+                                                    index,
+                                                  )
+                                                }
+                                              >
+                                                <span className="  pi pi-info-circle text-base"></span>
+                                              </button>
+                                            </div>
+                                          )}
+                                      </div>
+                                    </Td>
+                                  ))}
+                                </Tr>
+                                // )
+                              )}
+                            </Draggable>
+                          </>
+                        ))}
+                        {provided.placeholder}
+                      </TBody>
+                    </Table>
+                  )
+                }
+              </Droppable>
+            </ScrollBar>
+            {/* </Card> */}
+          </div>
+          <Dial
+            isOpen={dialogIsOpen1}
+            onClose={() => setIsOpen1(false)}
+            onRequestClose={() => setIsOpen1(false)}
+          >
+            <h5 className="mb-4">Are you sure to Generate log. ?</h5>
+            <div className="text-right mt-6">
+              <ButtonE
+                className="ltr:mr-2 rtl:ml-2"
+                variant="plain"
+                onClick={() => setIsOpen1(false)}
+              >
+                No
+              </ButtonE>
+              <ButtonE
+                variant="solid"
+                // onClick={() =>
+                //     apiGettransmissionlog(Channel, convertDateToYMD(value), 'GEN')
+                //         .then((response) => response.data)
+                //         .then((data) => {
+                //             let resdt = updateStartTimes(data, true, false);
+                //             if (resdt) {
+                //                 setTable1Data(resdt);
+                //                 setIsOpen1(false)
+                //             }
+
+                //         })
+
+                // }
+              >
+                Yes
+              </ButtonE>
+            </div>
+          </Dial>
+          {Insertpromo ? (
+            <div className="card">
+              <div className=" ml-2 mb-2 grid grid-cols-9 gap-2">
+                <Tooltip title="Menu">
+                  <ButtonE
+                    className="text-lg"
+                    size="sm"
+                    variant={isdisplaysetting ? 'solid' : 'twoTone'}
+                    icon={isdisplaysetting ? <BsViewList /> : <BsViewList />}
+                    onClick={() => {
+                      setisdisplaysetting(!isdisplaysetting);
+                    }}
+                  />
+                </Tooltip>
+                {/* <Tooltip title="Generate log">
+                  <ButtonE
+                    className="text-lg"
+                    size="sm"
+                    variant={'twoTone'}
+                    icon={<HiDatabase />}
+                    onClick={() => {
+                      setIsOpen1(true);
+                    }}
+                  />
+                </Tooltip> */}
+                <Tooltip title="Export">
+                  <ButtonE
+                    className="text-lg"
+                    size="sm"
+                    variant="twoTone"
+                    icon={<HiOutlineUpload />}
+                    onClick={() => {
+                      const newArray = Columnright.map((item) => {
+                        const { header, ...rest } = item;
+                        return rest;
+                      });
+                      ExportxlswithColor(
+                        false,
+                        false,
+                        0,
+                        0,
+                        true,
+                        table1Data,
+                        'Promo Scheduling',
+                        newArray,
+                        true,
+                      );
+                    }}
+                  />
+                </Tooltip>
+                <Tooltip title="Start Time Program Base">
+                  <ButtonE
+                    className="text-lg"
+                    size="sm"
+                    variant={isProgrambase ? 'solid' : 'twoTone'}
+                    icon={isProgrambase ? <FaStopwatch /> : <FaStopwatch />}
+                    onClick={() => {
+                      setIsProgrambase(!isProgrambase);
+                      let res = updateStartTimes(
+                        table1Data,
+                        isProgrambase,
+                        isComBrk,
+                      );
+                      setTable1Data(res);
+                    }}
+                  />
+                </Tooltip>
+                <Tooltip title={ren}>
+                  <ButtonE
+                    className="text-lg"
+                    size="sm"
+                    // icon={<HiOutlineArrowsExpand />}
+                    variant={screenminimisze ? 'solid' : 'twoTone'}
+                    icon={
+                      screenminimisze ? (
+                        <FaCompressArrowsAlt />
+                      ) : (
+                        <HiOutlineArrowsExpand />
+                      )
+                    }
+                    onClick={() => {
+                      toggleFullScreen();
+                    }}
+                  />
+                  {/* FaCompressArrowsAlt */}
+                </Tooltip>
+                <Tooltip title="Filter">
+                  <ButtonE
+                    className="text-lg"
+                    size="sm"
+                    variant={DisplayFilter ? 'solid' : 'twoTone'}
+                    icon={DisplayFilter ? <HiFilter /> : <HiOutlineFilter />}
+                    onClick={() => {
+                      setDisplayFilter(!DisplayFilter);
+                    }}
+                  />
+                </Tooltip>
+                <Tooltip title="Copy Promo">
+                  <ButtonE
+                    className="text-lg"
+                    size="sm"
+                    variant={copypromo ? 'solid' : 'twoTone'}
+                    icon={copypromo ? <FaCopy /> : <FaRegCopy />}
+                    onClick={() => {
+                      setCopypromo(!copypromo);
+                    }}
+                  />
+                </Tooltip>
+                <Tooltip title="Show Commercial Break">
+                  <ButtonE
+                    className="text-lg"
+                    size="sm"
+                    variant={isComBrk ? 'solid' : 'twoTone'}
+                    icon={
+                      isComBrk ? <BsFillBadgeAdFill /> : <BsFillBadgeAdFill />
+                    }
+                    onClick={() => {
+                      setIsComBrk(!isComBrk);
+                      let res = updateStartTimes(table1Data, true, isComBrk);
+                      setTable1Data(res);
+                    }}
+                  />
+                </Tooltip>
+                <Tooltip title="Restore">
+                  <ButtonE
+                    className="text-lg"
+                    size="sm"
+                    variant={'twoTone'}
+                    icon={<HiOutlineRefresh />}
+                    onClick={() => {
+                      openDialog();
+                    }}
+                  />
+                </Tooltip>
+                <Tooltip title="Auto Shuffle">
+                  <ButtonE
+                    className="text-lg"
+                    size="sm"
+                    variant={'twoTone'}
+                    icon={<HiOutlineServer />}
+                    onClick={() => {
+                      openAutoShuffleDialog();
+                    }}
+                  />
+                </Tooltip>
+              </div>
+              <Card>
+                <div className="grid grid-flow-col auto-cols-fr gap-1">
+                  <div
+                    style={{
+                      display: 'block',
+                      marginLeft: 'auto',
+                      marginRight: 'auto',
+                    }}
+                  >
+                    <p className="CountDataLabel">Prog</p>
+                    <p className="CountDatavalue">
+                      {CountData.Programs.length}
+                    </p>
+                  </div>
+                  <div
+                    style={{
+                      display: 'block',
+                      marginLeft: 'auto',
+                      marginRight: 'auto',
+                    }}
+                  >
+                    <p className="CountDataLabel">Promo</p>
+                    <p className="CountDatavalue">{CountData.Promos.length}</p>
+                  </div>
+
+                  <div
+                    style={{
+                      display: 'block',
+                      marginLeft: 'auto',
+                      marginRight: 'auto',
+                    }}
+                  >
+                    <p className="CountDataLabel">Dur.</p>
+                    <p className="CountDatavalue">{CountData?.Duration}</p>
+                  </div>
+                </div>
+                {/* </Card>
+              <Card> */}
+                <div className="grid grid-cols-3 gap-2">
+                  {/* <ButtonE size='xs' onClick={() => setEventDataName('Event Search')}>Event</ButtonE> */}
+                  <ButtonE
+                    size="xs"
+                    onClick={() => {
+                      setEventDataName('Event Search');
+                      setSelectedEventType(1);
+                      setValue3(2);
+                      setname('00');
+                      LoadMasters(1);
+                      shworpomo();
+                      setDisplay(true);
+                    }}
+                  >
+                    Insert Promo
+                  </ButtonE>
+
+                  <ButtonE
+                    size="xs"
+                    onClick={() => setEventDataName('Rotation Info')}
+                  >
+                    Rotation Info
+                  </ButtonE>
+                  <ButtonE
+                    size="xs"
+                    onClick={() => setEventDataName('Break Wise Duration')}
+                  >
+                    Duration
+                  </ButtonE>
+                </div>
+              </Card>
+              {(() => {
+                switch (EventDataName) {
+                  case 'Event Search':
+                    return (
+                      <Card
+                        header={<HeaderTemplate />}
+                        footer={<FooterTemplate />}
+                      >
+                        {Display ? (
+                          <InputGroup className="mb-4">
+                            <div className="mr-1" style={{ minWidth: 110 }}>
+                              <Select
+                                placeholder="Event Type"
+                                size="xs"
+                                isSearchable={false}
+                                value={options.find(
+                                  (option) => option.value === value3,
+                                )}
+                                onChange={(e) => {
+                                  setValue3(e.value);
+                                }}
+                                options={options}
+                              />
+                            </div>
+
+                            <Input
+                              placeholder="Promo Caption\Video ID"
+                              size="sm"
+                              style={{ height: '38px', width: 'auto' }}
+                              onChange={(e) => {
+                                setname(e.target.value);
+                              }}
+                              value={name}
+                            />
+                            <ButtonE
+                              icon={<CgSearch />}
+                              onClick={() => shworpomo()}
+                            />
+                          </InputGroup>
+                        ) : null}
+
+                        <ConfirmPopup />
+                        <div style={{ width: 'auto' }}>
+                          <div
+                            style={{
+                              height: '300px',
+                              overflow: 'auto',
+                            }}
+                          >
+                            <ScrollBar>
+                              <Droppable droppableId="table2">
+                                {(provided, snapshot) => {
+                                  return (
+                                    <Table
+                                      ref={provided.innerRef}
+                                      {...provided.droppableProps}
+                                      className="table table-striped"
+                                    >
+                                      <THead>
+                                        <Tr className="tre">
+                                          {Columnleft.map((city, index) => (
+                                            <FilterColumn
+                                              columnName={city.name}
+                                              table2Data={table2Data}
+                                              setTable2Data={setTable2Data}
+                                              table2DataCopy={table2DataCopy}
+                                              filterOptions={filterOptions}
+                                              columnFilters={columnFilters}
+                                              setColumnFilters={
+                                                setColumnFilters
+                                              }
+                                              IsSortingAllow={true}
+                                              selectedCities={Columnleft}
+                                              setSelectedCities={setColumnleft}
+                                              ColIndex={index}
+                                              ColumnInfo={city}
+                                              DisplayFilter={DisplayFilter}
+                                            />
+                                          ))}
+                                        </Tr>
+                                      </THead>
+                                      <TBody {...provided.droppableProps}>
+                                        {table2Data &&
+                                          table2Data.map((data, index) => (
+                                            <Draggable
+                                              key={data.Id}
+                                              draggableId={`row1-${index}`}
+                                              index={index}
+                                            >
+                                              {(provided) => (
+                                                <Tr
+                                                  ref={provided.innerRef}
+                                                  {...provided.draggableProps}
+                                                  {...provided.dragHandleProps}
+                                                  className={`backcolor draggble-row row-${
+                                                    data.Id
+                                                  } ${
+                                                    !DisplayS &&
+                                                    data.F_C_S_P === 'S'
+                                                      ? 'Rowhidden'
+                                                      : ''
+                                                  }`}
+                                                  onClick={(e) => {
+                                                    const indices =
+                                                      findIndicesWithSameFPC_ID(
+                                                        table2Data,
+                                                        data.FPCIDForDrag,
+                                                      );
+                                                    if (indices.length > 0) {
+                                                      setSelectedRows2(indices);
+                                                      return;
+                                                    }
+                                                    // return
+                                                    // setSelectedRows2(indices)
+                                                    if (e.ctrlKey) {
+                                                      setSelectedRows2(
+                                                        (prevSelectedRows) => {
+                                                          // Check if the row is already selected
+                                                          if (
+                                                            prevSelectedRows.includes(
+                                                              index,
+                                                            )
+                                                          ) {
+                                                            // If selected, remove it
+                                                            return prevSelectedRows.filter(
+                                                              (row) =>
+                                                                row !== index,
+                                                            );
+                                                          } else {
+                                                            // If not selected, add it
+                                                            return [
+                                                              ...prevSelectedRows,
+                                                              index,
+                                                            ];
+                                                          }
+                                                        },
+                                                      );
+                                                    } else if (e.shiftKey) {
+                                                      e.preventDefault();
+                                                      if (
+                                                        selectedRows2.length
+                                                      ) {
+                                                        setSelectedRows2(
+                                                          (
+                                                            prevSelectedRows,
+                                                          ) => {
+                                                            // Check if the row is already selected
+                                                            if (
+                                                              prevSelectedRows.includes(
+                                                                index,
+                                                              )
+                                                            ) {
+                                                              // If selected, remove it
+                                                              return prevSelectedRows.filter(
+                                                                (row) =>
+                                                                  row !== index,
+                                                              );
+                                                            } else {
+                                                              // If not selected, add all
+                                                              let sorted =
+                                                                prevSelectedRows.sort();
+                                                              let max =
+                                                                sorted[
+                                                                  sorted.length -
+                                                                    1
+                                                                ];
+                                                              let shiftAdded =
+                                                                createArray(
+                                                                  max,
+                                                                  index,
+                                                                );
+
+                                                              return [
+                                                                ...prevSelectedRows,
+                                                                ...shiftAdded,
+                                                              ];
+                                                            }
+                                                          },
+                                                        );
+                                                      }
+                                                    } else {
+                                                      setSelectedRows2([index]);
+                                                    }
+                                                  }}
+                                                >
+                                                  {Columnleft.map((city) => (
+                                                    <Td
+                                                      className={'jhh '}
+                                                      key={city.name}
+                                                      style={{
+                                                        borderBottom:
+                                                          '1px solid #8c7777',
+                                                        borderRight:
+                                                          '1px solid #8c7777',
+                                                        ...(selectedRows2.includes(
+                                                          index,
+                                                        )
+                                                          ? style.pressed
+                                                          : {
+                                                              backgroundColor:
+                                                                data.EventDefaultBackColor,
+                                                              color:
+                                                                data.EventDefaultFrontColor,
+                                                              width: data.width,
+                                                            }),
+                                                      }}
+                                                    >
+                                                      <div
+                                                        className={
+                                                          city.name ===
+                                                          'Event_Name'
+                                                            ? 'flex items-center '
+                                                            : 'flex justify-center items-center'
+                                                        }
+                                                      >
+                                                        {data[city.name]}
+                                                      </div>
+                                                    </Td>
+                                                  ))}
+                                                </Tr>
+                                              )}
+                                            </Draggable>
+                                          ))}
+                                        {provided.placeholder}
+                                      </TBody>
+                                    </Table>
+                                  );
+                                }}
+                              </Droppable>
+                            </ScrollBar>
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  case 'Rotation Info':
+                    return (
+                      <Card header={<FilterheaderTemplate />}>
+                        <div style={{ width: 380 }}>
+                          <div
+                            style={{
+                              height: '400px',
+                              overflow: 'auto',
+                            }}
+                          >
+                            <ScrollBar>
+                              <Table>
+                                <THead>
+                                  <Tr>
+                                    <Th>Play Time</Th>
+                                    <Th>Event_Name</Th>
+                                    <Th>Duration</Th>
+                                  </Tr>
+                                </THead>
+
+                                <TBody>
+                                  {table3Data.map((row, index) => {
+                                    return (
+                                      <Tr
+                                        onClick={() => {
+                                          console.log(row.SequenceNo);
+
+                                          const div1 =
+                                            document.getElementById('div1');
+                                          let targetElement =
+                                            div1.querySelector(
+                                              `.rowINeed-${row.SequenceNo}`,
+                                            );
+                                          targetElement.scrollIntoView({
+                                            behavior: 'smooth',
+                                            block: 'center',
+                                          });
+                                        }}
+                                        style={{ cursor: 'pointer' }}
+                                        className={`backcolor`}
+                                        key={index}
+                                      >
+                                        <Td
+                                          // style={{
+                                          //     width: '120px',
+                                          //     maxWidth: '120px',
+                                          //     overflow: 'hidden',
+                                          //     textOverflow: 'ellipsis',
+                                          //     whiteSpace: 'nowrap',
+                                          //     opacity: '0.5',
+                                          //     border: '1px solid white'
+                                          // }}
+                                          className={'tde'}
+                                          style={{
+                                            ...(selectedRows2.includes(index)
+                                              ? style.pressed
+                                              : {
+                                                  backgroundColor:
+                                                    row.EventDefaultBackColor,
+                                                  color:
+                                                    row.EventDefaultFrontColor,
+                                                  width: row.width,
+                                                }),
+                                          }}
+                                        >
+                                          {row.Start_Time}
+                                        </Td>
+                                        <Td
+                                          className={'tde'}
+                                          style={{
+                                            ...(selectedRows2.includes(index)
+                                              ? style.pressed
+                                              : {
+                                                  backgroundColor:
+                                                    row.EventDefaultBackColor,
+                                                  color:
+                                                    row.EventDefaultFrontColor,
+                                                  width: row.width,
+                                                }),
+                                          }}
+                                        >
+                                          {row.Event_Name}
+                                        </Td>
+
+                                        <Td
+                                          className={'tde'}
+                                          style={{
+                                            ...(selectedRows2.includes(index)
+                                              ? style.pressed
+                                              : {
+                                                  backgroundColor:
+                                                    row.EventDefaultBackColor,
+                                                  color:
+                                                    row.EventDefaultFrontColor,
+                                                  width: row.width,
+                                                }),
+                                          }}
+                                        >
+                                          {row.Duration}
+                                        </Td>
+                                      </Tr>
+                                    );
+                                  })}
+                                </TBody>
+                              </Table>
+                            </ScrollBar>
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  case 'Break Wise Duration':
+                    return (
+                      <Card header={<BreakwiseheaderTemplate />}>
+                        <Breakwise
+                          className="p-0"
+                          BreakwiseData={BreakwiseData}
+                          colorMapping={colorMapping}
+                        />
+                      </Card>
+                    );
+
+                  default:
+                    return null;
+                }
+              })()}
+            </div>
+          ) : (
+            <></>
+          )}
+        </div>
+
+        {/* </SplitterPanel>
+                </Splitter> */}
+      </DragDropContext>
+      <StickyFooter
+        className="-mx-8 px-8 flex items-center justify-between py-4 pt-2 pb-2"
+        stickyClass="border-t bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+      >
+        <div className="md:flex items-center">
+          <ButtonE
+            type="button"
+            onClick={discard}
+            className="mr-2"
+            variant=""
+            size="sm"
+            icon={<HiBackspace />}
+          >
+            Back
+          </ButtonE>
+          &nbsp;
+          <ButtonE
+            onClick={PromoSchdulingSave}
+            variant="solid"
+            type="submit"
+            size="sm"
+            disabled={
+              convertDateFormatyyyyMMdd(value) <
+              format(new Date(), 'yyyy-MM-dd')
+            }
+            icon={<AiOutlineSave />}
+          >
+            Save
+          </ButtonE>{' '}
+          {convertDateFormatyyyyMMdd(value) <
+            format(new Date(), 'yyyy-MM-dd') && (
+            <p className="ml-2 text-red-500">
+              Backdated Promos are non-editable
+            </p>
+          )}
+        </div>
+
+        <div
+          id="myblock"
+          className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 p-4 pt-0 pb-1 bg-gray-100 dark:bg-gray-800"
+        >
+          <div className="flex flex-col lbl">
+            <span className="font-medium text-gray-600 dark:text-gray-300 text-sm">
+              Selected Promos
+            </span>
+            <span className="font-medium text-lg">
+              {selectedPromos}-[{selectedPromoDuration}]
+            </span>
+          </div>
+
+          <div className="flex flex-col lbl">
+            <span className="font-medium text-gray-600 dark:text-gray-300 text-sm">
+              Segments
+            </span>
+            <span className="font-medium text-lg">{segmenttotalDuration}</span>
+          </div>
+          <div className="flex flex-col lbl">
+            <span className="font-medium text-gray-600 dark:text-gray-300 text-sm">
+              Commericals
+            </span>
+            <span className="font-medium text-lg   ">{commercialDuration}</span>
+          </div>
+
+          <div className="flex flex-col lbl">
+            <span className="font-medium text-gray-600 dark:text-gray-300 text-sm">
+              Promos
+            </span>
+            <span className="font-medium text-lg  ">{PromototalDuration}</span>
+          </div>
+          {/* <div className="flex flex-col lbl">
+                        <span className="font-medium text-gray-600 dark:text-gray-300 text-sm">
+                            Songs
+                        </span>
+                        <span className="font-medium text-lg  ">
+                            {promodata[0]?.SongDuration}
+                        </span>colums s
+                    </div> */}
+          <div className="flex flex-col lbl">
+            <span className="font-medium text-gray-600 dark:text-gray-300 text-sm">
+              Slot Duration
+            </span>
+            <span className="font-medium text-lg">
+              {' '}
+              {/* {promodata[0]?.SlotDuration} */}
+              {SlotDuration}
+            </span>
+          </div>
+          <div className="flex flex-col lbl">
+            <span className="font-medium text-gray-600 dark:text-gray-300 text-sm">
+              Total
+            </span>
+            {selectedRows.length > 0 && (
+              <span className="font-medium text-lg  ">
+                {addTimeDurations(
+                  addTimeDurations(
+                    addTimeDurations(PromototalDuration, '00:00:00:00'),
+                    segmenttotalDuration,
+                  ),
+                  commercialDuration,
+                )}
+              </span>
+            )}
+          </div>
+        </div>
+      </StickyFooter>
+      <Dialog
+        header="Colums Setting"
+        visible={AutoSchdulevisible}
+        position="top"
+        style={{ width: '40vw', backgroundColor: '#111827' }}
+        onHide={() => setAutoSchdulevisible(false)}
+        footer={AutoSchdulefooterContent}
+        draggable={false}
+        resizable={false}
+        className="lmop"
+      >
+        <Columns2 />
+      </Dialog>
+      <Dial
+        isOpen={dialogIsOpen}
+        onClose={onDialogClose}
+        onRequestClose={onDialogClose}
+      >
+        <h5 className="mb-4">Restore Previous Version </h5>
+        <Select
+          placeholder="Kindly Select"
+          options={audit}
+          onChange={(e) => setauditValue(e)}
+        ></Select>
+        {/* <Button onClick={hsx} >
+          Get
+        </Button> */}
+
+        <div className="text-right mt-6">
+          <ButtonE className="ltr:mr-2 rtl:ml-2" onClick={onDialogClose}>
+            Cancel
+          </ButtonE>
+          <ButtonE variant="solid" onClick={onDialogOk}>
+            Ok
+          </ButtonE>
+        </div>
+      </Dial>
+      <Dial
+        isOpen={isOpenAutoShuffle}
+        onClose={AutoShuffleDialogClose}
+        onRequestClose={AutoShuffleDialogClose}
+      >
+        <h5 className="mb-4">Auto Shuffle</h5>
+        <Select
+          placeholder="Kindly Select"
+          options={promoTemplate}
+          onChange={(e) => setAutoShuffleID(e.value)}
+        ></Select>
+        <ul className="list-none p-0 m-0">
+          <li className="flex align-items-center py-3 px-2 border-top-1 border-300 flex-wrap">
+            <div className="mr-5 flex align-items-center mt-3">
+              <TimeInput value={starttime} onChange={setstarttime} />
+              <TimeInput value={endtime} onChange={setendtime} />
+            </div>
+          </li>
+        </ul>
+
+        <Input
+          size="sm"
+          placeholder="Duration"
+          maxLength="12"
+          name="Duration"
+          value={promoDuration}
+          onChange={(e) =>
+            handleChangeWithFrameSingleValue(e, setPromoDuration)
+          }
+          onBlur={handleBlur}
+        />
+
+        <div className="text-right mt-6">
+          <ButtonE
+            className="ltr:mr-2 rtl:ml-2"
+            variant="plain"
+            onClick={AutoShuffleDialogClose}
+          >
+            Cancel
+          </ButtonE>
+          <ButtonE variant="solid" onClick={AutoShuffles}>
+            Ok
+          </ButtonE>
+        </div>
+      </Dial>
+      <Dial isOpen={DialIsOpen} onClose={() => setDialIsOpen(false)}>
+        <h5 className="mb-4">Confirm You Want to Delete</h5>
+        <div className="text-right mt-6">
+          <ButtonE
+            className="ltr:mr-2 rtl:ml-2"
+            variant="plain"
+            onClick={() => setDialIsOpen(false)}
+          >
+            Cancel
+          </ButtonE>
+          <ButtonE variant="solid" onClick={() => deleteallpromos()}>
+            Okay
+          </ButtonE>
+        </div>
+      </Dial>
+    </>
+  );
+};
+
+// notusecode
+
+const colourOptions = [
+  { value: 'ocean', label: 'Ocean', color: '#00B8D9' },
+  { value: 'blue', label: 'Blue', color: '#0052CC' },
+  { value: 'purple', label: 'Purple', color: '#5243AA' },
+  { value: 'red', label: 'Red', color: '#FF5630' },
+  { value: 'orange', label: 'Orange', color: '#FF8B00' },
+  { value: 'yellow', label: 'Yellow', color: '#FFC400' },
+  { value: 'green', label: 'Green', color: '#36B37E' },
+  { value: 'forest', label: 'Forest', color: '#00875A' },
+  { value: 'slate', label: 'Slate', color: '#253858' },
+  { value: 'silver', label: 'Silver', color: '#666666' },
+];
+
+// not use code
+
+export default PromoSchedulingPage;
+
+const style = {
+  pressed: {
+    //color: 'rgb(243 244 246/var(--tw-text-opacity))',
+    boxShadow: '0px 0px 5px rgb(198, 198, 198)',
+    transition: 'background-color 0.1s ease-in-out',
+    scale: 1,
+  },
+  pressed2: {
+    //color: 'rgb(243 244 246/var(--tw-text-opacity))',
+    boxShadow: '0px 0px 5px rgb(13, 12, 12)',
+    transition: 'background-color 0.1s ease-in-out',
+    scale: 1,
+  },
+};

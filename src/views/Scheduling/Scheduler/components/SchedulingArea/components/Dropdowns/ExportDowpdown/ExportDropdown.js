@@ -1,0 +1,97 @@
+import { Card } from 'components/ui';
+import React, { useContext, useEffect, useRef } from 'react';
+import { openNotification } from 'views/Controls/GLOBALFUNACTION';
+import SchedulerContext from 'views/Scheduling/Scheduler/context/SchedulerContext';
+import {
+  exportFormatTypesEnum,
+  featuresEnum,
+} from 'views/Scheduling/Scheduler/enum';
+import Format from './Format';
+import { PiExportBold } from 'react-icons/pi';
+import { handleExport } from '../../Toolbar/utils/utils';
+import { exportFormat2 } from '../../Toolbar/utils/playoutExportUtils/format2';
+import { useSelector } from 'react-redux';
+
+function ExportDropdown() {
+  /* REDUX */
+  const channel = useSelector((state) => state.locale.selectedChannel);
+
+  /* CONTEXT */
+  const {
+    page,
+    date,
+    setActiveFeatures,
+    schedulingTableData,
+    schedulingTableManagedColumns,
+  } = useContext(SchedulerContext);
+
+  /* HOOKS */
+  const dropdownRef = useRef(null);
+
+  /* USE EFFECTS */
+  useEffect(() => {
+    document.addEventListener('mousedown', closeDropDowns);
+    return () => {
+      document.removeEventListener('mousedown', closeDropDowns);
+    };
+  }, [dropdownRef]);
+
+  /* EVENT HANDLERS */
+  const handleClick = (format) => {
+    try {
+      if (format === exportFormatTypesEnum.FORMAT_1)
+        handleExport(
+          page,
+          schedulingTableManagedColumns.visibleColumns,
+          [...schedulingTableData].splice(1),
+        );
+      else if (format === exportFormatTypesEnum.FORMAT_2) {
+        exportFormat2([...schedulingTableData].splice(1), date, channel, page);
+      }
+    } catch (error) {
+      openNotification('danger', 'Something went wrong');
+      console.error(error);
+    }
+  };
+
+  const closeDropDowns = (event) => {
+    try {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setActiveFeatures((prevState) => ({
+          ...prevState,
+          [featuresEnum.EXPORT]: {
+            ...prevState[featuresEnum.EXPORT],
+            isDropdownVisible: false,
+          },
+        }));
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  return (
+    <Card
+      className="!bg-gray-700 text-white mt-2 absolute left-1/2 top-full z-[100]"
+      bodyClass="px-0 pt-1.5"
+      style={{ boxShadow: '#000000cc 0px 0px 10px', minWidth: '14rem' }}
+      ref={dropdownRef}
+    >
+      <p className="text-base mb-1.5 px-3">Export</p>
+      <div className="h-[30vh] overflow-scroll no-scrollbar flex flex-col">
+        <Format
+          handleClick={() => handleClick(exportFormatTypesEnum.FORMAT_1)}
+          icon={<PiExportBold className="text-base" />}
+          title="Format 1"
+        />
+        <Format
+          handleClick={() => handleClick(exportFormatTypesEnum.FORMAT_2)}
+          icon={<PiExportBold className="text-base" />}
+          title="Format 2"
+        />
+      </div>
+    </Card>
+  );
+}
+
+export default ExportDropdown;

@@ -1,0 +1,43 @@
+import { Segment } from 'components/ui';
+
+function QuickFilterTags({ quickFilter, setQuickFilter, quickFilterOptions }) {
+  /* EVENT HANDLERS */
+  const handleQuickFilterChange = (filter, onSegmentItemClick) => {
+    try {
+      onSegmentItemClick();
+      setQuickFilter(filter);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  return (
+    <Segment
+      value={[quickFilter]}
+      className="flex gap-3 overflow-auto no-scrollbar"
+    >
+      {quickFilterOptions.map((filter) => (
+        <Segment.Item key={filter} value={filter}>
+          {({ active, value, onSegmentItemClick }) => {
+            return (
+              <div
+                className={`flex flex-col justify-center items-center cursor-pointer py-2 px-3 transition rounded hover:bg-teal-700 text-sm ${
+                  active
+                    ? 'bg-teal-700 text-white'
+                    : 'bg-transparent border border-teal-700 text-gray-800 dark:text-gray-200'
+                }`}
+                onClick={() =>
+                  handleQuickFilterChange(value, onSegmentItemClick)
+                }
+              >
+                {value.toUpperCase()}
+              </div>
+            );
+          }}
+        </Segment.Item>
+      ))}
+    </Segment>
+  );
+}
+
+export default QuickFilterTags;

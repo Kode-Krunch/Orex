@@ -1,0 +1,903 @@
+import classNames from 'classnames';
+import {
+  playoutExportFormatEnum,
+  featuresEnum,
+  operationTypesEnum,
+  pagesEnum,
+  rowDataTypesEnum,
+  tableTypesEnum,
+  secondaryTableTypesEnum,
+} from '../../../../../enum';
+import { convertDateToDMY } from 'components/validators';
+import {
+  apideletedataPosttransmissionlogaddaudit,
+  apiPosttransmissionlogaddaudit,
+  apiPosttransmissionloginsertdata,
+  apiPUTtransmissionlogupdatedata,
+  apiUpdateSpotStatus,
+  PostNTCScheduling,
+  Postpromoscheduling,
+  PostSongscheduling,
+  Posttransmissionlog,
+  PutCommercialSave,
+} from 'services/SchedulingService';
+import {
+  convertDateFormatyyyyMMdd,
+  openNotification,
+  parseDurationE,
+} from 'views/Controls/GLOBALFUNACTION';
+import { setUnsavedWork } from 'store/auth/scheduling';
+import { ExportxlswithColor } from 'views/Controls/ExportxlswithColor';
+import {
+  PLAYOUT_EXPORT_FORMAT,
+  FORMATTED_EXPORT_COLUMNS,
+} from 'views/Scheduling/Scheduler/constants';
+import { format } from 'date-fns';
+import { exportPlayoutForPly } from './playoutExportUtils/ply';
+import { exportPlayoutForOsc } from './playoutExportUtils/osc';
+import { exportPlayoutForCSV } from './playoutExportUtils/csv';
+import { exportPlayoutForUSAFoodFood2 } from './playoutExportUtils/usaFoodFood2';
+import { exportFormat2 } from './playoutExportUtils/format2';
+import { CLIENT } from 'views/Controls/clientListEnum';
+import { exportPlayoutForXML } from './playoutExportUtils/xml';
+
+const getClassNames = (isFeatureActive) => {
+  try {
+    return classNames(
+      isFeatureActive
+        ? '!bg-teal-700 hover:!bg-teal-700'
+        : 'hover:!bg-teal-800',
+      'transition-all',
+    );
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+const handleFeatureClick = ({
+  feature,
+  page,
+  maintainScrolledOffsetOfTables,
+  activeFeatures,
+  setActiveFeatures,
+  setSchedulingTableSelectedRows,
+  setLeftClickedSchTableRow,
+  setUpdateSchedulerStateInRedux,
+  executeOperation,
+  secondaryAreaZindexRef,
+}) => {
+  try {
+    if (
+      feature === featuresEnum.MANAGE_COLUMNS ||
+      feature === featuresEnum.EXPORT
+    ) {
+      setActiveFeatures({
+        ...activeFeatures,
+        [feature]: {
+          ...activeFeatures[feature],
+          isDropdownVisible: true,
+        },
+      });
+    } else if (
+      feature === featuresEnum.HIDE_COMMERCIALS ||
+      feature === featuresEnum.SHOW_PROGRAM_BASE_TIME ||
+      feature === featuresEnum.SHOW_NTC ||
+      feature === featuresEnum.FILTER ||
+      feature === featuresEnum.SHOW_SCTE
+    ) {
+      /* Make feature active */
+      const newActiveFeatures = {
+        ...activeFeatures,
+        [feature]: !activeFeatures[feature],
+      };
+      if (feature === featuresEnum.HIDE_COMMERCIALS)
+        executeOperation({
+          operation: operationTypesEnum.HIDE_COMMERCIAL,
+          isHideCommercial: newActiveFeatures[feature],
+          externalActiveFeatures: newActiveFeatures,
+        });
+      else if (feature === featuresEnum.SHOW_PROGRAM_BASE_TIME)
+        executeOperation({
+          operation: operationTypesEnum.SHOW_PROGRAM_BASE_TIME,
+          isShowProgramBaseTime: newActiveFeatures[feature],
+          externalActiveFeatures: newActiveFeatures,
+        });
+      else if (feature === featuresEnum.SHOW_NTC)
+        executeOperation({
+          operation: operationTypesEnum.SHOW_NTC,
+          isShowNTC: newActiveFeatures[feature],
+          externalActiveFeatures: newActiveFeatures,
+        });
+      else if (feature === featuresEnum.FILTER) {
+        executeOperation({
+          operation: operationTypesEnum.FILTER_ROW,
+          tableType: [tableTypesEnum.SCHEDULING, tableTypesEnum.SECONDARY],
+          selectedFilters: [],
+          externalActiveFeatures: {
+            ...newActiveFeatures,
+            [featuresEnum.SHOW_NTC]: true,
+          },
+        });
+      } else if (feature === featuresEnum.SHOW_SCTE) {
+        executeOperation({
+          operation: operationTypesEnum.SHOW_SCTE,
+          isShowSCTE: newActiveFeatures[feature],
+          externalActiveFeatures: newActiveFeatures,
+        });
+      }
+    } else if (feature === featuresEnum.HOURS) {
+      setActiveFeatures({
+        ...activeFeatures,
+        [feature]: !activeFeatures[feature],
+        [featuresEnum.FPC_TIME]: false,
+      });
+    } else if (feature === featuresEnum.FPC_TIME) {
+      setActiveFeatures({
+        ...activeFeatures,
+        [feature]: !activeFeatures[feature],
+        [featuresEnum.HOURS]: false,
+      });
+    } else if (feature === featuresEnum.SUMMARY) {
+      setSchedulingTableSelectedRows([]);
+      setLeftClickedSchTableRow(null);
+      setActiveFeatures({
+        ...activeFeatures,
+        [feature]: !activeFeatures[feature],
+      });
+      incrementZindex(secondaryAreaZindexRef, feature);
+    } else if (feature === featuresEnum.INSERT) {
+      if (
+        page === pagesEnum.FINAL_LOG ||
+        page === pagesEnum.COMMERCIAL ||
+        page === pagesEnum.NTC
+      ) {
+        setActiveFeatures({
+          ...activeFeatures,
+          [feature]: {
+            ...activeFeatures[feature],
+            isDropdownVisible: true,
+          },
+        });
+      } else {
+        setSchedulingTableSelectedRows([]);
+        setLeftClickedSchTableRow(null);
+        let newActiveFeatures = {
+          ...activeFeatures,
+          [featuresEnum.SUMMARY]: false,
+          [featuresEnum.ROTATION_INFO]: false,
+          [featuresEnum.ROTATION_INFO_WITH_MANAGE_COLUMNS]: false,
+          [featuresEnum.RULE_CHECK]: false,
+          [featuresEnum.CHANGE_PROGRAM]: false,
+          [featuresEnum.MANAGE_SEGMENT]: false,
+          [featuresEnum.HOURWISE_INVENTORY]: false,
+          [featuresEnum.DURATION]: false,
+          [feature]: {
+            ...activeFeatures[feature],
+            isDropdownVisible: false,
+            isActive: true,
+          },
+        };
+        if (page === pagesEnum.PROMO)
+          newActiveFeatures[feature].eventType = secondaryTableTypesEnum.PROMO;
+        else if (page === pagesEnum.SONG)
+          newActiveFeatures[feature].eventType = secondaryTableTypesEnum.SONG;
+        setActiveFeatures(newActiveFeatures);
+      }
+    } else if (feature === featuresEnum.RULE_CHECK) {
+      setSchedulingTableSelectedRows([]);
+      setLeftClickedSchTableRow(null);
+      setActiveFeatures({
+        ...activeFeatures,
+        [feature]: {
+          ...activeFeatures[feature],
+          isDropdownVisible: true,
+        },
+      });
+      incrementZindex(secondaryAreaZindexRef, feature);
+    } else if (feature === featuresEnum.ROTATION_INFO) {
+      setSchedulingTableSelectedRows((prevState) =>
+        prevState.length > 0 ? [prevState.pop()] : [],
+      );
+      setLeftClickedSchTableRow(null);
+      setActiveFeatures({
+        ...activeFeatures,
+        [feature]: !activeFeatures[feature],
+      });
+      incrementZindex(secondaryAreaZindexRef, feature);
+    } else if (feature === featuresEnum.ROTATION_INFO_WITH_MANAGE_COLUMNS) {
+      setSchedulingTableSelectedRows((prevState) =>
+        prevState.length > 0 ? [prevState.pop()] : [],
+      );
+      setLeftClickedSchTableRow(null);
+      setActiveFeatures({
+        ...activeFeatures,
+        [featuresEnum.INSERT]: false,
+        [featuresEnum.CHANGE_PROGRAM]: false,
+        [featuresEnum.MANAGE_SEGMENT]: false,
+        [featuresEnum.ROTATION_INFO]: false,
+        [feature]: !activeFeatures[feature],
+      });
+      incrementZindex(secondaryAreaZindexRef, feature);
+    } else if (feature === featuresEnum.CHANGE_PROGRAM) {
+      setSchedulingTableSelectedRows([]);
+      setLeftClickedSchTableRow(null);
+      setActiveFeatures({
+        ...activeFeatures,
+        [featuresEnum.INSERT]: false,
+        [featuresEnum.SUMMARY]: false,
+        [featuresEnum.RULE_CHECK]: false,
+        [featuresEnum.ROTATION_INFO]: false,
+        [featuresEnum.ROTATION_INFO_WITH_MANAGE_COLUMNS]: false,
+        [featuresEnum.MANAGE_SEGMENT]: false,
+        [featuresEnum.HOURWISE_INVENTORY]: false,
+        [featuresEnum.DURATION]: false,
+        [feature]: !activeFeatures[feature],
+      });
+    } else if (feature === featuresEnum.MANAGE_SEGMENT) {
+      setSchedulingTableSelectedRows([]);
+      setLeftClickedSchTableRow(null);
+      setActiveFeatures({
+        ...activeFeatures,
+        [featuresEnum.INSERT]: false,
+        [featuresEnum.SUMMARY]: false,
+        [featuresEnum.RULE_CHECK]: false,
+        [featuresEnum.ROTATION_INFO]: false,
+        [featuresEnum.ROTATION_INFO_WITH_MANAGE_COLUMNS]: false,
+        [featuresEnum.CHANGE_PROGRAM]: false,
+        [featuresEnum.HOURWISE_INVENTORY]: false,
+        [featuresEnum.DURATION]: false,
+        [feature]: !activeFeatures[feature],
+      });
+    } else if (feature === featuresEnum.HOURWISE_INVENTORY) {
+      setSchedulingTableSelectedRows([]);
+      setLeftClickedSchTableRow(null);
+      setActiveFeatures({
+        ...activeFeatures,
+        [feature]: !activeFeatures[feature],
+      });
+      incrementZindex(secondaryAreaZindexRef, feature);
+    } else if (feature === featuresEnum.DURATION) {
+      setSchedulingTableSelectedRows([]);
+      setLeftClickedSchTableRow(null);
+      setActiveFeatures({
+        ...activeFeatures,
+        [feature]: !activeFeatures[feature],
+      });
+      incrementZindex(secondaryAreaZindexRef, feature);
+    } else {
+      const featureValue = !activeFeatures[feature];
+      setActiveFeatures({
+        ...activeFeatures,
+        [feature]: featureValue,
+      });
+      if (feature === featuresEnum.MAXIMIZE) {
+        handleMaximize(featureValue);
+      }
+    }
+    setUpdateSchedulerStateInRedux(true);
+    maintainScrolledOffsetOfTables();
+  } catch (error) {
+    openNotification('danger', 'Something went wrong');
+    console.error(error);
+  }
+};
+
+const handleMaximize = (isMaximize) => {
+  try {
+    if (isMaximize) {
+      if (document.documentElement.requestFullscreen)
+        document.documentElement.requestFullscreen();
+      else if (document.documentElement.mozRequestFullScreen)
+        document.documentElement.mozRequestFullScreen();
+      else if (document.documentElement.webkitRequestFullscreen)
+        document.documentElement.webkitRequestFullscreen();
+      else if (document.documentElement.msRequestFullscreen)
+        document.documentElement.msRequestFullscreen();
+    } else {
+      if (document.exitFullscreen) document.exitFullscreen();
+      else if (document.mozCancelFullScreen) document.mozCancelFullScreen();
+      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+      else if (document.msExitFullscreen) document.msExitFullscreen();
+    }
+  } catch (error) {
+    throw error;
+  }
+};
+
+const handleExport = (page, columns, tableData) => {
+  try {
+    let exportFileName = '';
+    if (page === pagesEnum.PROMO) {
+      exportFileName = 'Promo_Schedule';
+    } else if (page === pagesEnum.SONG) {
+      exportFileName = 'Song_Schedule';
+    } else if (page === pagesEnum.COMMERCIAL) {
+      exportFileName = 'Commercial_Schedule';
+    } else if (page === pagesEnum.NTC) {
+      exportFileName = 'NTC_Schedule';
+    } else if (page === pagesEnum.FINAL_LOG) {
+      exportFileName = 'Final_Log';
+    }
+    ExportxlswithColor(
+      false,
+      false,
+      0,
+      0,
+      true,
+      tableData,
+      exportFileName,
+      columns,
+      true,
+    );
+  } catch (error) {
+    openNotification('danger', 'Something went wrong while exporting');
+    console.error(error);
+  }
+};
+
+const handleFormattedExport = (date, tableData) => {
+  try {
+    let exportFileName = 'Final_Log_Formatted_Export';
+    let newTableData = [];
+    tableData.forEach((row) => {
+      let newRow = {
+        ...row,
+        Date: format(date, 'dd-MMM-yyyy'),
+      };
+      FORMATTED_EXPORT_COLUMNS.forEach((column) => {
+        if (!(column.accessorKey in newRow)) {
+          newRow[column.accessorKey] = '';
+        }
+      });
+      newTableData.push(newRow);
+    });
+    ExportxlswithColor(
+      false,
+      false,
+      0,
+      0,
+      true,
+      newTableData,
+      exportFileName,
+      FORMATTED_EXPORT_COLUMNS,
+      true,
+    );
+  } catch (error) {
+    openNotification('danger', 'Something went wrong while exporting');
+    console.error(error);
+  }
+};
+
+const getDataToPostForPromoSchedule = (schedulingTableData, channel, date) => {
+  // Helper function to process scheduling data
+  console.log(schedulingTableData);
+
+  const processEventData = (data) => {
+    return data.reduce((result, event, index, array) => {
+      if (event.F_C_S_P === 'PR') {
+        // Clone the current event to avoid direct mutation
+        const updatedEvent = { ...event };
+
+        // Find the nearest 'CT' event above the current one
+        const nearestCT = array
+          .slice(0, index)
+          .reverse()
+          .find((item) => item.F_C_S_P === 'CT');
+
+        // If found, assign the 'FPC_Time' from the nearest 'CT' event
+        if (nearestCT) {
+          updatedEvent.FPC_Time = nearestCT.FPC_Time;
+        }
+        result.push(updatedEvent);
+      }
+      return result;
+    }, []); // Start with an empty array for results
+  };
+
+  try {
+    // Process the data
+    const promoRows = processEventData(schedulingTableData)
+      .map((item, index) => ({ position: index + 1, ...item }))
+      .filter((item) => item.F_C_S_P === rowDataTypesEnum.PROMO);
+
+    // Transform the processed data into the desired format
+    return promoRows.map((row) => ({
+      LocationCode: channel.LocationCode,
+      ChannelCode: channel.ChannelCode,
+      TelecastDate: convertDateFormatyyyyMMdd(date),
+      NewTelecastDate: convertDateFormatyyyyMMdd(date),
+      TelecastTime: row.Start_Time,
+      ContentCode: row.ContentCode,
+      BreakNumber: Number(row.BreakNumber),
+      SeasonNo: row.SeasonNo,
+      EpisodeNo: row.Ep_No,
+      Position: row.position,
+      ActualTelecastTime: row.FPC_Time + ':00:00',
+      DayOfWeek: 0,
+      NewDayOfWeek: 0,
+      FPC_ID: row.FPC_ID,
+      IsActive: 1,
+      PromoTypeCode: Number(row.PromoTypeCode),
+      PromoCode: row.PromoCode,
+    }));
+  } catch (error) {
+    console.error('Error processing promo schedule data:', error);
+    throw error;
+  }
+};
+
+const getDataToPostForSongSchedule = (schedulingTableData, channel, date) => {
+  const processEventData = (data) => {
+    return data.reduce((result, event, index, array) => {
+      if (event.F_C_S_P === 'SG') {
+        // Clone the current event to avoid direct mutation
+        const updatedEvent = { ...event };
+
+        // Find the nearest 'CT' event above the current one
+        const nearestCT = array
+          .slice(0, index)
+          .reverse()
+          .find((item) => item.F_C_S_P === 'CT');
+
+        // If found, assign the 'FPC_Time' from the nearest 'CT' event
+        if (nearestCT) {
+          updatedEvent.FPC_Time = nearestCT.FPC_Time;
+        }
+        result.push(updatedEvent);
+      }
+      return result;
+    }, []); // Start with an empty array for results
+  };
+
+  try {
+    const songRows = processEventData(schedulingTableData)
+      .map((item, index) => ({ position: index + 1, ...item }))
+      .filter((item) => item.F_C_S_P === rowDataTypesEnum.SONG);
+    return songRows.map((row) => ({
+      LocationCode: channel.LocationCode,
+      ChannelCode: channel.ChannelCode,
+      TelecastDate: convertDateFormatyyyyMMdd(date),
+      NewTelecastDate: convertDateFormatyyyyMMdd(date),
+      TelecastTime: row.Start_Time,
+      ContentCode: row.ContentCode,
+      BreakNumber: Number(row.BreakNumber),
+      SeasonNo: row.SeasonNo,
+      EpisodeNo: row.Ep_No,
+      Position: row.position,
+      ActualTelecastTime: row.FPC_Time + ':00:00',
+      DayOfWeek: 0,
+      NewDayOfWeek: 0,
+      FPC_ID: row.FPC_ID,
+      IsActive: 1,
+      SongTypeCode: Number(row.SongTypeCode),
+      SongCode: row.SongCode,
+      SongCategoryCode: Number(row.SongCategoryCode),
+    }));
+  } catch (error) {
+    throw error;
+  }
+};
+
+const getDataToPostForCommercialSchedule = (schedulingTableData) => {
+  try {
+    return schedulingTableData
+      .filter((row) => row.F_C_S_P === rowDataTypesEnum.COMMERCIAL)
+      .map((row, index) => ({
+        Id: row.BookingDetailID,
+        BreakNumber: row.BreakNumber != null ? row.BreakNumber : 0,
+        ContentCode: row.ContentCode,
+        logged: 1,
+        BookingStatus: 'B',
+        SpotPositionNumber: index + 1,
+        ScheduleTime: row.ScheduleTime,
+      }));
+  } catch (error) {
+    throw error;
+  }
+};
+
+const getDataToPostForNTCSchedule = (schedulingTableData, channel, date) => {
+  try {
+    return schedulingTableData
+      .filter((row) => row.F_C_S_P === rowDataTypesEnum.NTC)
+      .map((row, index) => ({
+        Position: index + 1,
+        LocationCode: channel.LocationCode,
+        ChannelCode: channel.ChannelCode,
+        TelecastDate: convertDateFormatyyyyMMdd(date),
+        NewTelecastDate: convertDateFormatyyyyMMdd(date),
+        TelecastTime: row.Start_Time,
+        NTCCode: row.NTCCode,
+        ContentCode: row.ContentCode,
+        BreakNumber: row.BreakNumber != null ? row.BreakNumber : 0,
+        SeasonNo: row.SeasonNo,
+        EpisodeNo: row.Ep_No,
+        NTCTypeCode: Number(row.NTCTypeCode),
+        ActualTelecastTime: row.Start_Time,
+        NTCDuration: row.NTCDuration,
+        DayOfWeek: 0,
+        NewDayOfWeek: 0,
+        FPC_ID: row.FPC_ID,
+        Sec_ID: 0,
+        NTCLayer: row.NTCLayer,
+        IsActive: 1,
+        OffsetStartTime: row.OffsetStartTime,
+        DefaultGAP: row.DefaultGAP,
+        NTCGroupCode: row.NTCGroupCode,
+        IsCommercial: row.BookingDetailID || row.BookingDetailsID ? 1 : 0,
+      }));
+  } catch (error) {
+    throw error;
+  }
+};
+
+const getDataToPostForFinalLogSchedule = (
+  schedulingTableData,
+  channel,
+  date,
+) => {
+  try {
+    return schedulingTableData.slice(1).map((row, index) => {
+      let newRow = {
+        ChannelCode: channel.ChannelCode,
+        LocationCode: channel.LocationCode,
+        TelecastDate: convertDateFormatyyyyMMdd(date),
+        NewTelecastDate: convertDateFormatyyyyMMdd(date),
+        FPCTime: row.FPC_Time,
+        FPC_TimeTo: row.FPC_TimeTo,
+        SequenceNo: row.FPC_ID,
+        RowNumber: index,
+        TransmissionTime: row.Tel_Time,
+        GMTTime: ' ',
+        EventCode: row.ContentCode,
+        EventCaption: row.Event_Name,
+        HouseID: row.House_ID || row.HouseID,
+        VideoID: row.Video_ID || row.HouseID,
+        TapeID: row.TapeID || row.HouseID,
+        TCIN: row.TC_IN,
+        TCOUT: row.TC_Out,
+        EventDuration: row.Duration,
+        EventType: row.F_C_S_P,
+        SeasonNo: row.SeasonNo,
+        EpisodeNo: row.EpisodeNo,
+        PartNumber: 0,
+        BreakNumber: row.BreakNumber,
+        BookingNumber: row.BookingNumber,
+        BookingDetailCode: row.BookingDetailCode,
+        BookingDetailID: row.BookingDetailID,
+        BookingSeqNo: row.BookingSeqNo,
+        DealNumber: row.DealNo,
+        DealLineItemNo: row.DealLineItemNo,
+        TimeBandCode: row.TimeBandCode,
+        PrimaryID: 0,
+        TxTimeinSec: row.TxTimeinSec,
+        IsActive: 1,
+        NtcTypeName: row.NtcTypeName,
+        NTCTypeName: row.NtcTypeName,
+        IsCommercial: row.BookingDetailID || row.BookingDetailsID ? 1 : 0,
+      };
+      if (channel.label === CLIENT.USA_Forbes) {
+        newRow.Description = row.Description;
+      }
+      return newRow;
+    });
+  } catch (error) {
+    throw error;
+  }
+};
+
+const updateDropBox = async (droppedSpots, token) => {
+  try {
+    if (
+      !Array.isArray(droppedSpots) ||
+      (Array.isArray(droppedSpots) && droppedSpots.length === 0)
+    )
+      return;
+    const data = [...droppedSpots]
+      .splice(1)
+      .map((row) => ({ Id: row.BookingDetailID }));
+    await apiUpdateSpotStatus(data, 'E', token);
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+const saveSchedule = async (
+  dataToPost,
+  token,
+  page,
+  isAutoSave,
+  droppedSpots,
+) => {
+  try {
+    let response;
+    if (page === pagesEnum.PROMO) {
+      response = await Postpromoscheduling(dataToPost, token);
+    } else if (page === pagesEnum.SONG) {
+      response = await PostSongscheduling(dataToPost, token);
+    } else if (page === pagesEnum.COMMERCIAL) {
+      response = await PutCommercialSave(dataToPost, token);
+      await updateDropBox(droppedSpots, token);
+    } else if (page === pagesEnum.NTC) {
+      response = await PostNTCScheduling(dataToPost, token);
+      await updateDropBox(droppedSpots, token);
+    } else if (page === pagesEnum.FINAL_LOG) {
+      response = await Posttransmissionlog(dataToPost, token);
+      await updateDropBox(droppedSpots, token);
+    }
+    if (response.status === 200) {
+      isAutoSave
+        ? openNotification('success', 'Auto saved schedule successfully')
+        : openNotification('success', 'Schedule saved successfully');
+    } else if (response === 204) {
+      isAutoSave
+        ? openNotification('success', 'Auto saved schedule successfully')
+        : openNotification('success', 'Schedule already saved');
+    } else {
+      openNotification(
+        'danger',
+        `Something went wrong while ${
+          isAutoSave ? 'auto ' : ''
+        }saving schedule`,
+      );
+    }
+  } catch (error) {
+    throw error;
+  }
+};
+
+const handleSaveScheduleOnlyForbes = async ({
+  filteredData,
+  setShowLoader,
+  dispatch,
+  unsavedWork,
+  channel,
+  date,
+}) => {
+  setShowLoader(true);
+
+  try {
+    // Step 1: Run apiPosttransmissionlogaddaudit
+    let postApiResponse;
+    try {
+      postApiResponse = await apiPosttransmissionlogaddaudit(filteredData);
+      if (postApiResponse.status !== 200) {
+        throw new Error('Post API failed');
+      }
+    } catch (error) {
+      openNotification('danger', 'Something went wrong while saving schedule');
+      throw error; // Stop further execution
+    }
+
+    // Step 2: Run apideletedataPosttransmissionlogaddaudit
+    let deleteApiResponse;
+    try {
+      deleteApiResponse = await apideletedataPosttransmissionlogaddaudit(
+        channel,
+        convertDateFormatyyyyMMdd(date),
+      );
+      if (deleteApiResponse.status !== 200) {
+        throw new Error('Delete API failed');
+      }
+    } catch (error) {
+      openNotification('danger', 'Something went wrong while saving schedule');
+      throw error; // Stop further execution
+    }
+
+    // Step 3: Run apiPosttransmissionloginsertdata
+    let insertApiResponse;
+    try {
+      insertApiResponse = await apiPosttransmissionloginsertdata(filteredData);
+      if (insertApiResponse.status !== 200) {
+        throw new Error('Insert API failed');
+      }
+    } catch (error) {
+      openNotification('danger', 'Something went wrong while saving schedule');
+      throw error; // Stop further execution
+    }
+
+    // Step 4: Run apiPUTtransmissionlogupdatedata
+    let putApiResponse;
+    try {
+      putApiResponse = await apiPUTtransmissionlogupdatedata(filteredData);
+      if (putApiResponse.status !== 200) {
+        throw new Error('Put API failed');
+      }
+    } catch (error) {
+      openNotification('danger', 'Something went wrong while saving schedule');
+      throw error; // Stop further execution
+    }
+
+    // If all steps succeed
+    openNotification('success', 'Schedule saved successfully');
+
+    // Update unsaved work
+    let updatedUnsavedWork = { ...unsavedWork[pagesEnum.FINAL_LOG] };
+    delete updatedUnsavedWork[
+      convertDateFormatyyyyMMdd(filteredData[0].TelecastDate)
+    ];
+    dispatch(
+      setUnsavedWork({
+        ...unsavedWork,
+        [pagesEnum.FINAL_LOG]: {
+          ...updatedUnsavedWork,
+        },
+      }),
+    );
+    return true;
+  } catch (error) {
+    console.error('Error occurred while saving schedule:', error);
+    return false;
+    // Error notifications are already handled in individual steps
+  } finally {
+    setShowLoader(false);
+  }
+};
+
+const handleSaveSchedule = async ({
+  setShowLoader,
+  page,
+  schedulingTableData,
+  channel,
+  date,
+  token,
+  unsavedWork,
+  dispatch,
+  isAutoSave,
+  droppedSpots,
+}) => {
+  try {
+    if (!isAutoSave) {
+      setShowLoader(true);
+    }
+    let dataToPost = [];
+    if (page === pagesEnum.PROMO) {
+      dataToPost = getDataToPostForPromoSchedule(
+        schedulingTableData,
+        channel,
+        date,
+      );
+      if (dataToPost.length === 0) {
+        openNotification('info', 'Please insert promos to save');
+        return false;
+      }
+    } else if (page === pagesEnum.SONG) {
+      dataToPost = getDataToPostForSongSchedule(
+        schedulingTableData,
+        channel,
+        date,
+      );
+      if (dataToPost.length === 0) {
+        openNotification('info', 'Please insert songs to save');
+        return false;
+      }
+    } else if (page === pagesEnum.COMMERCIAL) {
+      dataToPost = getDataToPostForCommercialSchedule(schedulingTableData);
+      if (dataToPost.length === 0) {
+        openNotification('info', 'Please insert commercials to save');
+        return false;
+      }
+    } else if (page === pagesEnum.NTC) {
+      dataToPost = getDataToPostForNTCSchedule(
+        schedulingTableData,
+        channel,
+        date,
+      );
+      if (dataToPost.length === 0) {
+        openNotification('info', 'Please insert NTCs to save');
+        return false;
+      }
+    } else if (page === pagesEnum.FINAL_LOG) {
+      dataToPost = getDataToPostForFinalLogSchedule(
+        schedulingTableData,
+        channel,
+        date,
+      );
+      if (dataToPost.length === 0) {
+        openNotification('info', 'Please insert events to save');
+        return false;
+      }
+    }
+    await saveSchedule(dataToPost, token, page, isAutoSave, droppedSpots);
+    /* REMOVE UNSAVED WORK FROM REDUX FOR SAVED DATE */
+    let updatedUnsavedWork = { ...unsavedWork[page] };
+    delete updatedUnsavedWork[convertDateFormatyyyyMMdd(date)];
+    dispatch(
+      setUnsavedWork({
+        ...unsavedWork,
+        [page]: {
+          ...updatedUnsavedWork,
+        },
+      }),
+    );
+    setShowLoader(false);
+    return true;
+  } catch (error) {
+    openNotification(
+      'danger',
+      `Something went wrong while ${isAutoSave ? 'auto ' : ''}saving schedule`,
+    );
+    console.error(error);
+    return false;
+  } finally {
+    setShowLoader(false);
+  }
+};
+
+const exportPlayout = async (date, channel, tableData, channelSettings) => {
+  try {
+    const telecastDate = convertDateToDMY(date);
+    const exportPlayoutFileName = `${channel.label}${telecastDate.replaceAll(
+      '-',
+      '',
+    )}`;
+    const playoutExportType = getPlayoutExportFormat(channel);
+    if (playoutExportType === playoutExportFormatEnum.PLY) {
+      exportPlayoutForPly(telecastDate, tableData, exportPlayoutFileName);
+    } else if (playoutExportType === playoutExportFormatEnum.OSC) {
+      exportPlayoutForOsc(date, tableData, channel);
+    } else if (playoutExportType === playoutExportFormatEnum.CSV) {
+      await exportPlayoutForCSV(channel, convertDateFormatyyyyMMdd(date));
+    } else if (playoutExportType === playoutExportFormatEnum.FORMAT_2) {
+      exportFormat2(tableData, date, channel);
+    } else if (playoutExportType === playoutExportFormatEnum.USA_FOOD_FOOD2) {
+      const tableDataForPlayout = tableData.filter(
+        (row) => row.F_C_S_P !== rowDataTypesEnum.CONTENT_TERMINATION,
+      );
+      exportPlayoutForUSAFoodFood2(tableDataForPlayout, date);
+    } else if (playoutExportType === playoutExportFormatEnum.XML) {
+      exportPlayoutForXML(date, tableData, channelSettings);
+    }
+  } catch (error) {
+    console.error(error);
+    openNotification('danger', 'Something went wrong while exporting playout');
+  }
+};
+
+const getPlayoutExportFormat = (channel) => {
+  let playoutExportFormat = PLAYOUT_EXPORT_FORMAT[channel.label];
+  if (!playoutExportFormat)
+    playoutExportFormat = playoutExportFormatEnum.FORMAT_2;
+  return playoutExportFormat;
+};
+
+const isFeatureHidden = ({ channel }) => {
+  try {
+    if (channel.ChannelName === 'MASTIII' && channel.ChannelCode === 20) {
+      return true;
+    }
+    return false;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const incrementZindex = (secondaryAreaZindexRef, feature) => {
+  let maxZindex = 0;
+  Object.keys(secondaryAreaZindexRef.current).forEach((key) => {
+    if (secondaryAreaZindexRef.current[key] > maxZindex) {
+      maxZindex = secondaryAreaZindexRef.current[key];
+    }
+  });
+  secondaryAreaZindexRef.current = {
+    ...secondaryAreaZindexRef.current,
+    [feature]: maxZindex + 1,
+  };
+};
+
+export {
+  getClassNames,
+  handleFeatureClick,
+  handleExport,
+  handleFormattedExport,
+  getDataToPostForPromoSchedule,
+  getDataToPostForSongSchedule,
+  getDataToPostForCommercialSchedule,
+  getDataToPostForFinalLogSchedule,
+  saveSchedule,
+  handleSaveSchedule,
+  handleSaveScheduleOnlyForbes,
+  exportPlayout,
+  isFeatureHidden,
+  incrementZindex,
+};

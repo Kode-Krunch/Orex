@@ -1,0 +1,249 @@
+import React, { useEffect, useState } from 'react';
+import { useSelector } from 'react-redux';
+import { Button, Card, Input, Select, Table, Tag } from 'components/ui';
+import { FaRegSave, FaTrashAlt } from 'react-icons/fa';
+import { MdArrowBack } from 'react-icons/md';
+import {
+  apiGetpatterndetailsmasterbyid,
+  PostpatternDeatilsNew,
+  PostpatternNew,
+  PutpatternNew,
+} from 'services/ProgrammingService';
+import {
+  formatOnHHMMSSFFBlur,
+  handleChangeWithFrameSingleValue,
+  openNotification,
+  parseDuration,
+} from 'views/Controls/GLOBALFUNACTION';
+import { useNavigate } from 'react-router-dom';
+import Loader from 'views/Controls/Loader';
+
+const { Tr, Th, Td, THead, TBody } = Table;
+
+const MiniFormatOptions = Array.from({ length: 12 }, (_, i) => ({
+  value: `${(i + 1) * 5}`,
+  label: `${(i + 1) * 5}`,
+}));
+
+const PatternEdit = () => {
+  const navigate = useNavigate();
+  const { Content } = useSelector((state) => state.base.common);
+  const ChannelSetting = useSelector(
+    (state) => state.auth.session.ChannelSetting,
+  );
+  const [settings, setSettings] = useState([]);
+  const [showLoader, setShowLoader] = useState(false);
+  const [name, setName] = useState(Content?.PatternName || '');
+  const [format, setFormat] = useState(Content?.minFormat || '');
+  const [commercialDuration, setCommercialDuration] = useState('');
+  const [breakNumber, setBreakNumber] = useState(1);
+  const [segmentNumber, setSegmentNumber] = useState(1);
+
+  const formatFramesToDuration = (frames) => {
+    const totalSeconds = Math.floor(frames / 25);
+    const remainingFrames = frames % 25;
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    return [hours, minutes, seconds, remainingFrames]
+      .map((v) => String(v).padStart(2, '0'))
+      .join(':');
+  };
+
+  const parseDurationToFrames = (duration) => {
+    const [hours, minutes, seconds, frames] = duration.split(':').map(Number);
+    return hours * 3600 * 25 + minutes * 60 * 25 + seconds * 25 + frames;
+  };
+
+  const calculateTotalDuration = () => {
+    const totalFrames = settings.reduce((total, item) => {
+      return total + (item.EventType === 'BREAK' ? parseDurationToFrames(item.EventDuration) : 0);
+    }, 0);
+    return formatFramesToDuration(totalFrames);
+  };
+
+  const handleAddItem = (type) => {
+    const newItem = {
+      PatternCode: 0,
+      OrderNo: settings.length,
+      EventCode: 0,
+      EventType: type,
+      EventDuration: type === 'BREAK' ? commercialDuration : '00:00:00:00',
+      StartTime: new Date().toISOString(),
+      PatternType: 'NA',
+      SegComNumber: type === 'Content Segment' ? segmentNumber : 0,
+      ComBreakNumber: type === 'BREAK' ? breakNumber : 0,
+      IsActive: 1,
+    };
+
+    setSettings([...settings, newItem]);
+    if (type === 'BREAK') setBreakNumber(breakNumber + 1);
+    if (type === 'Content Segment') setSegmentNumber(segmentNumber + 1);
+  };
+
+  const handleRemoveItem = (index) => {
+    setSettings(settings.filter((_, i) => i !== index));
+  };
+
+  const fetchPatternDetails = async () => {
+    if (Content?.PatternCode) {
+      const response = await apiGetpatterndetailsmasterbyid(Content.PatternCode);
+      const formattedOptions = response.data.map((option) => ({
+        ...option,
+        IsActive: 1,
+      }));
+      setSettings(formattedOptions);
+    }
+  };
+
+  useEffect(() => {
+    fetchPatternDetails();
+  }, []);
+
+  const handleSaveOrUpdate = async () => {
+    setShowLoader(true);
+    const saveData = {
+      PatternName: name,
+      ActualDuration: '08:59:12.638Z',
+      TotalDuration: calculateTotalDuration(),
+      minFormat: format,
+      NoOfSeg: 0,
+      CommercialDuration: calculateTotalDuration(),
+      SegmentDuration: '00:00:00:00',
+      TotalDurInSec: parseDuration(calculateTotalDuration()),
+      KillDate: '2024-12-27T08:59:12.638Z',
+      ProgramType: 0,
+      IsActive: 1,
+    };
+
+    const response = Content?.PatternCode
+      ? await PutpatternNew(saveData, Content.PatternCode)
+      : await PostpatternNew(saveData);
+
+    if (response.status === 200) {
+      const patternCode = Content?.PatternCode || response.data.PatternCode;
+      const mergedData = settings.map((item) => ({
+        ...item,
+        PatternCode: patternCode,
+        StartTime: new Date(),
+      }));
+
+      const detailsResponse = await PostpatternDeatilsNew(mergedData, patternCode);
+
+      if (detailsResponse.status === 200) {
+        openNotification('success', 'Pattern Saved Successfully');
+        navigate('/BreakPatternMaster')
+        setShowLoader(false);
+      } else {
+        openNotification('error', 'Pattern Details already exist');
+        setShowLoader(false);
+      }
+    } else {
+      openNotification('error', 'Pattern Name already exists');
+      setShowLoader(false);
+    }
+  };
+
+  return (
+    <Card header='Add Break Pattern'>
+      <Loader showLoader={showLoader} />
+      <div className="grid grid-cols-3 gap-4">
+        <div>
+          <h6>Name</h6>
+          <Input size='sm' value={name} onChange={(e) => setName(e.target.value)} />
+        </div>
+        <div>
+          <h6>Format (Mins)</h6>
+          <Select
+            size='sm'
+            options={MiniFormatOptions}
+            value={MiniFormatOptions.find((option) => option.value === format)}
+            onChange={(option) => setFormat(option.value)}
+          />
+        </div>
+        <div>
+          <h6>Commercial Duration</h6>
+          <Input
+            size='sm'
+            value={commercialDuration}
+            onChange={(e) => handleChangeWithFrameSingleValue(e, setCommercialDuration)}
+            onBlur={(e) => setCommercialDuration(formatOnHHMMSSFFBlur(e.target.value, Number(ChannelSetting[0]?.FramePerSec || 24)))}
+          />
+        </div>
+      </div>
+
+      <div className='flex justify-end mt-5 mb-5'>
+        <Button variant='solid' size='sm' className='mr-2' onClick={() => handleAddItem('BREAK')}>
+          Add Break
+        </Button>
+        <Button variant='twoTone' size='sm' onClick={() => handleAddItem('Content Segment')}>
+          Add Segment
+        </Button>
+      </div>
+
+      <Card header='Pattern Details'>
+        <Table compact borderlessRow={false}>
+          <THead>
+            <Tr>
+              <Th>Sr No</Th>
+              <Th>EventType</Th>
+              <Th>EventDuration</Th>
+              <Th>SegComNumber</Th>
+              <Th>ComBreakNumber</Th>
+              <Th>Action</Th>
+            </Tr>
+          </THead>
+          <TBody>
+            {settings.length > 0 ? (
+              settings.map((setting, index) => (
+                <Tr key={index}>
+                  <Td>{setting.OrderNo + 1}</Td>
+                  <Td>{setting.EventType}</Td>
+                  <Td>{setting.EventDuration}</Td>
+                  <Td>{setting.SegComNumber}</Td>
+                  <Td>{setting.ComBreakNumber}</Td>
+                  <Td>
+                    <Button
+                      size='xs'
+                      type='button'
+                      onClick={() => handleRemoveItem(index)}
+                      icon={<FaTrashAlt />}
+                    />
+                  </Td>
+                </Tr>
+              ))
+            ) : (
+              <Tr>
+                <Td colSpan='6'>No Rows Found</Td>
+              </Tr>
+            )}
+          </TBody>
+        </Table>
+      </Card>
+
+      <div className='flex justify-between mt-5 mb-5'>
+        <div className='flex items-center space-x-2'>
+          <Button size='sm' className='mr-2' icon={<MdArrowBack />} onClick={() => navigate('/BreakPatternMaster')}>
+            Discard
+          </Button>
+          <Button
+            variant='solid'
+            size='sm'
+            icon={<FaRegSave />}
+            onClick={handleSaveOrUpdate}
+          >
+            Save
+          </Button></div>
+        <Tag
+          showCloseButton={false}
+          className="text-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-100 border-0 rounded"
+        >
+          Total Duration: {calculateTotalDuration()}
+        </Tag>
+      </div>
+    </Card>
+  );
+};
+
+export default PatternEdit;

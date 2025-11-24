@@ -1,0 +1,340 @@
+import React, { useState, useRef, useEffect } from 'react';
+import classNames from 'classnames';
+import withHeaderItem from 'utils/hoc/withHeaderItem';
+import { Dialog, Button } from 'components/ui';
+import { apiGetSearchResult } from 'services/CommonService';
+import useThemeClass from 'utils/hooks/useThemeClass';
+import navigationIcon from 'configs/navigation-icon.config';
+import debounce from 'lodash/debounce';
+import { HiOutlineSearch, HiChevronRight, HiMicrophone } from 'react-icons/hi';
+import { Link } from 'react-router-dom';
+import Highlighter from 'react-highlight-words';
+import { logright } from 'services/MasterService';
+import { useDispatch, useSelector } from 'react-redux';
+
+const recommendedSearch = [
+  // {
+  //     title: '',
+  //     data: [
+  //         {
+  //             title: 'Commercial Master',
+  //             url: '/CommercialMaster',
+  //             icon: 'documentation',
+  //             category: 'Docs',
+  //             categoryTitle: 'Docs',
+  //         },
+  //         {
+  //             title: 'Deal Master',
+  //             url: '/DealMaster',
+  //             icon: 'changeLog',
+  //             category: 'Docs',
+  //             categoryTitle: 'Docs',
+  //         },
+  //         {
+  //             title: 'Spots Cancellation',
+  //             url: '/SpotsCancellation',
+  //             icon: 'common',
+  //             category: 'Common',
+  //             categoryTitle: 'UI Components',
+  //         },
+  //     ],
+  // },
+];
+
+// const data = [
+//     {
+//         title: '',
+//         data: [
+//             {
+//                 title: 'Commercial Master',
+//                 url: '/CommercialMaster',
+//                 icon: 'documentation',
+//                 category: 'Docs',
+//                 categoryTitle: 'Docs',
+//             },
+//             {
+//                 title: 'Deal Master',
+//                 url: '/DealMaster',
+//                 icon: 'changeLog',
+//                 category: 'Docs',
+//                 categoryTitle: 'Docs',
+//             },
+//             {
+//                 title: 'Spots Cancellation',
+//                 url: '/SpotsCancellation',
+//                 icon: 'common',
+//                 category: 'Common',
+//                 categoryTitle: 'UI Components',
+//             },
+//         ],
+//     },
+// ]
+
+const ListItem = (props) => {
+  const { icon, label, url = '', isLast, keyWord, onNavigate } = props;
+
+  const { textTheme } = useThemeClass();
+
+  return (
+    <Link to={url} onClick={onNavigate}>
+      <div
+        className={classNames(
+          'flex items-center justify-between rounded-lg p-3.5 cursor-pointer user-select',
+          'bg-gray-50 dark:bg-gray-700/60 hover:bg-gray-100 dark:hover:bg-gray-700/90',
+          !isLast && 'mb-3',
+        )}
+      >
+        <div className="flex items-center">
+          <div
+            className={classNames(
+              'mr-4 rounded-md ring-1 ring-slate-900/5 shadow-sm text-xl group-hover:shadow h-6 w-6 flex items-center justify-center bg-white dark:bg-gray-700',
+              textTheme,
+              'dark:text-gray-100',
+            )}
+          >
+            {icon && navigationIcon[icon]}
+          </div>
+          <div className="text-gray-900 dark:text-gray-300">
+            <Highlighter
+              autoEscape
+              highlightClassName={classNames(
+                textTheme,
+                'underline bg-transparent font-semibold dark:text-white',
+              )}
+              searchWords={[keyWord]}
+              textToHighlight={label}
+            />
+          </div>
+        </div>
+        <HiChevronRight className="text-lg" />
+      </div>
+    </Link>
+  );
+};
+
+export const SearchGlobal = ({ className }) => {
+  const [searchDialogOpen, setSearchDialogOpen] = useState(false);
+  const [searchResult, setSearchResult] = useState(recommendedSearch);
+  const [noResult, setNoResult] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const inputRef = useRef();
+  const [InputValue, setInputValue] = useState('');
+  const recognitionRef = useRef();
+  const [SelectedItem, setSelectedItem] = useState([]);
+
+  const LoginId = useSelector((state) => state.auth.session.LoginId);
+  const { token, signedIn } = useSelector((state) => state.auth.session);
+  const [screendata, setscreendata] = useState(['']);
+
+
+
+  useEffect(() => {
+    (async (values) => {
+      const resph = await logright(LoginId, token);
+      let newdata = transformData(resph.data);
+      setscreendata([
+        {
+          title: '',
+          data: newdata,
+        },
+      ]);
+    })();
+  }, []);
+
+  function transformData(data) {
+    let newData = [];
+
+    function extractSubMenuItems(menu, parentKey = '') {
+
+      if (menu.subMenu && menu.subMenu.length > 0) {
+        menu.subMenu.forEach((subItem) => {
+          extractSubMenuItems(
+            subItem,
+            parentKey ? `${parentKey}/${menu.key}` : menu.key,
+          );
+        });
+      } else {
+        newData.push({
+          title: menu.key,
+          url: `/${menu.key}`,
+          icon: 'documentation',
+          category: 'Docs',
+          categoryTitle: 'Docs',
+        });
+      }
+    }
+
+    data.forEach((menu) => {
+      extractSubMenuItems(menu);
+    });
+
+    return newData;
+  }
+
+  useEffect(() => {
+    if ('webkitSpeechRecognition' in window) {
+      const recognition = new window.webkitSpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        setInputValue(transcript);
+        handleSearch({ target: { value: transcript } });
+      };
+      recognition.onend = () => setIsListening(false);
+      recognitionRef.current = recognition;
+    }
+  }, []);
+
+  const handleReset = () => {
+    setNoResult(false);
+    setSearchResult(recommendedSearch);
+  };
+
+  const handleSearchOpen = () => {
+    setSearchDialogOpen(true);
+  };
+
+  const handleSearchClose = () => {
+    setSearchDialogOpen(false);
+    if (noResult) {
+      setTimeout(() => {
+        handleReset();
+      }, 300);
+    }
+  };
+  const startListening = () => {
+    if (recognitionRef.current) {
+      setIsListening(true);
+      recognitionRef.current.start();
+    }
+  };
+
+  const debounceFn = debounce(handleDebounceFn, 200);
+
+  async function handleDebounceFn(query) {
+    // if (!query) {
+    //     setSearchResult(recommendedSearch)
+    //     return
+    // }
+
+    // if (noResult) {
+    //     setNoResult(false)
+    // }
+    // const respond = await apiGetSearchResult({ query })
+    // if (respond.data) {
+    //     if (respond.data.length === 0) {
+    //         setNoResult(true)
+    //     }
+    //     setSearchResult(respond.data)
+    // }
+    setSelectedItem([]);
+    // if (noResult) {
+    //     setNoResult(false);
+    // }
+    const value = query;
+
+    if (value.length >= 1) {
+      const filteredOptions = screendata
+        ?.map((section) => {
+          const filteredData = section.data.filter((item) =>
+            item.title.toLowerCase().includes(value.toLowerCase()),
+          );
+          return { ...section, data: filteredData };
+        })
+        .filter((section) => section.data.length > 0);
+      // console.log('filteredOptions', filteredOptions);SW
+      setSearchResult(filteredOptions);
+      setSearchDialogOpen(true);
+    } else {
+      setSearchResult([]);
+    }
+  }
+
+  const handleSearch = (e) => {
+    setInputValue(e.target.value);
+    debounceFn(e.target.value);
+  };
+
+  useEffect(() => {
+    if (searchDialogOpen) {
+      let timeout = setTimeout(() => inputRef.current?.focus(), 100);
+      return () => {
+        clearTimeout(timeout);
+      };
+    }
+  }, [searchDialogOpen]);
+
+  const handleNavigate = () => {
+    handleSearchClose();
+  };
+
+  return (
+    <>
+      {/* <div
+                className={classNames(className, 'text-2xl')}
+                onClick={handleSearchOpen}
+            >
+                <HiOutlineSearch />
+            </div> */}
+      <div
+      // contentClassName="p-0"
+      // isOpen={searchDialogOpen}
+      // closable={false}
+      // onRequestClose={handleSearchClose}
+      >
+        <div>
+          <div className="px-4 flex items-center justify-between border-b border-gray-200 dark:border-gray-600">
+            <div className="flex items-center">
+              <HiOutlineSearch className="text-xl" />
+              <input
+                ref={inputRef}
+                value={InputValue}
+                className="ring-0 outline-none block w-full p-4 text-base bg-transparent text-gray-900 dark:text-gray-100"
+                placeholder="Search..."
+                onChange={handleSearch}
+              />
+            </div>
+            {/* <Button size="xs" onClick={handleSearchClose}>
+                            Esc
+                        </Button> */}
+            <HiMicrophone
+              className={classNames('text-xl ml-2 cursor-pointer', {
+                'text-blue-500': isListening,
+              })}
+              onClick={startListening}
+            />
+          </div>
+          <div className="py-6 px-5 max-h-[550px] overflow-y-auto">
+            {searchResult.map((result) => (
+              <div className="mb-6" key={result.title}>
+                <h6 className="mb-3">{result.title}</h6>
+                {result.data.map((data, index) => (
+                  <ListItem
+                    key={data.title + index}
+                    icon={data.icon}
+                    label={data.title}
+                    url={data.url}
+                    keyWord={inputRef.current?.value || ''}
+                    onNavigate={handleNavigate}
+                  />
+                ))}
+              </div>
+            ))}
+            {searchResult.length === 0 && noResult && (
+              <div className="my-10 text-center text-lg">
+                <span>No results for </span>
+                <span className="heading-text">
+                  '{inputRef.current?.value}'
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+};
+
+export default withHeaderItem(SearchGlobal);

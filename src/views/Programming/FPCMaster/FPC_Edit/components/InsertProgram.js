@@ -1,0 +1,817 @@
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  droppableIdsEnum,
+  featuresEnum,
+  secTableBottomToolbarFeaturesEnum,
+} from '../../enums';
+import {
+  Button,
+  Card,
+  Input,
+  InputGroup,
+  Spinner,
+  Switcher,
+  Tooltip,
+} from 'components/ui';
+import { IoMdClose, IoMdSearch } from 'react-icons/io';
+import BeautifulDndDraggableTable from 'views/Controls/BeautifulDndDraggableTable/BeautifulDndDraggableTable';
+import {
+  executeProgToPriTableInsert,
+  finalizeInsert,
+  getClassNames,
+  getRowId,
+  getTranslatedSelectedRows,
+  isFeatureDisabled,
+} from '../utils/logicalUtils';
+import { FaRegSquarePlus } from 'react-icons/fa6';
+import { openNotification } from 'views/Controls/GLOBALFUNACTION';
+import { PiLinkBreakBold, PiLinkBreakThin } from 'react-icons/pi';
+import { CLIENT } from 'views/Controls/clientListEnum';
+import { useSelector } from 'react-redux';
+import { apiCallstoreprocedure } from 'services/CommonService';
+import { getDummyRow } from 'views/Scheduling/Scheduler/components/SchedulingArea/utils/utils';
+import { HiMiniArrowsRightLeft } from 'react-icons/hi2';
+import { convertDateToYMD } from 'components/validators';
+import SelectXs from 'views/Controls/SelectXs/SelectXs';
+import AdvancedFilters from './AdvancedFilters';
+import { IoFilterSharp } from 'react-icons/io5';
+import {
+  isFeatureAllowedForChannel,
+  isFPCNameChannelWise,
+} from '../utils/renderingUtils';
+import { useChannelSetting } from 'views/Controls/CustomHooks';
+import { Checkbox, Slider } from '@mui/material';
+import { useDebounce } from 'use-debounce';
+import { FaBookMedical } from 'react-icons/fa';
+
+/* CONSTANTS */
+const withIcon = (component) => {
+  return <div className="text-lg">{component}</div>;
+};
+const MAX_CONTENT_DUR = 1000;
+
+function InsertProgram({
+  setActiveFeatures,
+  selectedContentToSearch,
+  setSelectedContentToSearch,
+  secTableData,
+  columns,
+  secTableRef,
+  scrolledOffset,
+  primaryTableSelectedRows,
+  setPrimaryTableSelectedRows,
+  secTableSelectedRows,
+  setSecTableSelectedRows,
+  data10,
+  setdata10,
+  arr,
+  channelStartTime,
+  setPrimaryTableScrolledOffset,
+  setSecTableScrolledOffset,
+  primaryTableRef,
+  SelectedDate,
+  maintainScrolledOffsetOfTablesFn,
+  ContentList,
+  setContentList,
+  breakPatternList,
+  setBreakPattSelect,
+  BreakPattSelect,
+  formattedDate,
+  setContentListForSeasonEpisode,
+  setOrgContentList,
+  setSecTableData,
+  setLastClickedTable,
+  ogSecTableData,
+  setOgSecTableData,
+}) {
+  /* REDUX */
+  const channel = useSelector((state) => state.locale.selectedChannel);
+
+  /* STATES */
+  const [isBreakPatternChecked, setIsBreakPatternChecked] = useState(false);
+  const [seasonNoOptions, setSeasonNoOptions] = useState([]);
+  const [episodeNoOptions, setEpisodeNoOptions] = useState([]);
+  const [durRange, setDurRange] = useState([0, MAX_CONTENT_DUR]);
+  const [filteredContentList, setFilteredContentList] = useState(ContentList);
+  const [seasonNo, setSeasonNo] = useState(null);
+  const [episodeNo, setEpisodeNo] = useState(null);
+  const [slotDuration, setSlotDuration] = useState('');
+  const [selectedContentEpAndSeason, setSelectedContentEpAndSeason] = useState(
+    [],
+  );
+  const [advFilterSelSeason, setAdvFilterSelSeason] = useState(null);
+  const [advFilterSelEpisode, setAdvFilterSelEpisode] = useState(null);
+  const [showLoader, setShowLoader] = useState(false);
+  const [isChecked, setIsChecked] = useState(false)
+  /* HOOKS */
+  const contentSelectorRef = useRef(null);
+  const channelSetting = useChannelSetting();
+  const [debouncedDurRange] = useDebounce(durRange, 300);
+
+  /* USE EFFECTS */
+  useEffect(() => {
+    try {
+      if (primaryTableSelectedRows.length > 0) {
+        const selectedRow = primaryTableSelectedRows[0];
+        setSeasonNo({
+          value: selectedRow.SeasonNo,
+          label: selectedRow.SeasonNo,
+        });
+        setEpisodeNo({
+          value: parseInt(selectedRow.EpisodeNo),
+          label: selectedRow.EpisodeNo,
+        });
+        setSlotDuration(selectedRow.SlotDuration);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }, [primaryTableSelectedRows]);
+
+  useEffect(() => {
+    setFilteredContentList(
+      ContentList.filter(
+        (row) =>
+          row.SlotDuration >= durRange[0] && row.SlotDuration <= durRange[1],
+      ),
+    );
+    setSecTableData(
+      ogSecTableData.map((row, index) => ({
+        ...row,
+        isHidden: index !== 0 && !isRowWithinSlotDuration(row),
+      })),
+    );
+  }, [debouncedDurRange]);
+
+  useEffect(() => {
+    try {
+      if (primaryTableSelectedRows.length > 0) {
+        const tableData = [...secTableData].splice(1);
+        if (
+          tableData.length > 0 &&
+          tableData[0].ContentCode === primaryTableSelectedRows[0].ContentCode
+        ) {
+          setSelectedContentEpAndSeason(tableData);
+          setSeasonNoOptions(getOptionsForField('SeasonNo', tableData));
+        }
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }, [secTableData, primaryTableSelectedRows]);
+
+  useEffect(() => {
+    try {
+      if (seasonNo && selectedContentEpAndSeason.length > 0) {
+        const episodeOptions = selectedContentEpAndSeason
+          .filter(
+            (row) =>
+              row.SeasonNo === seasonNo.value &&
+              row.ContentCode === primaryTableSelectedRows[0].ContentCode,
+          )
+          .map((row) => ({ value: row.EpisodeNo, label: row.EpisodeNo }));
+        setEpisodeNoOptions(episodeOptions);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }, [seasonNo, selectedContentEpAndSeason]);
+
+  /* EVENT HANDLERS */
+  const handleSearchContent = async () => {
+    try {
+      const inputValue = contentSelectorRef.current.props.inputValue
+        ? contentSelectorRef.current.props.inputValue
+        : !contentSelectorRef.current.props.inputValue &&
+          selectedContentToSearch?.type === 'customOption' &&
+          selectedContentToSearch?.label === ContentList[0].label
+          ? selectedContentToSearch?.label
+          : '';
+      let selectedContent = selectedContentToSearch;
+      let newContentList = [...ContentList];
+      if (inputValue) {
+        const customOption = {
+          value: inputValue,
+          label: inputValue,
+          type: 'customOption',
+        };
+        setSelectedContentToSearch(customOption);
+        selectedContent = customOption;
+        if (
+          newContentList.length > 0 &&
+          newContentList[0].type === 'customOption'
+        )
+          newContentList.shift();
+        newContentList.unshift(customOption);
+      } else if (
+        newContentList.length > 0 &&
+        newContentList[0].type === 'customOption'
+      )
+        newContentList.shift();
+      setContentList(newContentList);
+      if (
+        selectedContent?.label &&
+        (secTableData.length === 0 ||
+          (secTableData.length > 0 &&
+            !secTableData[1].ContentName.includes(selectedContent.label)))
+      ) {
+        setShowLoader(true);
+        await loadSecTableData(selectedContent);
+        setShowLoader(false);
+      }
+    } catch (error) {
+      openNotification(
+        'danger',
+        'Something went wrong while fetching contents',
+      );
+    }
+  };
+
+  const handleApplyAdvFilters = (season, episode) => {
+    setAdvFilterSelSeason(season);
+    setAdvFilterSelEpisode(episode);
+    if (!season && !episode) {
+      setSecTableData(
+        ogSecTableData.map((row) => ({ ...row, isHidden: false })),
+      );
+    } else if (season && !episode) {
+      setSecTableData(
+        ogSecTableData.map((row, index) => ({
+          ...row,
+          isHidden: index !== 0 && !(row.SeasonNo === season.value),
+        })),
+      );
+    } else if (season && episode) {
+      setSecTableData(
+        ogSecTableData.map((row, index) => ({
+          ...row,
+          isHidden:
+            index !== 0 &&
+            !(row.SeasonNo === season.value && row.EpisodeNo === episode.value),
+        })),
+      );
+    }
+  };
+
+  const handleRowClick = (event, row) => {
+    try {
+      event.preventDefault();
+      maintainScrolledOffsetOfTablesFn();
+      setLastClickedTable(droppableIdsEnum.SECONDARY);
+      let selectedRows = [...secTableSelectedRows];
+      if (event.ctrlKey) {
+        const selRowsIds = selectedRows.map((row) => row.rowId);
+        if (selRowsIds.includes(row.rowId))
+          selectedRows.filter((curRow) => curRow.rowId !== row.rowId);
+        else selectedRows.push(row);
+      } else {
+        selectedRows = [row];
+      }
+      setSecTableSelectedRows(selectedRows);
+    } catch (error) {
+      console.error(error);
+      openNotification(
+        'danger',
+        'Something went wrong while selecting content',
+      );
+    }
+  };
+
+  const handleModify = () => {
+    try {
+      let newPrimaryTableData = [...data10];
+      newPrimaryTableData[primaryTableSelectedRows[0].rowIndex] = {
+        ...primaryTableSelectedRows[0],
+        SeasonNo: seasonNo.value,
+        EpisodeNo: episodeNo.value,
+        SlotDuration: slotDuration,
+        BreakPattern: BreakPattSelect ? BreakPattSelect.label : '',
+        BreakPatternCode: BreakPattSelect ? BreakPattSelect.value : 0,
+      };
+      let result = finalizeInsert({
+        tableData: newPrimaryTableData,
+        ogTableData: [...data10],
+        channelStartTime,
+        setdata10,
+        arr,
+        setPrimaryTableScrolledOffset,
+        setSecTableScrolledOffset,
+        primaryTableRef,
+        secTableRef,
+        channelSetting,
+      });
+      if (result.status)
+        openNotification('success', 'Content modified successfully');
+    } catch (error) {
+      console.error(error);
+      openNotification(
+        'danger',
+        'Something went wrong while modifying content',
+      );
+    }
+  };
+
+  const handleInsert = () => {
+    try {
+      const destinationIndex =
+        primaryTableSelectedRows.length === 0
+          ? data10.length > 1
+            ? data10.length
+            : 0
+          : primaryTableSelectedRows[0].rowIndex + 1;
+      let newPrimaryTableData = executeProgToPriTableInsert(
+        secTableSelectedRows,
+        SelectedDate,
+        BreakPattSelect,
+        channel,
+        data10,
+        destinationIndex,
+      );
+      finalizeInsert({
+        tableData: newPrimaryTableData,
+        ogTableData: [...data10],
+        channelStartTime,
+        setdata10,
+        arr,
+        setPrimaryTableScrolledOffset,
+        setSecTableScrolledOffset,
+        primaryTableRef,
+        secTableRef,
+        channelSetting,
+      });
+      openNotification('success', 'Content inserted successfully');
+    } catch (error) {
+      console.log(error);
+      openNotification(
+        'danger',
+        'Something went wrong while inserting content',
+      );
+    }
+  };
+  const handleInsertAtEnd = () => {
+    try {
+      const destinationIndex = data10.length; // Always insert at the end
+      let newPrimaryTableData = executeProgToPriTableInsert(
+        secTableSelectedRows,
+        SelectedDate,
+        BreakPattSelect,
+        channel,
+        data10,
+        destinationIndex,
+      );
+      finalizeInsert({
+        tableData: newPrimaryTableData,
+        ogTableData: [...data10],
+        channelStartTime,
+        setdata10,
+        arr,
+        setPrimaryTableScrolledOffset,
+        setSecTableScrolledOffset,
+        primaryTableRef,
+        secTableRef,
+        channelSetting,
+      });
+      openNotification('success', 'Content inserted successfully');
+    } catch (error) {
+      console.log(error);
+      openNotification(
+        'danger',
+        'Something went wrong while inserting content',
+      );
+    }
+  };
+
+  const handleReplace = () => {
+    try {
+      const translatedSelectedRows = getTranslatedSelectedRows(
+        secTableSelectedRows,
+        SelectedDate,
+        BreakPattSelect,
+        channel,
+      );
+      let newPrimaryTableData = [...data10];
+      newPrimaryTableData[primaryTableSelectedRows[0].rowIndex] =
+        translatedSelectedRows[0];
+      const { newTableData } = finalizeInsert({
+        tableData: newPrimaryTableData,
+        ogTableData: [...data10],
+        channelStartTime,
+        setdata10,
+        arr,
+        setPrimaryTableScrolledOffset,
+        setSecTableScrolledOffset,
+        primaryTableRef,
+        secTableRef,
+        channelSetting,
+      });
+      setPrimaryTableSelectedRows([
+        newTableData[primaryTableSelectedRows[0].rowIndex],
+      ]);
+    } catch (error) {
+      console.log(error);
+      openNotification(
+        'danger',
+        'Something went wrong while replacing content',
+      );
+    }
+  };
+
+  /* HELPER FUNCTIONS */
+  const loadSecTableData = async (selectedContent) => {
+    try {
+      const resp = await apiCallstoreprocedure('usp_pg_fpc_get_content', {
+        ContentTypeCode: 0,
+        LocationCode: channel.LocationCode,
+        ChannelCode: channel.ChannelCode,
+        FPCDate: convertDateToYMD(new Date(formattedDate)),
+        ContentName: `%${selectedContent.label}%`,
+      });
+      if (resp.status === 204) {
+        setContentListForSeasonEpisode([]);
+        return;
+      }
+      const responseData = resp.data;
+      setContentListForSeasonEpisode(responseData);
+      setOrgContentList(responseData);
+      let filteredPrograms = responseData.filter((item) =>
+        item.ContentName?.toLowerCase().includes(
+          selectedContent.label.toLowerCase(),
+        ),
+      );
+      filteredPrograms =
+        filteredPrograms.length > 0
+          ? [getDummyRow(filteredPrograms[0]), ...filteredPrograms].map(
+            (row, index) => ({
+              ...row,
+              rowId: getRowId('program', row, 'ContentCode'),
+              rowIndex: index,
+            }),
+          )
+          : [];
+      const ogSecTableData = filteredPrograms;
+      filteredPrograms = filteredPrograms.map((row, index) => ({
+        ...row,
+        isHidden: index !== 0 && !isRowWithinSlotDuration(row),
+      }));
+      setSecTableData(filteredPrograms);
+      setOgSecTableData(ogSecTableData);
+      setAdvFilterSelSeason(null);
+      setAdvFilterSelEpisode(null);
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const getOptionsForField = (field, tableData) => {
+    try {
+      const options = tableData
+        .filter(
+          (row) => row.ContentCode === primaryTableSelectedRows[0].ContentCode,
+        )
+        .map((row) => row[field])
+        .filter((value, index, self) => self.indexOf(value) === index)
+        .map((value) => ({
+          value,
+          label: value,
+        }));
+      return options;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const isRowWithinSlotDuration = (row) =>
+    row.SlotDuration >= debouncedDurRange[0] &&
+    row.SlotDuration <= debouncedDurRange[1];
+
+  return (
+    <div className="h-full flex flex-col">
+      <div className="flex justify-between items-start gap-2 mb-2">
+        <div className="flex items-center gap-3">
+          <h5>{isFPCNameChannelWise({ channel })} </h5>
+          {secTableData.length > 1 && (
+            <h6 className="rounded-md px-1.5 py-0.5 bg-gray-600 flex items-center justify-center">
+              {secTableData.length - 1}
+            </h6>
+          )}
+        </div>
+        <div className="flex items-start gap-8">
+          {isFeatureAllowedForChannel(featuresEnum.BREAK_PATTERN, channel) && (
+            <Tooltip
+              title="Break Pattern"
+              wrapperClass="flex flex-col gap-2 items-center"
+            >
+              <Switcher
+                checked={isBreakPatternChecked}
+                onChange={(val) => {
+                  setIsBreakPatternChecked(!val);
+                  setBreakPattSelect(null);
+                }}
+                unCheckedContent={withIcon(<PiLinkBreakThin />)}
+                checkedContent={withIcon(<PiLinkBreakBold />)}
+                className="w-max"
+              />
+              <p className="text-xs text-white">Brk Pattern</p>
+            </Tooltip>
+          )}
+
+          {/* <Tooltip
+            title="Is Live Event"
+            wrapperClass="w-[100px] flex flex-col items-center"
+          >
+            <div className="flex flex-col items-center">
+              <Checkbox
+                checked={isChecked}
+                onChange={(e) => setIsChecked(e.target.checked)}
+                sx={{
+                  color: '#14b8a6',
+                  '&.Mui-checked': { color: '#14b8a6' },
+                }}
+              />
+              <p className="text-gray-300 font-semibold text-xs">
+                {isChecked ? 'Live Events' : 'Live Events'}
+              </p>
+            </div>
+          </Tooltip> */}
+
+
+          <Tooltip
+            title="Is Live Event"
+            wrapperClass="w-[100px] flex flex-col items-center"
+          >
+            <div className="flex flex-col items-center">
+              <Checkbox
+                checked={isChecked}
+                onChange={async (e) => {
+                  const checked = e.target.checked
+                  setIsChecked(checked)
+
+                  if (checked) {
+                    try {
+                      const resp = await apiCallstoreprocedure('usp_pg_fpc_get_content', {
+                        ContentTypeCode: 0,
+                        LocationCode: channel.LocationCode,
+                        ChannelCode: channel.ChannelCode,
+                        FPCDate: convertDateToYMD(new Date(formattedDate)),
+                        ContentName: '%Content for LIVE%',
+                      })
+
+                      if (resp.status === 204) {
+                        setContentListForSeasonEpisode([])
+                        return
+                      }
+
+                      const responseData = resp.data
+                      setContentListForSeasonEpisode(responseData)
+                      setOrgContentList(responseData)
+                      const mappedData =
+                        responseData.length > 0
+                          ? [getDummyRow(responseData[0]), ...responseData].map(
+                            (row, index) => ({
+                              ...row,
+                              rowId: getRowId('program', row, 'ContentCode'),
+                              rowIndex: index,
+                            })
+                          )
+                          : []
+
+                      const ogSecTableData = mappedData
+
+                      const filteredPrograms = mappedData.map((row, index) => ({
+                        ...row,
+                        isHidden: index !== 0 && !isRowWithinSlotDuration(row),
+                      }))
+
+                      setSecTableData(filteredPrograms)
+                      setOgSecTableData(ogSecTableData)
+                      setAdvFilterSelSeason(null)
+                      setAdvFilterSelEpisode(null)
+                    } catch (error) {
+                      console.error('SP Call Failed:', error)
+                    }
+                  }
+                }}
+                sx={{
+                  color: '#14b8a6',
+                  '&.Mui-checked': { color: '#14b8a6' },
+                }}
+              />
+              <p className="text-gray-300 font-semibold text-xs">
+                {isChecked ? 'Live Events' : 'Live Events'}
+              </p>
+            </div>
+          </Tooltip>
+
+          <Tooltip
+            title="Duration"
+            wrapperClass="w-[100px] flex flex-col items-center"
+          >
+            <Slider
+              value={durRange}
+              onChange={(event, newValue) => setDurRange(newValue)}
+              sx={{
+                color: '#14b8a6',
+                '& .MuiSlider-thumb': {
+                  width: 15,
+                  height: 15,
+                },
+              }}
+              max={MAX_CONTENT_DUR}
+            />
+            <div className="flex items-center justify-between w-full">
+              <p className="text-gray-300 font-semibold text-xs flex-none -ml-2">
+                {durRange[0]} Min
+              </p>
+              <p className="text-gray-300 font-semibold text-xs flex-none -mr-2">
+                {durRange[1]} Min
+              </p>
+            </div>
+          </Tooltip>
+          <Tooltip title="Close">
+            <Button
+              size="xs"
+              icon={<IoMdClose />}
+              onClick={() => {
+                setActiveFeatures((prevState) => ({
+                  ...prevState,
+                  [featuresEnum.INSERT]: false,
+                }));
+                setSelectedContentToSearch(null);
+                setSecTableSelectedRows([]);
+                setSecTableData([]);
+                setContentListForSeasonEpisode([]);
+              }}
+            />
+          </Tooltip>
+        </div>
+      </div>
+      {isBreakPatternChecked && (
+        <SelectXs
+          placeholder="Break Pattern"
+          size="sm"
+          className="mb-2"
+          options={breakPatternList}
+          onChange={(e) => setBreakPattSelect(e)}
+          value={BreakPattSelect}
+        />
+      )}
+      <InputGroup className="mb-2 flex items-center">
+        <SelectXs
+          placeholder={`Search ${isFPCNameChannelWise({ channel })}`}
+          size="sm"
+          className="grow"
+          tabSelectsValue={false}
+          ref={contentSelectorRef}
+          options={filteredContentList}
+          value={selectedContentToSearch}
+          onChange={(e) => setSelectedContentToSearch(e)}
+          onBlur={handleSearchContent}
+        />
+        <AdvancedFilters
+          renderTitle={
+            <Button
+              icon={<IoFilterSharp />}
+              className="!h-full px-2 !border-r !border-r-gray-600"
+              size="sm"
+              shape="none"
+              title="Advanced Filters"
+            />
+          }
+          tableData={ogSecTableData}
+          selectedSeason={advFilterSelSeason}
+          selectedEpisode={advFilterSelEpisode}
+          handleApply={handleApplyAdvFilters}
+        />
+        <Button icon={<IoMdSearch />} className="px-2" size="sm" />
+      </InputGroup>
+      {!channel.label !== CLIENT.USA_Forbes &&
+        primaryTableSelectedRows.length > 0 && (
+          <div className="grid grid-cols-4 gap-1">
+            <div className="flex flex-col gap-0.5">
+              <span>Season #</span>
+              <SelectXs
+                placeholder="Select"
+                size="sm"
+                className="mb-2"
+                options={seasonNoOptions}
+                value={seasonNo}
+                onChange={(e) => setSeasonNo(e)}
+                onMenuOpen={() =>
+                  seasonNoOptions.length === 0 && handleSearchContent()
+                }
+              />
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span>Episode #</span>
+              <SelectXs
+                placeholder="Select"
+                size="sm"
+                className="mb-2"
+                options={episodeNoOptions}
+                value={episodeNo}
+                onChange={(e) => setEpisodeNo(e)}
+                onMenuOpen={() =>
+                  episodeNoOptions.length === 0 && handleSearchContent()
+                }
+              />
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span>Slot Dur (Min)</span>
+              <Input
+                value={slotDuration}
+                size="sm"
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (/^(\d*)$/.test(value)) setSlotDuration(value);
+                }}
+              />
+            </div>
+            <div className="flex flex-col">
+              <div>&nbsp;</div>
+              <Button
+                size="sm"
+                className="mt-0.5"
+                disabled={!seasonNo || !episodeNo || !slotDuration}
+                onClick={handleModify}
+              >
+                Modify
+              </Button>
+            </div>
+          </div>
+        )}
+      <div className="grow flex flex-col gap-3">
+        {!showLoader && secTableData.length > 0 ? (
+          <>
+            <div className="grow">
+              <BeautifulDndDraggableTable
+                droppableId={droppableIdsEnum.SECONDARY}
+                tableData={secTableData}
+                columns={columns}
+                selectedRows={secTableSelectedRows}
+                scrolledOffset={scrolledOffset}
+                tableRef={secTableRef}
+                isDragDisabled={false}
+                handleRowClick={handleRowClick}
+              />
+            </div>
+            <div className="bg-gray-700 bg-opacity-50 flex gap-0.5 p-0.5 rounded-lg border border-gray-600">
+              <Tooltip title="Insert">
+                <Button
+                  className={getClassNames()}
+                  variant="plain"
+                  size="sm"
+                  icon={<FaRegSquarePlus className="text-base" />}
+                  disabled={isFeatureDisabled({
+                    secTableSelectedRows,
+                    feature: secTableBottomToolbarFeaturesEnum.INSERT,
+                  })}
+                  onClick={handleInsert}
+                />
+              </Tooltip>
+              <Tooltip title="Insert at end">
+                <Button
+                  className={getClassNames()}
+                  variant="plain"
+                  size="sm"
+                  icon={<FaBookMedical className="text-base" />}
+                  disabled={isFeatureDisabled({
+                    secTableSelectedRows,
+                    feature: secTableBottomToolbarFeaturesEnum.INSERT,
+                  })}
+                  onClick={handleInsertAtEnd}
+                />
+              </Tooltip>
+              <Tooltip title="Replace">
+                <Button
+                  className={getClassNames()}
+                  variant="plain"
+                  size="sm"
+                  icon={<HiMiniArrowsRightLeft className="text-[1.12rem]" />}
+                  disabled={isFeatureDisabled({
+                    primaryTableSelectedRows,
+                    secTableSelectedRows,
+                    feature: secTableBottomToolbarFeaturesEnum.REPLACE,
+                  })}
+                  onClick={handleReplace}
+                />
+              </Tooltip>
+            </div>
+          </>
+        ) : (
+          <Card
+            className="h-full"
+            bodyClass="h-full flex justify-center items-center"
+          >
+            {showLoader ? (
+              <Spinner size="45px" />
+            ) : (
+              <> No {isFPCNameChannelWise({ channel })} to show</>
+            )}
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default InsertProgram;

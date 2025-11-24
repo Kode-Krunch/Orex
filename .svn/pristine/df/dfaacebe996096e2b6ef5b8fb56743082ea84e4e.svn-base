@@ -1,0 +1,132 @@
+import { Segment } from 'components/ui';
+import { useEffect, useRef } from 'react';
+import Slider from 'react-slick';
+
+const HOURS = [
+  { value: 0, desc: '00:00' },
+  { value: 1, desc: '01:00' },
+  { value: 2, desc: '02:00' },
+  { value: 3, desc: '03:00' },
+  { value: 4, desc: '04:00' },
+  { value: 5, desc: '05:00' },
+  { value: 6, desc: '06:00' },
+  { value: 7, desc: '07:00' },
+  { value: 8, desc: '08:00' },
+  { value: 9, desc: '09:00' },
+  { value: 10, desc: '10:00' },
+  { value: 11, desc: '11:00' },
+  { value: 12, desc: '12:00' },
+  { value: 13, desc: '13:00' },
+  { value: 14, desc: '14:00' },
+  { value: 15, desc: '15:00' },
+  { value: 16, desc: '16:00' },
+  { value: 17, desc: '17:00' },
+  { value: 18, desc: '18:00' },
+  { value: 19, desc: '19:00' },
+  { value: 20, desc: '20:00' },
+  { value: 21, desc: '21:00' },
+  { value: 22, desc: '22:00' },
+  { value: 23, desc: '23:00' },
+];
+
+const CAROUSEL_SETTINGS = {
+  dots: false,
+  infinite: false,
+  speed: 200,
+  draggable: true,
+  swipeToSlide: true,
+  slidesToShow: 15,
+  slidesToScroll: 15,
+  responsive: [
+    {
+      breakpoint: 1024,
+      settings: {
+        slidesToShow: 8,
+        slidesToScroll: 8,
+      },
+    },
+    {
+      breakpoint: 600,
+      settings: {
+        slidesToShow: 7,
+        slidesToScroll: 7,
+      },
+    },
+    {
+      breakpoint: 480,
+      settings: {
+        slidesToShow: 5,
+        slidesToScroll: 5,
+      },
+    },
+  ],
+};
+
+export default function TimeSelector({ selectedTime, setSelectedTime }) {
+  /* HOOKS */
+  const sliderRef = useRef(null);
+
+  /* USE EFFECTS */
+  useEffect(() => {
+    try {
+      if (sliderRef.current) {
+        sliderRef.current.slickGoTo(selectedTime);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }, [selectedTime]);
+
+  /* EVENT HANDLERS */
+  const handleTimeChange = (time, onSegmentItemClick) => {
+    try {
+      onSegmentItemClick();
+      setSelectedTime(time);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleWheel = (event) => {
+    try {
+      if (event.shiftKey && sliderRef.current) {
+        if (event.deltaY < 0) {
+          sliderRef.current.slickPrev();
+        } else {
+          sliderRef.current.slickNext();
+        }
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  return (
+    <Segment value={[selectedTime]}>
+      <div onWheel={handleWheel} className="grid grid-cols-1">
+        <Slider {...CAROUSEL_SETTINGS} ref={sliderRef}>
+          {HOURS.map((curHour, index) => (
+            <Segment.Item key={curHour.value} value={curHour.value}>
+              {({ active, value, onSegmentItemClick }) => {
+                return (
+                  <h6
+                    className={`px-4 py-2 ${
+                      index !== HOURS.length - 1
+                        ? 'dark:border-r dark:border-r-gray-700 border border-gray-700'
+                        : ''
+                    } flex justify-center items-center font-semibold hover:cursor-pointer hover:bg-teal-700 transition rounded ${
+                      active ? 'bg-teal-700' : ''
+                    }`}
+                    onClick={() => handleTimeChange(value, onSegmentItemClick)}
+                  >
+                    {curHour.desc}
+                  </h6>
+                );
+              }}
+            </Segment.Item>
+          ))}
+        </Slider>
+      </div>
+    </Segment>
+  );
+}

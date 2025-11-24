@@ -1,0 +1,221 @@
+import { useContext, useEffect, useState } from 'react';
+import Table from 'components/ui/Table';
+import {
+  useReactTable,
+  getCoreRowModel,
+  getExpandedRowModel,
+  flexRender,
+} from '@tanstack/react-table';
+import { IoChevronForward, IoChevronUpOutline } from 'react-icons/io5';
+import SchedulerContext from 'views/Scheduling/Scheduler/context/SchedulerContext';
+import { pagesEnum } from 'views/Scheduling/Scheduler/enum';
+import { Tooltip } from 'components/ui';
+const { Tr, Th, Td, THead, TBody } = Table;
+
+function DurationTable({ tableData }) {
+  /* CONTEXTS */
+  const { page, schedulingTableRef } = useContext(SchedulerContext);
+
+  /* STATES */
+  const [data, setData] = useState([]);
+  const [expanded, setExpanded] = useState({});
+
+  /* HOOKS */
+  const columns = getColumns();
+  const table = useReactTable({
+    data,
+    columns,
+    state: {
+      expanded,
+    },
+    onExpandedChange: setExpanded,
+    getSubRows: (row) => row.subRows,
+    getCoreRowModel: getCoreRowModel(),
+    getExpandedRowModel: getExpandedRowModel(),
+  });
+
+  /* USE EFFECTS */
+  useEffect(() => setData(tableData), [tableData]);
+
+  /* HELPER FUNCTIONS */
+  function getColumns() {
+    try {
+      let columns = [
+        {
+          id: 'expander',
+          header: ({ table }) => {
+            return (
+              <button
+                {...{
+                  onClick: table.getToggleAllRowsExpandedHandler(),
+                }}
+              >
+                {table.getIsAllRowsExpanded() ? (
+                  <Tooltip title="Collapse All">
+                    <IoChevronUpOutline className="text-base" />
+                  </Tooltip>
+                ) : (
+                  <Tooltip title="Expand All">
+                    <IoChevronForward className="text-base" />
+                  </Tooltip>
+                )}
+              </button>
+            );
+          },
+          cell: ({ row, getValue }) => {
+            return (
+              <>
+                {row.getCanExpand() ? (
+                  <button
+                    {...{
+                      onClick: row.getToggleExpandedHandler(),
+                    }}
+                  >
+                    {row.getIsExpanded() ? (
+                      <Tooltip title="Collapse">
+                        <IoChevronUpOutline className="text-base" />
+                      </Tooltip>
+                    ) : (
+                      <Tooltip title="Expand">
+                        <IoChevronForward className="text-base" />
+                      </Tooltip>
+                    )}
+                  </button>
+                ) : null}
+                {getValue()}
+              </>
+            );
+          },
+        },
+        {
+          header: 'Event Name',
+          accessorKey: 'eventName',
+        },
+        {
+          header: 'Brk',
+          accessorKey: 'break',
+        },
+      ];
+      if (
+        (page === pagesEnum.PROMO || page === pagesEnum.FINAL_LOG) &&
+        tableData.filter((row) => row.promoDuration > 0).length > 0
+      ) {
+        columns.push({
+          header: 'Promo',
+          accessorKey: 'promoDuration',
+        });
+      }
+      if (
+        (page === pagesEnum.SONG || page === pagesEnum.FINAL_LOG) &&
+        tableData.filter((row) => row.songDuration > 0).length > 0
+      ) {
+        columns.push({
+          header: 'Song',
+          accessorKey: 'songDuration',
+        });
+      }
+      if (
+        (page === pagesEnum.COMMERCIAL || page === pagesEnum.FINAL_LOG) &&
+        tableData.filter((row) => row.commercialDuration > 0).length > 0
+      ) {
+        columns.push({
+          header: 'Comm',
+          accessorKey: 'commercialDuration',
+        });
+      }
+      return columns;
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  const autoScroll = (index) => {
+    try {
+      schedulingTableRef.current.scrollToItem(
+        index === 1 ? 0 : index,
+        'center',
+      );
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  return (
+    <>
+      <Table compact={true}>
+        <THead>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <Tr key={headerGroup.id}>
+              {headerGroup.headers.map((header) => {
+                return (
+                  <Th
+                    key={header.id}
+                    colSpan={header.colSpan}
+                    style={{
+                      textWrap: 'nowrap',
+                      border: '1px solid rgb(107 114 128)',
+                      textTransform: 'capitalize',
+                    }}
+                    className={`bg-gray-600 ${
+                      header.column.columnDef.accessorKey !== 'eventName' &&
+                      'text-center'
+                    }`}
+                  >
+                    {flexRender(
+                      header.column.columnDef.header,
+                      header.getContext(),
+                    )}
+                  </Th>
+                );
+              })}
+            </Tr>
+          ))}
+        </THead>
+        <TBody>
+          {table.getRowModel().rows.map((row) => {
+            return (
+              <Tr
+                key={row.id}
+                className={
+                  row.original.eventName
+                    ? 'bg-gray-600 bg-opacity-20'
+                    : 'hover:cursor-pointer'
+                }
+                onClick={() =>
+                  !row.original.eventName && autoScroll(row.original.eventIndex)
+                }
+              >
+                {row.getVisibleCells().map((cell) => {
+                  return (
+                    <Td
+                      key={cell.id}
+                      style={{
+                        textWrap: 'nowrap',
+                        border: '1px solid rgb(75 85 99)',
+                      }}
+                      className={`text-gray-200 ${
+                        cell.column.id === 'eventName' && 'hover:cursor-pointer'
+                      } ${cell.column.id !== 'eventName' && 'text-center'}`}
+                      onClick={() =>
+                        cell.column.id === 'eventName' &&
+                        row.original.eventName &&
+                        autoScroll(row.original.eventIndex)
+                      }
+                    >
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext(),
+                      )}
+                    </Td>
+                  );
+                })}
+              </Tr>
+            );
+          })}
+        </TBody>
+      </Table>
+    </>
+  );
+}
+
+export default DurationTable;

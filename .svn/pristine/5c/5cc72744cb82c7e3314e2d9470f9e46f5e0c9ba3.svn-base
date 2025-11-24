@@ -1,0 +1,130 @@
+import appConfig from 'configs/app.config';
+import ApiService from './ApiService';
+const axios = require('axios');
+
+export async function apiGeTeammaster(data) {
+  return ApiService.fetchData({
+    url: '/teammaster/',
+    method: 'get',
+    data,
+  });
+}
+
+const PostTeam = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      TeamName: param.TeamName,
+      ShortName: param.ShortName,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/teammaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Putteam = (param, token, avatarImg) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      TeamName: param.TeamName,
+      Team_Image: avatarImg,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/teammaster/${param.TeamCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+export async function apiGetGroupmaster(data) {
+  return ApiService.fetchData({
+    url: '/groupmaster/',
+    method: 'get',
+    data,
+  });
+}
+
+const Postgroupname = (data, token) => {
+  return new Promise((resolve, reject) => {
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/groupmaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Putgroupname = (data, token) => {
+  return new Promise((resolve, reject) => {
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/groupmaster/${data.GroupCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+export { PostTeam, Putteam, Postgroupname, Putgroupname };

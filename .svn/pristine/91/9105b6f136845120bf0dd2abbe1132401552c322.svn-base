@@ -1,0 +1,474 @@
+import React from 'react';
+import { useRef, useEffect, useMemo, useState } from 'react';
+import {
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  useReactTable,
+  getFacetedRowModel,
+  getFacetedUniqueValues,
+  getFacetedMinMaxValues,
+  getSortedRowModel,
+} from '@tanstack/react-table';
+import Table from 'components/ui/Table';
+import Checkbox from 'components/ui/Checkbox';
+import { rankItem } from '@tanstack/match-sorter-utils';
+import { Button, Dialog, Pagination, Select, Tooltip } from 'components/ui';
+import { BsInfoCircle } from 'react-icons/bs';
+import DisplayTable from 'views/Controls/DisplayTable';
+import { FaEye } from 'react-icons/fa6';
+import {
+  columnsToINRFormat,
+  getDateFromDateTime,
+  getFieldTotal,
+  numberToINRFormat,
+  openNotification,
+} from 'views/Controls/GLOBALFUNACTION';
+import { generateBill } from '../pdfDefinations/pdfGenerator';
+import '../../../Controls/Displaytable.css';
+
+/* CONSTANTS */
+const { Tr, Th, Td, THead, TBody, Sorter } = Table;
+const pageSizeOption = [
+  { value: 10, label: '10 / page' },
+  { value: 20, label: '20 / page' },
+  { value: 30, label: '30 / page' },
+  { value: 40, label: '40 / page' },
+  { value: 50, label: '50 / page' },
+];
+
+/* COMPONENTS */
+function IndeterminateCheckbox({ indeterminate, onChange, ...rest }) {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (typeof indeterminate === 'boolean' && ref.current) {
+      ref.current.indeterminate = !rest.checked && indeterminate;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ref, indeterminate]);
+
+  return <Checkbox ref={ref} onChange={(_, e) => onChange(e)} {...rest} />;
+}
+
+function SelectableTable({
+  tableColumns,
+  data,
+  globalFilter,
+  setGlobalFilter,
+  rowSelection,
+  setRowSelection,
+  setSelectedRows,
+  footerAction = <></>,
+  type,
+  setShowLoader,
+  additionalData,
+  currencySymbol,
+}) {
+  /* STATES */
+  // Main Table States
+  const [columnFilters, setColumnFilters] = useState([]);
+  // Spots Table States
+  const [originalSpots, setOriginalSpots] = useState(null);
+  const [formattedSpots, setFormattedSpots] = useState(null);
+  const [showSpotsDialog, setShowSpotsDialog] = useState(false);
+  const [spotsGlobalFilter, setSpotsGlobalFilter] = useState('');
+
+  /* VARIABLES */
+  // Main Table Columns
+  const columns = useMemo(() => {
+    return type === 'home' || type === 'dashboard'
+      ? [
+          {
+            id: 'select',
+            header: ({ table }) => (
+              <IndeterminateCheckbox
+                {...{
+                  checked: table.getIsAllRowsSelected(),
+                  indeterminate: table.getIsSomeRowsSelected(),
+                  onChange: table.getToggleAllRowsSelectedHandler(),
+                }}
+              />
+            ),
+            cell: ({ row }) => (
+              <div className="px-1">
+                <IndeterminateCheckbox
+                  {...{
+                    checked: row.getIsSelected(),
+                    disabled: !row.getCanSelect(),
+                    indeterminate: row.getIsSomeSelected(),
+                    onChange: row.getToggleSelectedHandler(),
+                  }}
+                />
+              </div>
+            ),
+          },
+          ...tableColumns,
+        ]
+      : tableColumns;
+  }, [type, tableColumns]);
+
+  if (type === 'dashboard' || type === 'eInvoice') {
+    columns.push({
+      id: 'action',
+      header: 'Action',
+      cell: ({ row }) => (
+        <div className="px-1">
+          <Tooltip title="View Spots">
+            <Button
+              shape="circle"
+              variant="plain"
+              size="xs"
+              icon={<BsInfoCircle />}
+              onClick={() => handleShowSpots(row)}
+            />
+          </Tooltip>
+          <Tooltip title="View Bill">
+            <Button
+              shape="circle"
+              variant="plain"
+              size="xs"
+              icon={<FaEye />}
+              onClick={() => {
+                handleViewBill(row.original);
+              }}
+            />
+          </Tooltip>
+        </div>
+      ),
+    });
+  }
+
+  // Spots Table Columns
+  const spotsColumns = useMemo(() => {
+    return [
+      { header: 'Telecast Date', accessorKey: 'TelecastDate' },
+      { header: 'Telecast Time', accessorKey: 'TelecastTime' },
+      { header: 'Caption', accessorKey: 'CommercialCaption' },
+      { header: 'Duration', accessorKey: 'DurInSec' },
+      { header: 'Rate', accessorKey: 'BookingSpotRate' },
+      { header: 'Amount', accessorKey: 'BillSpotAmount' },
+      { header: 'Program', accessorKey: 'ProgramName' },
+    ];
+  }, []);
+
+  const table = useReactTable({
+    data,
+    columns,
+    filterFns: {
+      fuzzy: fuzzyFilter,
+    },
+    state: {
+      columnFilters,
+      globalFilter,
+      rowSelection,
+    },
+    enableRowSelection: true,
+    onRowSelectionChange: handleRowSelection,
+    onColumnFiltersChange: setColumnFilters,
+    onGlobalFilterChange: setGlobalFilter,
+    globalFilterFn: fuzzyFilter,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getFacetedRowModel: getFacetedRowModel(),
+    getFacetedUniqueValues: getFacetedUniqueValues(),
+    getFacetedMinMaxValues: getFacetedMinMaxValues(),
+    debugHeaders: true,
+    debugColumns: false,
+  });
+
+  /* EVENT HANDLERS */
+  const handlePageSizeChange = (value = 0) => {
+    try {
+      table.setPageSize(Number(value));
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  function handleRowSelection(updater) {
+    try {
+      const newRowSelection =
+        updater instanceof Function ? updater(rowSelection) : updater;
+      setRowSelection(newRowSelection);
+
+      const selectedRowIds = Object.keys(newRowSelection);
+      const newSelectedRows = selectedRowIds.map((id) => {
+        const original = table.getRowModel().rowsById[id]?.original || {};
+        return { ...original, id };
+      });
+      setSelectedRows([...newSelectedRows]);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  const handleShowSpots = (row) => {
+    try {
+      setShowSpotsDialog(true);
+      const spots = additionalData.bills.tmpbilldatasubreport.filter(
+        (curSubReport) => curSubReport.BillNumber === row.original.BillNumber,
+      );
+      setOriginalSpots(spots);
+      setFormattedSpots({
+        invoiceNumber: row.original.INVOICENO,
+        spots: columnsToINRFormat(spots, ['BookingSpotRate', 'BillSpotAmount']),
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const onShowSpotsDialogClose = () => {
+    try {
+      setShowSpotsDialog(false);
+      setOriginalSpots(null);
+      setFormattedSpots(null);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleViewBill = async (invoice) => {
+    try {
+      if (!invoice) {
+        openNotification(
+          'danger',
+          'Something went wrong. Cannot find invoice.',
+        );
+        return;
+      }
+      if (
+        !('bills' in additionalData && 'tmpbilltaxdata' in additionalData.bills)
+      ) {
+        openNotification(
+          'danger',
+          'Something went wrong. Cannot find Tax details for invoice.',
+        );
+      }
+
+      setShowLoader(true);
+      // TODO: get client name
+      const client = 'test';
+      // Generate PDFs using PDF definitions of current client
+      if (client === 'test') {
+        const originalBill = additionalData.bills.tmpbilldata.filter(
+          (bill) => bill.INVOICENO === invoice.INVOICENO,
+        )[0];
+        const pdf = await generateBill(
+          originalBill,
+          additionalData.bills.tmpbilltaxdata,
+          'View Bill',
+        );
+        const pdfBlob = await new Promise((resolve) => {
+          pdf.getBlob((blob) => {
+            resolve(blob);
+          });
+        });
+        const url = URL.createObjectURL(pdfBlob);
+        window.open(url, '_blank');
+      }
+      setShowLoader(false);
+    } catch (error) {
+      openNotification(
+        'danger',
+        'Something went wrong. Unable to generate invoice.',
+      );
+      setShowLoader(false);
+      console.error(error);
+    }
+  };
+
+  /* HELPER FUNCTIONS */
+  function fuzzyFilter(row, columnId, value, addMeta) {
+    try {
+      const itemRank = rankItem(row.getValue(columnId), value);
+      addMeta({
+        itemRank,
+      });
+      return itemRank.passed;
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  return (
+    <div className="root-container">
+      <Table className="table">
+        <THead>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <Tr key={headerGroup.id} className="tr3">
+              {headerGroup.headers.map((header) => {
+                return (
+                  <>
+                    <Th
+                      key={header.id}
+                      colSpan={header.colSpan}
+                      style={{
+                        width:
+                          header.id === 'select'
+                            ? '7%'
+                            : header.id === 'INVOICENO'
+                            ? '15%'
+                            : header.id === 'ClientName' ||
+                              header.id === 'AgencyName'
+                            ? '20%'
+                            : header.id === 'InvoiceDate'
+                            ? '15%'
+                            : header.id === 'action' ||
+                              header.id === 'PayableAmount'
+                            ? '10%'
+                            : 'auto',
+                      }}
+                    >
+                      {header.isPlaceholder ? null : (
+                        <div
+                          {...{
+                            className: header.column.getCanSort()
+                              ? 'cursor-pointer select-none'
+                              : '',
+                            onClick: header.column.getToggleSortingHandler(),
+                          }}
+                        >
+                          {flexRender(
+                            header.column.columnDef.header,
+                            header.getContext(),
+                          )}
+                          {header.column.id !== 'select' && (
+                            <Sorter sort={header.column.getIsSorted()} />
+                          )}
+                        </div>
+                      )}
+                    </Th>
+                  </>
+                );
+              })}
+            </Tr>
+          ))}
+        </THead>
+        <TBody className="tbody">
+          {table.getRowModel().rows.map((row) => {
+            return (
+              <Tr key={row.id} className="tr">
+                {row.getVisibleCells().map((cell) => {
+                  return (
+                    <>
+                      <Td
+                        key={cell.id}
+                        className="td text-xs"
+                        style={{
+                          width:
+                            cell.column.id === 'select'
+                              ? '7%'
+                              : cell.column.id === 'INVOICENO'
+                              ? '15%'
+                              : cell.column.id === 'ClientName' ||
+                                cell.column.id === 'AgencyName'
+                              ? '20%'
+                              : cell.column.id === 'InvoiceDate'
+                              ? '15%'
+                              : cell.column.id === 'action' ||
+                                cell.column.id === 'PayableAmount'
+                              ? '10%'
+                              : 'auto',
+                        }}
+                      >
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext(),
+                        )}
+                      </Td>
+                    </>
+                  );
+                })}
+              </Tr>
+            );
+          })}
+        </TBody>
+      </Table>
+      <div className="flex items-center justify-between mt-4">
+        <Pagination
+          pageSize={table.getState().pagination.pageSize}
+          currentPage={table.getState().pagination.pageIndex + 1}
+          total={data.length}
+          onChange={(page) => {
+            table.setPageIndex(page - 1);
+          }}
+        />
+        <div className="flex gap-2">
+          <Select
+            size="sm"
+            isSearchable={false}
+            style={{ width: 130 }}
+            value={pageSizeOption.filter(
+              (option) => option.value === table.getState().pagination.pageSize,
+            )}
+            options={pageSizeOption}
+            onChange={(option) => handlePageSizeChange(option?.value)}
+          />
+          {footerAction}
+        </div>
+      </div>
+      {originalSpots && formattedSpots && (
+        <Dialog
+          isOpen={showSpotsDialog}
+          onClose={onShowSpotsDialogClose}
+          onRequestClose={onShowSpotsDialogClose}
+          width={'90vw'}
+          height={'80vh'}
+          contentClassName="pt-3 flex flex-col"
+        >
+          <h5 className="border-b border-gray-700 pb-2">Billed Spots Info </h5>
+          <div className="flex gap-3 py-2 border-b border-gray-700">
+            <div className="flex flex-col border-r border-r-gray-700 pr-3">
+              <span className="font-semibold text-teal-500 text-base">
+                {originalSpots.length}
+              </span>
+              <span>Total Spots</span>
+            </div>
+            <div className="flex flex-col border-r border-r-gray-700 pr-3">
+              <span className="font-semibold text-teal-500 text-base">
+                {getFieldTotal(originalSpots, 'DurInSec')}
+              </span>
+              <span>Total Duration</span>
+            </div>
+            <div className="flex flex-col border-r border-r-gray-700 pr-3">
+              <span className="font-semibold text-teal-500 text-base">
+                {currencySymbol}{' '}
+                {numberToINRFormat(
+                  getFieldTotal(originalSpots, 'BillSpotAmount'),
+                )}
+              </span>
+              <span>Total Amount</span>
+            </div>
+          </div>
+          {formattedSpots.spots.length > 0 ? (
+            <div className="grow mt-3">
+              <DisplayTable
+                data={formattedSpots.spots.map((spot) => {
+                  return {
+                    ...spot,
+                    TelecastDate: getDateFromDateTime(spot.TelecastDate),
+                    BookingSpotRate: `${currencySymbol} ${spot.BookingSpotRate}`,
+                    BillSpotAmount: `${currencySymbol} ${spot.BillSpotAmount}`,
+                  };
+                })}
+                columns={spotsColumns}
+                globalFilter={spotsGlobalFilter}
+                setGlobalFilter={setSpotsGlobalFilter}
+                ExportName={`Bill Spots`}
+              />
+            </div>
+          ) : (
+            <p className="text-center">No Spots Found</p>
+          )}
+        </Dialog>
+      )}
+    </div>
+  );
+}
+
+export default SelectableTable;

@@ -1,0 +1,260 @@
+import React, { useContext, useEffect, useRef, useState } from 'react';
+import { IoMdClose } from 'react-icons/io';
+import {
+  Button,
+  Card,
+  Input,
+  InputGroup,
+  Spinner,
+  Tooltip,
+} from 'components/ui';
+import SchedulerContext from 'views/Scheduling/Scheduler/context/SchedulerContext';
+import {
+  droppableIdsEnum,
+  featuresEnum,
+  rowDataTypesEnum,
+  secondaryTableTypesEnum,
+  tableTypesEnum,
+} from 'views/Scheduling/Scheduler/enum';
+import {
+  getAllColumnsOfTable,
+  getColumnSettingsFromAPI,
+  handleFeatureClose,
+} from '../../utils/utils';
+import { openNotification } from 'views/Controls/GLOBALFUNACTION';
+import { closeDropDowns } from './utils';
+import { useSelector } from 'react-redux';
+import DraggableTable from '../DraggableTable/DraggableTable';
+import { TbGridDots } from 'react-icons/tb';
+import ManageColumns from '../Dropdowns/ManageColumns/ManageColumns';
+import classNames from 'classnames';
+import SecondaryTableToolbar from '../SecondaryTableToolbar/SecondaryTableToolbar';
+import { TABLE_NAMES } from 'views/Scheduling/Scheduler/constants';
+import { useDebounce } from 'use-debounce';
+
+function InsertDroppedNTC() {
+  /* REDUX */
+  const token = useSelector((state) => state.auth.session.token);
+
+  /* CONTEXT */
+  const {
+    setSecondaryTableType,
+    setOgSecTableData,
+    secondaryTableData,
+    setSecondaryTableData,
+    secondaryTableManagedColumns,
+    setSecondaryTableManagedColumns,
+    setActiveFeatures,
+    secTableToolbarState,
+    setSecTableToolbarState,
+    secondaryTableOffset,
+    secondaryTableSelectedRows,
+    setSecondaryTableSelectedRows,
+    secondaryTableRef,
+    droppedNtcs,
+    resetSecondaryTableStates,
+  } = useContext(SchedulerContext);
+
+  /* STATES */
+  const [searchInputValue, setSearchInputValue] = useState('');
+  const [showLoader, setShowLoader] = useState(false);
+
+  /* HOOKS */
+  const dropdownRef = useRef(null);
+  const [debouncedSearchInputValue] = useDebounce(searchInputValue, 500);
+
+  /* USE EFFECTS */
+  useEffect(() => {
+    (async () => {
+      try {
+        setSecondaryTableType(secondaryTableTypesEnum.DROPPED_NTC);
+      } catch (error) {
+        openNotification(
+          'danger',
+          'Something went wrong while fetching Dropped NTCs',
+        );
+        setShowLoader(false);
+        console.error(error);
+      }
+    })();
+    return resetSecondaryTableStates;
+  }, []);
+
+  useEffect(() => {
+    try {
+      if (Array.isArray(droppedNtcs)) {
+        handleSearch(droppedNtcs);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }, [debouncedSearchInputValue, droppedNtcs]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        if (secondaryTableManagedColumns.originalColumns.length === 0) {
+          const { visibleColumns, removedColumns } =
+            await getColumnSettingsFromAPI(
+              TABLE_NAMES.SECONDARY_TABLE_NAMES.INSERT_DROPPED_NTC,
+              secondaryTableData,
+              token,
+            );
+          setSecondaryTableManagedColumns({
+            originalColumns: getAllColumnsOfTable(secondaryTableData),
+            visibleColumns,
+            removedColumns,
+          });
+        }
+      } catch (error) {
+        openNotification(
+          'danger',
+          'Something went wrong while setting columns for Dropped NTCs',
+        );
+        console.error(error);
+      }
+    })();
+  }, [secondaryTableData]);
+
+  useEffect(() => {
+    document.addEventListener('mousedown', (event) =>
+      closeDropDowns(event, dropdownRef, setSecTableToolbarState),
+    );
+    return () => {
+      document.removeEventListener('mousedown', (event) =>
+        closeDropDowns(event, dropdownRef, setSecTableToolbarState),
+      );
+    };
+  }, [dropdownRef, setSecTableToolbarState]);
+
+  /* HELPER FUNCTIONS */
+  const handleSearch = async (tableData) => {
+    try {
+      if (!debouncedSearchInputValue) {
+        const newTableData = resetTableFilter(tableData);
+        setOgSecTableData(newTableData);
+        setSecondaryTableData(newTableData);
+        return;
+      }
+      let isAnyRowFound = false;
+      const newTableData = [];
+      tableData.forEach((row, index) => {
+        if (index === 0) newTableData.push(row);
+        else {
+          const isFound = row.Event_Name.toLowerCase().includes(
+            debouncedSearchInputValue.toLowerCase(),
+          );
+          if (isFound) isAnyRowFound = true;
+          newTableData.push({ ...row, isFiltered: isFound });
+        }
+      });
+      setOgSecTableData(newTableData);
+      setSecondaryTableData(newTableData);
+      return isAnyRowFound;
+    } catch (error) {
+      openNotification('danger', 'Something went wrong while searching');
+      console.error(error);
+    }
+  };
+
+  const resetTableFilter = (tableData) => {
+    return tableData.map((row, index) => {
+      return index === 0 ? row : { ...row, isFiltered: true };
+    });
+  };
+
+  /* CONSTANTS */
+  const filteredRows = secondaryTableData.filter((row) => row.isFiltered);
+
+  return (
+    <div className="h-full w-full flex flex-col overflow-auto no-scrollbar bg-gray-800 p-3 pt-2 rounded-lg">
+      <div className="flex justify-between items-center mb-2">
+        <div className="flex items-center gap-3">
+          <h5>Dropped NTCs</h5>
+          {filteredRows.length > 0 && (
+            <h6 className="p-1 rounded-full  text-sm font-black bg-emerald-600 text-white mr-2 w-8 text-center">
+              {filteredRows.length}
+            </h6>
+          )}
+        </div>
+        <div className="flex gap-1.5">
+          {filteredRows.length > 0 && (
+            <Tooltip title="Manage Columns" wrapperClass="relative">
+              <Button
+                size="xs"
+                icon={<TbGridDots />}
+                className={classNames(
+                  secondaryTableManagedColumns.removedColumns.length > 0
+                    ? '!bg-teal-700 hover:!bg-teal-700'
+                    : 'hover:!bg-teal-800',
+                  'transition-all',
+                )}
+                onClick={() =>
+                  setSecTableToolbarState({
+                    ...secTableToolbarState,
+                    isManageColumnsDropdownVisible: true,
+                  })
+                }
+              />
+              {secTableToolbarState.isManageColumnsDropdownVisible && (
+                <ManageColumns
+                  tableType={tableTypesEnum.SECONDARY}
+                  dropdownRef={dropdownRef}
+                  position="right-1/2"
+                />
+              )}
+            </Tooltip>
+          )}
+          <Tooltip title="Close">
+            <Button
+              size="xs"
+              icon={<IoMdClose />}
+              onClick={() =>
+                handleFeatureClose(setActiveFeatures, featuresEnum.INSERT)
+              }
+            />
+          </Tooltip>
+        </div>
+      </div>
+      <InputGroup className="mb-3 flex">
+        <Input
+          placeholder="Search Drop Box"
+          size="sm"
+          className="h-[38px]"
+          onChange={(event) => setSearchInputValue(event.target.value)}
+          value={searchInputValue}
+          autoFocus={true}
+        />
+      </InputGroup>
+      <div className="h-[92%] flex flex-col gap-3">
+        {filteredRows.length > 0 ? (
+          <>
+            <div className="grow">
+              <DraggableTable
+                tableName={TABLE_NAMES.SECONDARY_TABLE_NAMES.INSERT_DROPPED_NTC}
+                tableType={tableTypesEnum.SECONDARY}
+                tableData={secondaryTableData}
+                columns={secondaryTableManagedColumns.visibleColumns}
+                droppableId={droppableIdsEnum.SECONDARY}
+                selectedRows={secondaryTableSelectedRows}
+                setSelectedRows={setSecondaryTableSelectedRows}
+                scrolledOffset={secondaryTableOffset}
+                tableRef={secondaryTableRef}
+              />
+            </div>
+            <SecondaryTableToolbar insertType={rowDataTypesEnum.NTC} />
+          </>
+        ) : (
+          <Card
+            className="h-full"
+            bodyClass="h-full flex justify-center items-center"
+          >
+            {showLoader ? <Spinner size="45px" /> : 'No dropped NTCs to show'}
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default InsertDroppedNTC;

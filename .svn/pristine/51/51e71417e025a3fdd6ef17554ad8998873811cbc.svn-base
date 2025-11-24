@@ -1,0 +1,1870 @@
+import { Notification, toast } from 'components/ui';
+import { format, parse } from 'date-fns';
+import { eventColorsAg } from 'components/shared/CalendarView';
+import { apisendnotification } from 'services/ProgrammingService';
+import { apiCallstoreprocedure } from 'services/CommonService';
+import * as XLSX from 'xlsx';
+import isEqual from 'lodash/isEqual';
+export const monthNames = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'June',
+  'July',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+const handleChangeWithFrame = (event, setvalue, field, l) => {
+  const inputValue = event.target.value;
+  console.log('inputValue', inputValue);
+  const newValue = inputValue.replace(/\D/g, '');
+  // Format the value as ##:##:##:##
+  let formattedValue = '';
+  for (let i = 0; i < Math.min(newValue.length, 8); i += 2) {
+    if (i > 0) formattedValue += ':';
+    formattedValue += newValue.substr(i, 2);
+    if (formattedValue.split('').length == 2) {
+      if (parseInt(formattedValue) > 23) return;
+    }
+    if (formattedValue.split('').length == 5) {
+      if (parseInt(formattedValue.substring(3, 5)) > 59) return;
+    }
+
+    if (formattedValue.split('').length == 8) {
+      if (parseInt(formattedValue.substring(6, 8)) > 59) return;
+    }
+    if (formattedValue.split('').length == 11) {
+      if (parseInt(formattedValue.substring(9, 11)) > 24) return;
+    }
+  }
+
+  if (l == 'formic') {
+    setvalue.setFieldValue(
+      field.name,
+
+      formattedValue,
+    );
+  } else {
+    setvalue(formattedValue);
+  }
+};
+const handleChangeWithOutFrame = (event, setvalue) => {
+  const inputValue = event.target.value;
+  // Remove non-digit characters
+  const newValue = inputValue.replace(/\D/g, '');
+  // Format the value as ##:##:##:##
+  let formattedValue = '';
+  for (let i = 0; i < Math.min(newValue.length, 5); i += 2) {
+    if (i > 0) formattedValue += ':';
+    formattedValue += newValue.substr(i, 2);
+    if (formattedValue.split('').length == 2) {
+      if (parseInt(formattedValue) > 23) return;
+    }
+    if (formattedValue.split('').length == 5) {
+      if (parseInt(formattedValue.substring(3, 5)) > 59) return;
+    }
+
+    if (formattedValue.split('').length == 8) {
+      if (parseInt(formattedValue.substring(6, 8)) > 59) return;
+    }
+  }
+
+  setvalue(formattedValue);
+};
+
+const handleChangeWithOutFrameNewPro = (event, setvalue) => {
+  const { name, value } = event.target;
+
+  // Remove non-digit characters
+  const newValue = value.replace(/\D/g, '');
+  // Format the value as ##:##:##:##
+  let formattedValue = '';
+  for (let i = 0; i < Math.min(newValue.length, 8); i += 2) {
+    if (i > 0) formattedValue += ':';
+    formattedValue += newValue.substr(i, 2);
+    if (formattedValue.split(':').length == 2) {
+      if (parseInt(formattedValue) > 23) return;
+    }
+    if (formattedValue.split(':').length == 3) {
+      if (parseInt(formattedValue.substring(3, 5)) > 59) return;
+    }
+    if (formattedValue.split(':').length == 4) {
+      if (parseInt(formattedValue.substring(6, 8)) > 59) return;
+    }
+  }
+  console.log(formattedValue);
+
+  setvalue((prevFormState) => {
+    const newState = { ...prevFormState, [name]: formattedValue };
+
+    if (name === 'StartTime' && newState.EndTime) {
+      if (parseDurationE(formattedValue) > parseDurationE(newState.EndTime)) {
+        openNotification('info', 'Start time cannot be greater than end time');
+        return {
+          ...prevFormState,
+          StartTime: '00:00:00:00',
+          EndTime: '00:00:00:00',
+        };
+      }
+    } else if (name === 'EndTime' && newState.StartTime) {
+      if (parseDurationE(formattedValue) < parseDurationE(newState.StartTime)) {
+        openNotification('info', 'End time cannot be less than start time');
+        return {
+          ...prevFormState,
+          StartTime: '00:00:00:00',
+          EndTime: '00:00:00:00',
+        };
+      }
+    }
+
+    return newState;
+  });
+};
+
+const handleChangeWithOutFrameNew = (event, setvalue) => {
+  console.log('event', event);
+  const { name, value } = event.target;
+  console.log(name);
+  console.log(value);
+
+  // Remove non-digit characters
+  const newValue = value.replace(/\D/g, '');
+  // Format the value as ##:##:##:##
+  let formattedValue = '';
+  for (let i = 0; i < Math.min(newValue.length, 5); i += 2) {
+    if (i > 0) formattedValue += ':';
+    formattedValue += newValue.substr(i, 2);
+    if (formattedValue.split('').length == 2) {
+      if (parseInt(formattedValue) > 23) return;
+    }
+    if (formattedValue.split('').length == 5) {
+      if (parseInt(formattedValue.substring(3, 5)) > 59) return;
+    }
+
+    if (formattedValue.split('').length == 8) {
+      if (parseInt(formattedValue.substring(6, 8)) > 59) return;
+    }
+  }
+  console.log(formattedValue);
+  setvalue((prevFormState) => ({
+    ...prevFormState,
+    [name]: formattedValue,
+  }));
+};
+
+const parseTimeCode = (timeCode) => {
+  const [hours, minutes, seconds, frames] = timeCode.split(':').map(Number);
+
+  return {
+    hours,
+    minutes,
+    seconds,
+    frames,
+  };
+};
+
+const formatTimeCode = (parsedTime) => {
+  const { hours, minutes, seconds } = parsedTime;
+
+  return `${hours} Hr ${minutes} Min ${seconds} Sec`;
+};
+
+const TimeCodeDisplay = (timeCode) => {
+  const parsedTime = parseTimeCode(timeCode);
+  const formattedTime = formatTimeCode(parsedTime);
+
+  return (
+    <pre style={{ fontFamily: 'inherit', whiteSpace: 'pre-wrap' }}>
+      {formattedTime}
+    </pre>
+  );
+};
+function parseDurationE(frame = 24, timeString) {
+  const [hours, minutes, seconds, frames] = timeString.split(':').map(Number);
+  return hours * 3600 + minutes * 60 + seconds + frames / frame; // Assuming 24 frames per second
+}
+const sumDurationsInMinutes = (data) => {
+  // Filter items where F_C_S_P is "CM"
+  const filteredData = data.filter((item) => item.F_C_S_P === 'CM');
+
+  // Sum durations in seconds
+  const totalSeconds = filteredData.reduce(
+    (acc, item) => acc + parseDurationE(item.duration),
+    0,
+  );
+
+  // Convert total seconds to minutes
+  const totalMinutes = totalSeconds / 60;
+
+  return totalMinutes;
+};
+const sumDurationsss = (data) => {
+  const filteredData = data.filter((item) => item.F_C_S_P === 'CM');
+
+  const totalDuration = filteredData.reduce((acc, item) => {
+    const [hours, minutes, seconds] = item.Duration.split(':').map(Number);
+    return acc + hours * 3600 + minutes * 60 + seconds;
+  }, 0);
+
+  // Convert total seconds back to HH:MM:SS format
+  const totalHours = Math.floor(totalDuration / 3600);
+  const totalMinutes = Math.floor((totalDuration % 3600) / 60);
+  const totalSeconds = totalDuration % 60;
+
+  return `${String(totalHours).padStart(2, '0')}:${String(
+    totalMinutes,
+  ).padStart(2, '0')}:${String(totalSeconds).padStart(2, '0')}`;
+};
+function parseDuration(durationString) {
+  // Check if durationString is undefined or not a string
+  if (typeof durationString !== 'string') {
+    return null;
+  }
+
+  // console.log('durationString', durationString);
+
+  const parts = durationString.split(':').map(Number);
+
+  // Check if the parts are valid numbers
+  if (parts.some(isNaN) || parts.length !== 4) {
+    return null;
+  }
+
+  const [hours, minutes, seconds, frames] = parts;
+  let dur = hours * 3600 + minutes * 60 + seconds + frames / 30;
+
+  return Math.round(dur);
+}
+
+const insertBlankBeforeS = (events) => {
+  const modifiedEvents = [];
+  let promoDuration = 0;
+
+  const calculateDurationInSeconds = (duration) => {
+    const [hours, minutes, seconds] = duration.split(':').map(Number);
+    return hours * 3600 + minutes * 60 + seconds;
+  };
+
+  const GetPromoSum = (index, events) => {
+    let promoSum = 0;
+    for (let i = 0; i < index; i++) {
+      if (events[i].F_C_S_P !== 'CT') {
+        promoSum += calculateDurationInSeconds(events[i].Duration);
+      }
+    }
+    return promoSum;
+  };
+
+  let firstCTFound = true;
+  events.forEach((event, index) => {
+    if (event.F_C_S_P === 'CT') {
+      if (!firstCTFound) {
+        modifiedEvents.push({
+          EventBackColor: 'rgba(255, 255, 255, 0.73)',
+          EventFontColor: 'black',
+          fontSize: '100',
+          TelecastTime: 'First CT Promo Duration',
+          Tel_Time: 'Promo Duration: ' + GetPromoSum(index, events),
+        });
+        firstCTFound = true;
+      } else {
+        modifiedEvents.push({
+          EventBackColor: 'rgba(255, 255, 255, 0.73)',
+          EventFontColor: 'black',
+          fontSize: '100',
+          TelecastTime: `Break Number: ${event.BreakNumber}`,
+          Tel_Time: 'Duration In Sec: ' + GetPromoSum(index, events),
+        });
+      }
+    }
+
+    modifiedEvents.push(event);
+  });
+
+  return modifiedEvents;
+};
+
+const truncateText = (text, maxLength = 25) => {
+  if (!text) return '';
+  return text.length > maxLength ? `${text.substring(0, maxLength)}...` : text;
+};
+const formatDateTime = (dateString) => {
+  if (!dateString) return '';
+  try {
+    return new Date(dateString).toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch (error) {
+    return dateString;
+  }
+};
+
+function formatDurationHHMMSSFF(frame = 24, seconds) {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainingSeconds = Math.floor(seconds % 60);
+  const frames = Math.round((seconds % 1) * frame);
+
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(
+    2,
+    '0',
+  )}:${String(remainingSeconds).padStart(2, '0')}:${String(frames).padStart(
+    2,
+    '0',
+  )}`;
+}
+function formatDurationHHMM(seconds) {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(
+    2,
+    '0',
+  )}`;
+}
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+const formatOnHHMMSSFFBlur = (value, frames) => {
+  // Remove non-digit characters
+  if (value.length === 0) {
+    value = '00:00:00:00';
+  }
+  const newValue = value.replace(/\D/g, '');
+  let formattedValue = '';
+  for (let i = 0; i < Math.min(newValue.length, 8); i += 2) {
+    if (i > 0) formattedValue += ':';
+    formattedValue += newValue.substr(i, 2);
+
+    if (formattedValue.split(':').length < 1) {
+      formattedValue = '00';
+    }
+    if (formattedValue.split(':').length === 1) {
+      // Hours
+      if (parseInt(formattedValue) > frames) {
+        formattedValue = '23';
+      }
+      if (formattedValue.length < 2) {
+        formattedValue = '0' + formattedValue;
+        console.log(formattedValue);
+      }
+    } else if (formattedValue.split(':').length === 2) {
+      // Minutes
+      console.log('Minutes Minutes', `${formattedValue.split(':')[0]}`);
+      if (parseInt(formattedValue.split(':')[1]) > 59) {
+        formattedValue = `${formattedValue.split(':')[0]}:59`;
+      }
+      if (formattedValue.split(':')[1].length < 2) {
+        formattedValue =
+          formattedValue.split(':')[0] + ':0' + formattedValue.split(':')[1];
+      }
+    } else if (formattedValue.split(':').length === 3) {
+      // Seconds
+      if (parseInt(formattedValue.split(':')[2]) > 59) {
+        formattedValue = `${formattedValue.split(':')[0]}:${formattedValue.split(':')[1]
+          }:59`;
+      }
+
+      if (formattedValue.split(':')[2].length < 2) {
+        formattedValue =
+          formattedValue.split(':')[0] +
+          ':' +
+          formattedValue.split(':')[1] +
+          ':0' +
+          formattedValue.split(':')[2];
+        console.log(formattedValue);
+      }
+    } else if (formattedValue.split(':').length === 4) {
+      // Frames
+      if (parseInt(formattedValue.split(':')[3]) > frames) {
+        formattedValue = `${formattedValue.split(':')[0]}:${formattedValue.split(':')[1]
+          }:${formattedValue.split(':')[2]}:23`;
+      }
+
+      if (formattedValue.split(':')[3].length < 2) {
+        formattedValue =
+          formattedValue.split(':')[0] +
+          ':' +
+          formattedValue.split(':')[1] +
+          ':' +
+          formattedValue.split(':')[2] +
+          ':0' +
+          formattedValue.split(':')[3];
+      }
+    }
+  }
+  while (formattedValue.split(':').length < 4) {
+    formattedValue += ':00';
+  }
+
+  return formattedValue;
+};
+
+const formatOnHHMMSSBlur = (value) => {
+  // Remove non-digit characters
+  if (value.length === 0) {
+    value = '00:00:00';
+  }
+  const newValue = value.replace(/\D/g, '');
+  let formattedValue = '';
+  for (let i = 0; i < Math.min(newValue.length, 6); i += 2) {
+    if (i > 0) formattedValue += ':';
+    formattedValue += newValue.substr(i, 2);
+    console.log(
+      'formattedValue***',
+      formattedValue,
+      '---',
+      formattedValue.length,
+      'formattedValue***',
+      formattedValue.split(':').length,
+    );
+    if (formattedValue.split(':').length < 1) {
+      formattedValue = '00';
+    }
+    if (formattedValue.split(':').length === 1) {
+      // Hours
+      if (parseInt(formattedValue) > 23) {
+        formattedValue = '23';
+      }
+      if (formattedValue.length < 2) {
+        formattedValue = '0' + formattedValue;
+        console.log(formattedValue);
+      }
+    } else if (formattedValue.split(':').length === 2) {
+      // Minutes
+      // console.log('Minutes Minutes', `${formattedValue.split(':')[0]}`)
+      if (parseInt(formattedValue.split(':')[1]) > 59) {
+        formattedValue = `${formattedValue.split(':')[0]}:59`;
+      }
+      if (formattedValue.split(':')[1].length < 2) {
+        formattedValue =
+          formattedValue.split(':')[0] + ':0' + formattedValue.split(':')[1];
+      }
+    } else if (formattedValue.split(':').length === 3) {
+      // Seconds
+      if (parseInt(formattedValue.split(':')[2]) > 59) {
+        formattedValue = `${formattedValue.split(':')[0]}:${formattedValue.split(':')[1]
+          }:59`;
+      }
+
+      if (formattedValue.split(':')[2].length < 2) {
+        formattedValue =
+          formattedValue.split(':')[0] +
+          ':' +
+          formattedValue.split(':')[1] +
+          ':0' +
+          formattedValue.split(':')[2];
+        // console.log(formattedValue)
+      }
+    } else if (formattedValue.split(':').length === 4) {
+      // Frames
+      if (parseInt(formattedValue.split(':')[3]) > 23) {
+        formattedValue = `${formattedValue.split(':')[0]}:${formattedValue.split(':')[1]
+          }:${formattedValue.split(':')[2]}:23`;
+      }
+
+      if (formattedValue.split(':')[3].length < 2) {
+        formattedValue =
+          formattedValue.split(':')[0] +
+          ':' +
+          formattedValue.split(':')[1] +
+          ':' +
+          formattedValue.split(':')[2] +
+          ':0' +
+          formattedValue.split(':')[3];
+      }
+    }
+  }
+  while (formattedValue.split(':').length < 3) {
+    formattedValue += ':00';
+  }
+
+  return formattedValue;
+};
+
+const handleChangeWithFrameSingleValue = (event, setvalue) => {
+  const { name, value } = event.target;
+  // Remove non-digit characters
+  const newValue = value.replace(/\D/g, '');
+  // Format the value as HH:mm:ss:ff
+  let formattedValue = '';
+
+  for (let i = 0; i < Math.min(newValue.length, 8); i += 2) {
+    if (i > 0) formattedValue += ':';
+    formattedValue += newValue.substr(i, 2);
+
+    if (formattedValue.split(':').length === 1) {
+      // Hours
+      if (parseInt(formattedValue) > 23) {
+        formattedValue = '23';
+      }
+    } else if (formattedValue.split(':').length === 2) {
+      // Minutes
+      if (parseInt(formattedValue.split(':')[1]) > 59) {
+        formattedValue = `${formattedValue.split(':')[0]}:59`;
+      }
+    } else if (formattedValue.split(':').length === 3) {
+      // Seconds
+      if (parseInt(formattedValue.split(':')[2]) > 59) {
+        formattedValue = `${formattedValue.split(':')[0]}:${formattedValue.split(':')[1]
+          }:59`;
+      }
+    } else if (formattedValue.split(':').length === 4) {
+      // Frames
+      if (parseInt(formattedValue.split(':')[3]) > 23) {
+        formattedValue = `${formattedValue.split(':')[0]}:${formattedValue.split(':')[1]
+          }:${formattedValue.split(':')[2]}:23`;
+      }
+    }
+  }
+  console.log('formattedValue1', formattedValue);
+  setvalue(formattedValue);
+};
+const handleChangeWithFrameSingleWithoutff = (event, setvalue) => {
+  const { name, value } = event.target;
+  // Remove non-digit characters
+  const newValue = value.replace(/\D/g, '');
+  // Format the value as HH:mm:ss:ff
+  let formattedValue = '';
+
+  for (let i = 0; i < Math.min(newValue.length, 6); i += 2) {
+    if (i > 0) formattedValue += ':';
+    formattedValue += newValue.substr(i, 2);
+
+    if (formattedValue.split(':').length === 1) {
+      // Hours
+      if (parseInt(formattedValue) > 23) {
+        formattedValue = '23';
+      }
+    } else if (formattedValue.split(':').length === 2) {
+      // Minutes
+      if (parseInt(formattedValue.split(':')[1]) > 59) {
+        formattedValue = `${formattedValue.split(':')[0]}:59`;
+      }
+    } else if (formattedValue.split(':').length === 3) {
+      // Seconds
+      if (parseInt(formattedValue.split(':')[2]) > 59) {
+        formattedValue = `${formattedValue.split(':')[0]}:${formattedValue.split(':')[1]
+          }:59`;
+      }
+    } else if (formattedValue.split(':').length === 4) {
+      // Frames
+      if (parseInt(formattedValue.split(':')[3]) > 23) {
+        formattedValue = `${formattedValue.split(':')[0]}:${formattedValue.split(':')[1]
+          }:${formattedValue.split(':')[2]}:23`;
+      }
+    }
+  }
+  console.log('formattedValue1', formattedValue);
+  setvalue(formattedValue);
+};
+
+const handleChangeWithFrameNew = (event, setvalue, frames) => {
+  const { name, value } = event.target;
+  // Remove non-digit characters
+  const newValue = value.replace(/\D/g, '');
+  // Format the value as HH:mm:ss:ff
+  let formattedValue = '';
+
+  for (let i = 0; i < Math.min(newValue.length, 8); i += 2) {
+    if (i > 0) formattedValue += ':';
+    formattedValue += newValue.substr(i, 2);
+
+    if (formattedValue.split(':').length === 1) {
+      // Hours
+      if (parseInt(formattedValue) >= frames) {
+        formattedValue = '00';
+      }
+    } else if (formattedValue.split(':').length === 2) {
+      // Minutes
+      if (parseInt(formattedValue.split(':')[1]) > 59) {
+        formattedValue = `${formattedValue.split(':')[0]}:59`;
+      }
+    } else if (formattedValue.split(':').length === 3) {
+      // Seconds
+      if (parseInt(formattedValue.split(':')[2]) > 59) {
+        formattedValue = `${formattedValue.split(':')[0]}:${formattedValue.split(':')[1]
+          }:59`;
+      }
+    } else if (formattedValue.split(':').length === 4) {
+      // (Frames-1)
+      if (parseInt(formattedValue.split(':')[3]) >= frames) {
+        formattedValue = `${formattedValue.split(':')[0]}:${formattedValue.split(':')[1]
+          }:${formattedValue.split(':')[2]}:00`;
+      }
+    }
+  }
+  console.log('formattedValue1', formattedValue);
+  setvalue((prevFormState) => ({
+    ...prevFormState,
+    [name]: formattedValue,
+  }));
+};
+
+function addTimeDurations(startTime, duration) {
+  if (!startTime) return duration;
+
+  const [startHours, startMinutes, startSeconds, startMilliseconds] = startTime
+    .split(':')
+    .map(Number);
+  const [durHours, durMinutes, durSeconds, durMilliseconds] = duration
+    .split(':')
+    .map(Number);
+
+  let totalMilliseconds = startMilliseconds + durMilliseconds;
+  let totalSeconds =
+    startSeconds + durSeconds + Math.floor(totalMilliseconds / 1000);
+  let totalMinutes = startMinutes + durMinutes + Math.floor(totalSeconds / 60);
+  let totalHours = startHours + durHours + Math.floor(totalMinutes / 60);
+
+  totalMilliseconds = totalMilliseconds % 1000;
+  totalSeconds = totalSeconds % 60;
+  totalMinutes = totalMinutes % 60;
+  totalHours = totalHours % 24; // assuming no day overflow is needed
+
+  return `${String(totalHours).padStart(2, '0')}:${String(
+    totalMinutes,
+  ).padStart(2, '0')}:${String(totalSeconds).padStart(2, '0')}:${String(
+    totalMilliseconds,
+  ).padStart(3, '0')}`;
+}
+
+function timeToMilliseconds(time) {
+  const [hours, minutes, seconds, frames] = time.split(':').map(parseFloat);
+  return ((hours * 60 + minutes) * 60 + seconds) * 1000 + frames;
+}
+
+export const parseTime = (timeString) => {
+  console.log('timeString', timeString);
+  const [hours, minutes, seconds, milliseconds] = timeString
+    .split(':')
+    .map(Number);
+  return (
+    hours * 60 * 60 * 1000 + minutes * 60 * 1000 + seconds * 1000 + milliseconds
+  );
+};
+
+function compareDates(firstDate, secondDate) {
+  console.log(firstDate);
+  console.log(secondDate);
+  const date1 = new Date(firstDate);
+  const date2 = new Date(secondDate);
+  return date1.getTime() <= date2.getTime();
+}
+function isTimeBetween(currentTime, start, end) {
+  const currentStartDate = new Date(`2000-01-01T${currentTime}`);
+
+  const startDate = new Date(`2000-01-01T${start}`);
+  const endDate = new Date(`2000-01-01T${end}`);
+
+  const isCurrentTimeBetween =
+    currentStartDate >= startDate && currentStartDate <= endDate;
+
+  console.log('isCurrentTimeBetween', isCurrentTimeBetween);
+  return isCurrentTimeBetween;
+}
+const openNotification = (type, mes, title = 'BATS') => {
+  toast.push(
+    <Notification title={title} type={type}>
+      {mes}
+    </Notification>,
+  );
+};
+
+const getUniqueObjects = (jsonArray, field, direction = 'start') => {
+  try {
+    let uniqueValues = [];
+    let uniqueObjects = [];
+    let newJSONArray = [...jsonArray];
+    if (direction === 'end') {
+      newJSONArray = newJSONArray.reverse();
+    }
+    newJSONArray.forEach((item) => {
+      if (!uniqueValues.includes(item[field])) {
+        uniqueObjects.push(item);
+        uniqueValues.push(item[field]);
+      }
+    });
+    if (direction === 'end') {
+      uniqueObjects = uniqueObjects.reverse();
+    }
+    return uniqueObjects;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const getFieldTotal = (jsonArray, field) => {
+  try {
+    let total = 0;
+    jsonArray.forEach((item) => {
+      total =
+        total +
+        (item[field]
+          ? isNaN(Number(item[field]))
+            ? 0
+            : Number(item[field])
+          : 0);
+    });
+    return total;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const isChannelSelected = (channel) => {
+  try {
+    return !Array.isArray(channel) && channel;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const validatePassword = (password) => {
+  const minLength = 10;
+  const hasUpperCase = /[A-Z]/.test(password);
+  const hasLowerCase = /[a-z]/.test(password); // Optional, but good to check
+  const hasNumber = /[0-9]/.test(password);
+  const hasSymbol = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+  return password.length >= minLength && hasUpperCase && hasNumber && hasSymbol;
+};
+
+const formatDateToDDMMMYYYY = (dateStr) => {
+  try {
+    const date = new Date(dateStr);
+    const day = String(date.getDate()).padStart(2, '0');
+    const monthNames = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    const month = monthNames[date.getMonth()];
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const calculatePercentageValue = (number, percentage) => {
+  try {
+    return (number * percentage) / 100;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const numberToINRFormat = (number) => {
+  try {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'decimal', // Use 'currency' if you want to include the currency symbol (₹)
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2, // Ensures only two decimals
+    }).format(number);
+  } catch (error) {
+    throw error;
+  }
+};
+
+const numberToWordsINRFormat = (number) => {
+  try {
+    if (number === 0) return 'Zero Rupees';
+    const singleDigits = [
+      'Zero',
+      'One',
+      'Two',
+      'Three',
+      'Four',
+      'Five',
+      'Six',
+      'Seven',
+      'Eight',
+      'Nine',
+    ];
+    const twoDigits = [
+      'Ten',
+      'Eleven',
+      'Twelve',
+      'Thirteen',
+      'Fourteen',
+      'Fifteen',
+      'Sixteen',
+      'Seventeen',
+      'Eighteen',
+      'Nineteen',
+    ];
+    const tensMultiple = [
+      '',
+      '',
+      'Twenty',
+      'Thirty',
+      'Forty',
+      'Fifty',
+      'Sixty',
+      'Seventy',
+      'Eighty',
+      'Ninety',
+    ];
+
+    function convertToWords(n) {
+      try {
+        if (n === 0) return '';
+        if (n < 10) return singleDigits[n];
+        if (n < 20) return twoDigits[n - 10];
+        if (n < 100)
+          return (
+            tensMultiple[Math.floor(n / 10)] +
+            (n % 10 ? ' ' + convertToWords(n % 10) : '')
+          );
+        if (n < 1000)
+          return (
+            singleDigits[Math.floor(n / 100)] +
+            ' Hundred' +
+            (n % 100 ? ' and ' + convertToWords(n % 100) : '')
+          );
+        if (n < 100000)
+          return (
+            convertToWords(Math.floor(n / 1000)) +
+            ' Thousand' +
+            (n % 1000 ? ' ' + convertToWords(n % 1000) : '')
+          );
+        if (n < 10000000)
+          return (
+            convertToWords(Math.floor(n / 100000)) +
+            ' Lakh' +
+            (n % 100000 ? ' ' + convertToWords(n % 100000) : '')
+          );
+        return (
+          convertToWords(Math.floor(n / 10000000)) +
+          ' Crore' +
+          (n % 10000000 ? ' ' + convertToWords(n % 10000000) : '')
+        );
+      } catch (error) {
+        throw error;
+      }
+    }
+
+    let rupees = Math.floor(number);
+    let paisa = Math.round((number - rupees) * 100);
+    let words = '';
+    if (rupees > 0) {
+      words += convertToWords(rupees) + (rupees === 1 ? ' Rupee' : ' Rupees');
+    }
+    if (paisa > 0) {
+      if (words.length > 0) words += ' and ';
+      words += convertToWords(paisa) + (paisa === 1 ? ' Paisa' : ' Paisas');
+    }
+    if (words === '') {
+      words = 'Zero Rupees';
+    }
+    return words;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export function generateMultiYearMonthOptions(
+  DealPeriodFromDate,
+  DealPeriodToDate,
+) {
+  const options = [];
+  const currentDate = new Date();
+  let currentYear = currentDate.getFullYear();
+  let currentMonth = currentDate.getMonth(); // 0-indexed
+
+  const monthNames = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+
+  let iterationDate = new Date(currentYear, currentMonth, 1);
+
+  // Continue until iterationDate exceeds DealPeriodToDate
+  while (iterationDate <= DealPeriodToDate) {
+    const monthNumber = (iterationDate.getMonth() + 1)
+      .toString()
+      .padStart(2, '0');
+    const year = iterationDate.getFullYear();
+    const value = `${year}-${monthNumber}-01`;
+    const label = `${monthNames[iterationDate.getMonth()]} - ${year}`;
+
+    options.push({ value, label });
+
+    // Move to the next month
+    iterationDate.setMonth(iterationDate.getMonth() + 1);
+  }
+
+  return options;
+}
+
+const columnsToINRFormat = (tableData, columns) => {
+  try {
+    const formattedTableData = JSON.parse(JSON.stringify(tableData));
+    for (let row of formattedTableData) {
+      columns.forEach((column) => {
+        row[column] = numberToINRFormat(row[column]);
+      });
+    }
+    return formattedTableData;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const convertDateFormat = (dateString) => {
+  // Parse the input date string
+  const parsedDate = parse(dateString, 'dd-MMM-yyyy HH:mm:ss', new Date());
+  // Format the parsed date to the desired output format
+  return format(parsedDate, "MMMM dd, yyyy 'at' hh:mm a");
+};
+
+const convertDateFormatyyyyMMdd = (dateString) => {
+  const parsedDate = new Date(dateString);
+  return format(parsedDate, 'yyyy-MM-dd');
+};
+
+const getTableWithTotal = (tableData, columns) => {
+  try {
+    let tableWithTotal = JSON.parse(JSON.stringify(tableData));
+    let totalRow = {};
+    Object.keys(tableData[0]).forEach((key) => {
+      totalRow[key] = null;
+    });
+    columns.forEach((column) => {
+      let columnTotal = 0;
+      tableData.forEach((row) => {
+        columnTotal = columnTotal + row[column];
+      });
+      totalRow[column] = columnTotal;
+    });
+    tableWithTotal.push(totalRow);
+    return tableWithTotal;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const handleChangeWithFrameNewFormik = (event, form, field) => {
+  const { name, value } = event.target;
+  // Remove non-digit characters
+  const newValue = value.replace(/\D/g, '');
+  // Format the value as HH:mm:ss:ff
+  let formattedValue = '';
+
+  for (let i = 0; i < Math.min(newValue.length, 8); i += 2) {
+    if (i > 0) formattedValue += ':';
+    formattedValue += newValue.substr(i, 2);
+
+    if (formattedValue.split(':').length === 1) {
+      // Hours
+      if (parseInt(formattedValue) > 23) {
+        formattedValue = '23';
+      }
+    } else if (formattedValue.split(':').length === 2) {
+      // Minutes
+      if (parseInt(formattedValue.split(':')[1]) > 59) {
+        formattedValue = `${formattedValue.split(':')[0]}:59`;
+      }
+    } else if (formattedValue.split(':').length === 3) {
+      // Seconds
+      if (parseInt(formattedValue.split(':')[2]) > 59) {
+        formattedValue = `${formattedValue.split(':')[0]}:${formattedValue.split(':')[1]
+          }:59`;
+      }
+    } else if (formattedValue.split(':').length === 4) {
+      // Frames
+      if (parseInt(formattedValue.split(':')[3]) > 23) {
+        formattedValue = `${formattedValue.split(':')[0]}:${formattedValue.split(':')[1]
+          }:${formattedValue.split(':')[2]}:23`;
+      }
+    }
+  }
+  console.log('formattedValue1', formattedValue);
+  form.setFieldValue(
+    field.name,
+
+    formattedValue,
+  );
+};
+
+const handleChangeWithFrameSingleWithoutffFormik = (event, form, field) => {
+  const { name, value } = event.target;
+  // Remove non-digit characters
+  const newValue = value.replace(/\D/g, '');
+  // Format the value as HH:mm:ss:ff
+  let formattedValue = '';
+
+  for (let i = 0; i < Math.min(newValue.length, 6); i += 2) {
+    if (i > 0) formattedValue += ':';
+    formattedValue += newValue.substr(i, 2);
+
+    if (formattedValue.split(':').length === 1) {
+      // Hours
+      if (parseInt(formattedValue) > 23) {
+        formattedValue = '23';
+      }
+    } else if (formattedValue.split(':').length === 2) {
+      // Minutes
+      if (parseInt(formattedValue.split(':')[1]) > 59) {
+        formattedValue = `${formattedValue.split(':')[0]}:59`;
+      }
+    } else if (formattedValue.split(':').length === 3) {
+      // Seconds
+      if (parseInt(formattedValue.split(':')[2]) > 59) {
+        formattedValue = `${formattedValue.split(':')[0]}:${formattedValue.split(':')[1]
+          }:59`;
+      }
+    } else if (formattedValue.split(':').length === 4) {
+      // Frames
+      if (parseInt(formattedValue.split(':')[3]) > 23) {
+        formattedValue = `${formattedValue.split(':')[0]}:${formattedValue.split(':')[1]
+          }:${formattedValue.split(':')[2]}:23`;
+      }
+    }
+  }
+  console.log('formattedValue1', formattedValue);
+  form.setFieldValue(
+    field.name,
+
+    formattedValue,
+  );
+};
+
+const handleBlur = (event, form, field) => {
+  const { name, value } = event.target;
+  const formattedValue = formatOnHHMMSSBlur(value);
+  form.setFieldValue(field.name, formattedValue);
+};
+
+const isValidTimeRange = (startTime, endTime) => {
+  const [startH, startM, startS] = startTime.split(':').map(Number);
+  const [endH, endM, endS] = endTime.split(':').map(Number);
+
+  const startTotalSeconds = startH * 3600 + startM * 60 + startS;
+  const endTotalSeconds = endH * 3600 + endM * 60 + endS;
+
+  return startTotalSeconds < endTotalSeconds;
+};
+
+const abbreviateNumber = (num) => {
+  if (!num || num.length === 0) return '';
+  console.log(num);
+  const parsedNum = parseInt(num.replace(/,/g, ''), 10);
+
+  if (parsedNum >= 1e9) {
+    return (parsedNum / 1e9).toFixed(1) + 'B';
+  } else if (parsedNum >= 1e6) {
+    return (parsedNum / 1e6).toFixed(1) + 'M';
+  } else if (parsedNum >= 1e3) {
+    return (parsedNum / 1e3).toFixed(1) + 'K';
+  }
+  return parsedNum.toString();
+};
+
+function abbreviateNumberE(num) {
+  if (num != undefined) {
+    if (num >= 1e9) {
+      return (num / 1e9).toFixed(1) + 'B';
+    } else if (num >= 1e6) {
+      return (num / 1e6).toFixed(1) + 'M';
+    } else if (num >= 1e3) {
+      return (num / 1e3).toFixed(1) + 'K';
+    }
+    return num.toString();
+  }
+}
+
+const getDateFromDateTime = (dateTime) => {
+  try {
+    return dateTime.substring(0, 10);
+  } catch (error) {
+    throw error;
+  }
+};
+
+const sortArray = (array, key, order = 'asc') => {
+  try {
+    const validOrder = order === 'asc' || order === 'desc' ? order : 'asc';
+    return array.sort((a, b) => {
+      if (a[key] < b[key]) {
+        return validOrder === 'asc' ? -1 : 1;
+      }
+      if (a[key] > b[key]) {
+        return validOrder === 'asc' ? 1 : -1;
+      }
+      return 0;
+    });
+  } catch (error) {
+    throw error;
+  }
+};
+
+const isObjectsEqual = (obj1, obj2) => {
+  try {
+    const obj1Keys = Object.keys(obj1);
+    const obj2Keys = Object.keys(obj2);
+    if (obj1Keys.length !== obj2Keys.length) {
+      return false;
+    }
+    for (const key of obj1Keys) {
+      if (!isEqual(obj1[key], obj2[key])) {
+        return false;
+      }
+    }
+    return true;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const isJSONArrayEqual = (arr1, arr2) => {
+  try {
+    if (arr1.length !== arr2.length) {
+      return false;
+    }
+    for (let i = 0; i < arr1.length; i++) {
+      if (!isObjectsEqual(arr1[i], arr2[i])) {
+        return false;
+      }
+    }
+    return true;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const getMissingObjectsInSubJSONArray = (
+  completeJSONArray,
+  subJSONArray,
+  key,
+) => {
+  try {
+    return completeJSONArray.filter(
+      (obj1) => !subJSONArray.some((obj2) => obj1[key] === obj2[key]),
+    );
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+function millisecondsToTime(milliseconds) {
+  const frames = String(milliseconds % 1000).padStart(2, '0');
+  milliseconds = Math.floor(milliseconds / 1000);
+  const seconds = String(milliseconds % 60).padStart(2, '0');
+  milliseconds = Math.floor(milliseconds / 60);
+  const minutes = String(milliseconds % 60).padStart(2, '0');
+  const hours = String(Math.floor(milliseconds / 60)).padStart(2, '0');
+  return `${hours}:${minutes}:${seconds}:${frames}`;
+}
+
+const getRandomColor = () => {
+  const colors = Object.values(eventColorsAg);
+  const randomIndex = Math.floor(Math.random() * colors.length);
+  return colors[randomIndex].bg;
+};
+const getRandomColorButton = () => {
+  const colors = Object.values(eventColorsAg);
+  const randomIndex = Math.floor(Math.random() * colors.length);
+  return colors[randomIndex].button;
+};
+const FORMATDATE_FOR_EVERY = (dateString) => {
+  const date = new Date(dateString);
+
+  // Options for formatting the date in dd/mm/yyyy
+  const options = { day: '2-digit', month: '2-digit', year: 'numeric' };
+
+  // Format the date using en-GB locale
+  return date.toLocaleDateString('en-GB', options);
+};
+
+const formatDate_secondary = (dateString) => {
+  const options = { day: '2-digit', month: 'short', year: 'numeric' };
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-GB', options).replace(/ /g, '-');
+};
+export function formatCurrency(amount, currencySymbol) {
+  // Create a formatter with the given currency symbol
+  const formatter = new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: currencySymbol,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+  // Format the amount and replace the default symbol with the given symbol
+  const formatted = formatter.format(amount);
+  return formatted.replace(/^\D+/, currencySymbol + ' ');
+}
+export const filterData2 = (data) => {
+  const formcodes = {};
+  const submodules = [];
+  const modules = [];
+  // console.log(data);
+  for (const module of data) {
+    // console.log(module);
+    let no_of_subModules = module.subRows.length;
+    let cnt2 = 0;
+    for (const subModule of module.subRows) {
+      // console.log(subModule);
+      let no_of_subrows = subModule.subRows.length;
+      let cnt = 0;
+      for (const form of subModule.subRows) {
+        // console.log(form);
+        if (form.CanRead === 1) {
+          formcodes[
+            module.ModuleCode +
+            '-' +
+            subModule.SubModuleCode +
+            '-' +
+            form.FormCode +
+            '-0'
+          ] = { checked: true, partialChecked: false };
+
+          formcodes[
+            module.ModuleCode +
+            '-' +
+            subModule.SubModuleCode +
+            '-' +
+            form.FormCode
+          ] = { checked: false, partialChecked: true };
+        }
+        if (form.CanWrite === 1) {
+          formcodes[
+            module.ModuleCode +
+            '-' +
+            subModule.SubModuleCode +
+            '-' +
+            form.FormCode +
+            '-1'
+          ] = { checked: true, partialChecked: false };
+
+          formcodes[
+            module.ModuleCode +
+            '-' +
+            subModule.SubModuleCode +
+            '-' +
+            form.FormCode
+          ] = { checked: false, partialChecked: true };
+        }
+        if (form.CanRead === 1 && form.CanWrite === 1) {
+          formcodes[
+            module.ModuleCode +
+            '-' +
+            subModule.SubModuleCode +
+            '-' +
+            form.FormCode
+          ] = { checked: true, partialChecked: false };
+
+          cnt++;
+        }
+      }
+
+      if (no_of_subrows === cnt && cnt) {
+        formcodes[module.ModuleCode + '-' + subModule.SubModuleCode] = {
+          checked: true,
+          partialChecked: false,
+        };
+        cnt2++;
+      } else if (cnt) {
+        formcodes[module.ModuleCode + '-' + subModule.SubModuleCode] = {
+          checked: false,
+          partialChecked: true,
+        };
+        cnt2++;
+      }
+    }
+
+    if (no_of_subModules === cnt2 && cnt2) {
+      formcodes[module.ModuleCode] = { checked: true, partialChecked: false };
+    } else if (cnt2) {
+      //
+      formcodes[module.ModuleCode] = { checked: false, partialChecked: true };
+    }
+  }
+
+  return formcodes;
+};
+export function convertObj1ToObj2(obj1, i) {
+  const obj2 = {
+    key: obj1.ModuleCode,
+    label: obj1.ModuleName,
+    children: [],
+  };
+
+  obj1.subRows.forEach((subModule, subModuleIndex) => {
+    // //console.log(obj1); //console.log(subModule);
+    const subModuleKey = `${obj1.ModuleCode}-${subModule.SubModuleCode}`; //`${i}-${subModuleIndex}`;
+    const subModuleObj = {
+      key: subModuleKey,
+      label: subModule.SubModuleName,
+      children: [],
+    };
+    //
+
+    subModule.subRows.forEach((form, formIndex) => {
+      const formKey = `${subModuleKey}-${form.FormCode}`; //`${subModuleKey}-${formIndex}`;
+      const formObj = {
+        key: formKey,
+        label: form.FormName,
+        children: [
+          {
+            key: `${formKey}-0`,
+            label: 'read',
+            icon: form.FormCode.toString(),
+          },
+          {
+            key: `${formKey}-1`,
+            label: 'write',
+            icon: form.FormCode.toString(),
+          },
+        ],
+      };
+
+      subModuleObj.children.push(formObj);
+    });
+
+    obj2.children.push(subModuleObj);
+  });
+
+  return obj2;
+}
+export const SEND_NOTIFICATION = async (
+  user_ids,
+  message,
+  image,
+  location,
+  isGroup,
+  Ispriority,
+  Username,
+  Type,
+) => {
+  const respsend = await apisendnotification({
+    NotificationId: (Math.random() + 1).toString(36).substring(7),
+    user_ids: [user_ids],
+    message: message,
+    image: image,
+    type: Type,
+    location: location,
+    locationLabel: Username,
+    Status: '1',
+    isGroup: isGroup,
+    Ispriority: Ispriority,
+    readed: 0,
+  });
+  console.log(respsend);
+};
+const formatStartDate = (telecastDate) => {
+  if (telecastDate) {
+    const dateObject = new Date(telecastDate);
+    const year = dateObject.toLocaleDateString('en-GB', {
+      year: 'numeric',
+    });
+    const day = dateObject.toLocaleDateString('en-GB', {
+      day: '2-digit',
+    });
+    const month = dateObject.toLocaleDateString('en-GB', {
+      month: '2-digit',
+    });
+
+    return `${year}-${month}-${day}`;
+  }
+
+  return ''; //Return an empty string if telecastDate is not provided
+};
+const CurrencyFormatter = ({ amountString }) => {
+  // Regex to match currency symbol, amount, and decimal part
+  if (amountString == undefined) {
+    return;
+  }
+  const regex = /^([₹$])?\s?(\d+)(\.\d{2})?$/;
+
+  const match = amountString.match(regex);
+
+  if (!match) {
+    return <div>Invalid format</div>;
+  }
+
+  const currencySymbol = match[1] || '₹'; // Default to ₹ if not present
+  const amount = match[2];
+  const decimal = match[3] || '.00'; // Default to .00 if not present
+
+  return (
+    <div className="flex ">
+      <p className="mr-1">{currencySymbol}</p>
+      <p>{Number(amount)?.toLocaleString('en-IN')}</p>
+      <p>{decimal}</p>
+    </div>
+  );
+};
+
+function getHexColorWithOpacity(hexColor, opacity) {
+  if (!/^#([A-Fa-f0-9]{6})$/.test(hexColor)) {
+    console.error('Invalid hex color format');
+  }
+  const red = parseInt(hexColor.slice(1, 3), 16);
+  const green = parseInt(hexColor.slice(3, 5), 16);
+  const blue = parseInt(hexColor.slice(5, 7), 16);
+  return `rgba(${red}, ${green}, ${blue}, ${opacity})`;
+}
+
+const subtractTimes = (time1, time2) => {
+  /* FUNCTION FROM CHAT-GPT */
+  try {
+    const maxFrames = 24;
+    let [h1, m1, s1, f1] = time1.split(':').map(Number);
+    let [h2, m2, s2, f2] = time2.split(':').map(Number);
+    // Convert times into total frames
+    let totalFrames1 = (h1 * 3600 + m1 * 60 + s1) * maxFrames + f1;
+    let totalFrames2 = (h2 * 3600 + m2 * 60 + s2) * maxFrames + f2;
+    // Handle crossing midnight (if time1 is smaller, add 24 hours)
+    if (totalFrames1 < totalFrames2) {
+      totalFrames1 += 24 * 3600 * maxFrames;
+    }
+    let totalFramesResult = totalFrames1 - totalFrames2;
+    // Convert back to HH:MM:SS:FF
+    const totalHours = Math.floor(totalFramesResult / (3600 * maxFrames));
+    totalFramesResult %= 3600 * maxFrames;
+    const totalMinutes = Math.floor(totalFramesResult / (60 * maxFrames));
+    totalFramesResult %= 60 * maxFrames;
+    const totalSeconds = Math.floor(totalFramesResult / maxFrames);
+    const totalFrames = totalFramesResult % maxFrames;
+    const formattedTime =
+      String(totalHours).padStart(2, '0') +
+      ':' +
+      String(totalMinutes).padStart(2, '0') +
+      ':' +
+      String(totalSeconds).padStart(2, '0') +
+      ':' +
+      String(totalFrames).padStart(2, '0');
+    return formattedTime;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const autoCompleteTime = (time) => {
+  try {
+    /* FUNCTION FROM CHAT-GPT */
+    const parts = time.split(':');
+    const partLengths = [2, 2, 2, 2];
+    const formattedParts = parts.map((part, index) =>
+      part.padStart(partLengths[index], '0').slice(0, partLengths[index]),
+    );
+    while (formattedParts.length < 4) {
+      formattedParts.push('00');
+    }
+    return formattedParts.join(':');
+  } catch (error) {
+    throw error;
+  }
+};
+
+const timeToSeconds = (time) => {
+  const [hours, minutes, seconds] = time.split(':').map(Number);
+  return hours * 3600 + minutes * 60 + seconds;
+};
+
+const getPercentage = (value, total, isActualPercentage) => {
+  try {
+    if (isActualPercentage) {
+      return (value / total) * 100;
+    } else return (value / total) * 100 <= 100 ? (value / total) * 100 : 100;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const convertDateToHHMMSSFF = (date) => {
+  try {
+    let hours = date.getHours() < 10 ? `0${date.getHours()}` : date.getHours();
+    let minutes =
+      date.getMinutes() < 10 ? `0${date.getMinutes()}` : date.getMinutes();
+    return `${hours}:${minutes}:00:00`;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const isDateBackDate = (date) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return date < today;
+};
+
+const getFormattedTime = (event, startTime) => {
+  /* FUNCTION FROM CHAT-GPT */
+  try {
+    let value = event.target.value;
+    // Check if input value exceeds the start time
+    if (value > startTime) {
+      /* VALIDATION FOR MAX LENGTH, ONLY NUMERIC INPUT, AND FRAME CHECKS */
+      if (
+        value.length > 11 || // Max length is HH:MM:SS:FF
+        isNaN(value.charAt(value.length - 1)) || // Ensure the last character is numeric
+        (value.length === 10 && value.charAt(9) > '2') || // Frame tens digit should not exceed 2
+        (value.length === 11 && value.slice(-2) > '23') // Frames should not exceed 23
+      )
+        return startTime;
+      /* VALIDATION FOR HOURS, MINUTES, SECONDS */
+      const parts = value.split(':');
+      if (parts.length > 0) {
+        const [hours, minutes, seconds, frames] = parts.map(
+          (part) => parseInt(part, 10) || 0,
+        );
+        if (
+          hours > 23 ||
+          minutes > 59 ||
+          seconds > 59 ||
+          (frames && frames > 23)
+        ) {
+          return startTime; // Invalid input, revert to startTime
+        }
+      }
+      // Automatically add ':' after hours, minutes, and seconds
+      if (value.length === 2 || value.length === 5 || value.length === 8) {
+        value += ':';
+      }
+    } else {
+      // Backspacing or reducing the input length
+      const valueArr = value.split(':');
+      if (valueArr[valueArr.length - 1].length === 2) {
+        value = value.slice(0, -1);
+      }
+    }
+    return value;
+  } catch (error) {
+    openNotification('danger', 'Something went wrong');
+    console.error(error);
+  }
+};
+
+const handleNumberInputChange = (event, onChange) => {
+  if (/^\d*$/.test(event.target.value)) {
+    onChange(event);
+  }
+};
+
+const getGroupedDataFromJSONArray = (data, key) => {
+  const groupedData = {};
+  data.forEach((item) => {
+    if (item[key] in groupedData) {
+      groupedData[item[key]].push(item);
+    } else {
+      groupedData[item[key]] = [item];
+    }
+  });
+  return groupedData;
+};
+
+const showCursorLoader = () => (document.body.style.cursor = 'wait');
+
+const hideCursorLoader = () => (document.body.style.cursor = 'default');
+
+const getGroupedRows = (rows, groupingKey) => {
+  let groupedRows = {};
+  rows.forEach((row) => {
+    if (!groupedRows[row[groupingKey]]) {
+      groupedRows[row[groupingKey]] = [];
+    }
+    groupedRows[row[groupingKey]].push(row);
+  });
+  return groupedRows;
+};
+
+const getFlatArrForGroupedArr = (groupedArray) => {
+  let flatArray = [];
+  Object.keys(groupedArray).forEach((key) => {
+    flatArray = flatArray.concat(groupedArray[key]);
+  });
+  return flatArray;
+};
+
+const jsonArrayToCSV = (jsonArray) => {
+  /* FUNCTION FROM CHAT-GPT */
+  if (!jsonArray.length) return '';
+  const headers = Object.keys(jsonArray[0]); // Extract headers from keys
+  const csvRows = [];
+
+  // Uncomment below to add header to csv
+  // csvRows.push(headers.map((header) => `"${header}"`).join(','));
+
+  // Convert each row to CSV format
+  jsonArray.forEach((row) => {
+    const csvRow = headers
+      .map((header) => {
+        let value = row[header];
+        if (typeof value === 'string') {
+          value = `"${value.replace(/"/g, '""')}"`; // Escape double quotes
+        }
+        return value;
+      })
+      .join(',');
+    csvRows.push(csvRow);
+  });
+  return csvRows.join('\n');
+};
+
+const convertMinsToHoursAndMins = (mins) =>
+  mins === 0
+    ? '0 Mins'
+    : `${Math.floor(mins / 60)
+      ? `${Math.floor(mins / 60)} Hour${Math.floor(mins / 60) > 1 ? 's' : ''
+      }`
+      : ''
+    }${Math.floor(mins / 60) && mins % 60 ? ' ' : ''}${mins % 60 ? `${mins % 60} Min${mins % 60 > 1 ? 's' : ''}` : ''
+    }`;
+
+const convertHHMMToMins = (hhmm) => {
+  const [hours, minutes] = hhmm.split(':').map(Number);
+  return hours * 60 + minutes;
+};
+
+const fetchSelectorOptionsFromSp = async (
+  spName,
+  params = {},
+  labelKey,
+  valueKey,
+  respMsg204,
+  otherRespMsg,
+  errorMsg,
+) => {
+  let options = [];
+  try {
+    const response = await apiCallstoreprocedure(spName, params);
+    if (response.status === 200) {
+      if (response.data.length > 0)
+        options = response.data.map((option) => ({
+          ...option,
+          label: option[labelKey],
+          value: option[valueKey],
+        }));
+      else openNotification('info', respMsg204);
+    } else if (response.status === 204 && respMsg204)
+      openNotification('info', respMsg204);
+    else if (otherRespMsg) openNotification('danger', otherRespMsg);
+  } catch (error) {
+    console.error(error);
+    openNotification('danger', errorMsg);
+  } finally {
+    return options;
+  }
+};
+
+const getJsonArrayfromApi = async (
+  apiFunction,
+  params,
+  respMsg204,
+  otherRespMsg,
+  errorMsg,
+) => {
+  let jsonArray = [];
+  try {
+    const response = await apiFunction(params);
+    if (response.status === 200) {
+      if (response.data.length > 0) jsonArray = response.data;
+      else openNotification('info', respMsg204);
+    } else if (response.status === 204 && respMsg204)
+      openNotification('info', respMsg204);
+    else if (otherRespMsg) openNotification('danger', otherRespMsg);
+  } catch (error) {
+    console.error(error);
+    openNotification('danger', errorMsg);
+  } finally {
+    return jsonArray;
+  }
+};
+
+const getPresentColumn = (row, columnsArray) => {
+  let result;
+  columnsArray.forEach((column) => {
+    if (column in row) {
+      result = column;
+      return;
+    }
+  });
+  return result;
+};
+
+function convertArrayToExcel(
+  data,
+  columnOrder = [],
+  fileName = 'data.xlsx',
+  mode = 'download',
+) {
+  if (!Array.isArray(data) || data.length === 0) {
+    throw new Error('Data must be a non-empty array of objects.');
+  }
+  const columns = columnOrder.length > 0 ? columnOrder : Object.keys(data[0]);
+  const formattedData = data.map((item) => {
+    const row = {};
+    columns.forEach((key) => {
+      row[key] = item[key];
+    });
+    return row;
+  });
+  const worksheet = XLSX.utils.json_to_sheet(formattedData, {
+    header: columns,
+  });
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
+  // Generate binary buffer
+  const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+  const blob = new Blob([excelBuffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+  if (mode === 'download') {
+    XLSX.writeFile(workbook, fileName);
+    return;
+  }
+  // Create a File object
+  const file = new File([blob], fileName, {
+    type: blob.type,
+    lastModified: Date.now(),
+  });
+  return file;
+}
+
+const getSelectorOptionsFromApiFunction = async (
+  apiFunction,
+  labelKey,
+  valueKey,
+  status204Msg,
+  errorMsg,
+  optionLabelKey = 'label',
+  optionValueKey = 'value',
+  defaultValue = [],
+) => {
+  let options = defaultValue;
+  try {
+    const response = await apiFunction();
+    if (response.status === 200)
+      options = response.data.map((option) => ({
+        [optionLabelKey]: option[labelKey],
+        [optionValueKey]: option[valueKey],
+      }));
+    else if (response.status === 204) openNotification('info', status204Msg);
+    else openNotification('danger', errorMsg);
+  } catch (error) {
+    console.error(error);
+    openNotification('danger', errorMsg);
+  } finally {
+    return options;
+  }
+};
+
+const getEllipsedText = (text, maxLength) =>
+  text?.length > maxLength ? `${text.substr(0, maxLength)}...` : text;
+
+export {
+  CurrencyFormatter,
+  formatStartDate,
+  FORMATDATE_FOR_EVERY,
+  abbreviateNumberE,
+  abbreviateNumber,
+  handleChangeWithFrameSingleWithoutffFormik,
+  handleChangeWithFrameNewFormik,
+  validatePassword,
+  handleChangeWithFrame,
+  handleChangeWithOutFrame,
+  handleChangeWithOutFrameNew,
+  handleChangeWithFrameNew,
+  parseDuration,
+  formatDurationHHMMSSFF,
+  addTimeDurations,
+  formatOnHHMMSSFFBlur,
+  compareDates,
+  handleChangeWithFrameSingleValue,
+  shuffleArray,
+  formatOnHHMMSSBlur,
+  handleChangeWithFrameSingleWithoutff,
+  isTimeBetween,
+  openNotification,
+  getUniqueObjects,
+  getFieldTotal,
+  isChannelSelected,
+  formatDateToDDMMMYYYY,
+  calculatePercentageValue,
+  numberToINRFormat,
+  numberToWordsINRFormat,
+  columnsToINRFormat,
+  getTableWithTotal,
+  insertBlankBeforeS,
+  parseDurationE,
+  sumDurationsss,
+  sumDurationsInMinutes,
+  handleBlur,
+  handleChangeWithOutFrameNewPro,
+  isValidTimeRange,
+  getDateFromDateTime,
+  sortArray,
+  isObjectsEqual,
+  isJSONArrayEqual,
+  convertDateFormat,
+  getMissingObjectsInSubJSONArray,
+  timeToMilliseconds,
+  millisecondsToTime,
+  convertDateFormatyyyyMMdd,
+  getRandomColor,
+  formatDate_secondary,
+  getHexColorWithOpacity,
+  getRandomColorButton,
+  subtractTimes,
+  autoCompleteTime,
+  timeToSeconds,
+  getPercentage,
+  convertDateToHHMMSSFF,
+  isDateBackDate,
+  getFormattedTime,
+  formatDurationHHMM,
+  TimeCodeDisplay,
+  handleNumberInputChange,
+  getGroupedDataFromJSONArray,
+  showCursorLoader,
+  hideCursorLoader,
+  getGroupedRows,
+  getFlatArrForGroupedArr,
+  jsonArrayToCSV,
+  convertMinsToHoursAndMins,
+  convertHHMMToMins,
+  fetchSelectorOptionsFromSp,
+  getJsonArrayfromApi,
+  truncateText,
+  getPresentColumn,
+  convertArrayToExcel,
+  getSelectorOptionsFromApiFunction,
+  getEllipsedText,
+};

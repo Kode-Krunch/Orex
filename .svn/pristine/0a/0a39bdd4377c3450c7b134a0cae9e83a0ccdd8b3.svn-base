@@ -1,0 +1,81 @@
+import React from 'react';
+import Table from 'components/ui/Table';
+import { DROPPED_SPOTS, EXTRA_TELECASTED_SPOTS_COLUMNS } from './constant';
+import { Button, Card, Tooltip } from 'components/ui';
+import { LuCalendarClock } from 'react-icons/lu';
+import { BsCalendar3 } from 'react-icons/bs';
+import { convertDateFormatyyyyMMdd } from 'views/Controls/GLOBALFUNACTION';
+const { Tr, Th, Td, THead, TBody } = Table;
+
+function DroppedSpotsTable({ date }) {
+  return (
+    <>
+      {convertDateFormatyyyyMMdd(date) <
+      convertDateFormatyyyyMMdd(new Date()) ? (
+        <Card bodyClass="p-3">
+          <h5 className="mb-3">Dropped Spots</h5>
+          <Table borderlessRow={false}>
+            <THead>
+              <Tr>
+                <Th className="h-[30px] border border-gray-600">
+                  <div className="flex items-center justify-center">
+                    Actions
+                  </div>
+                </Th>
+                {EXTRA_TELECASTED_SPOTS_COLUMNS.map((column) => (
+                  <Th
+                    key={column.accessorKey}
+                    className="h-[30px] border-y border-r border-gray-600"
+                  >
+                    {column.header}
+                  </Th>
+                ))}
+              </Tr>
+            </THead>
+            <TBody>
+              {DROPPED_SPOTS.map((row) => (
+                <Tr key={row.Id}>
+                  <Td className="min-h-[30px] border-b border-x border-gray-700">
+                    <div className="py-0.5 flex items-center justify-center gap-1">
+                      <Tooltip title="Reschedule">
+                        <Button
+                          shape="circle"
+                          size="xs"
+                          icon={<LuCalendarClock />}
+                        />
+                      </Tooltip>
+                      <Tooltip title="Make Good">
+                        <Button
+                          shape="circle"
+                          size="xs"
+                          icon={<BsCalendar3 />}
+                        />
+                      </Tooltip>
+                    </div>
+                  </Td>
+                  {EXTRA_TELECASTED_SPOTS_COLUMNS.map((column) => (
+                    <Td
+                      key={row.rowId + column}
+                      className="min-h-[30px] border-b border-r border-gray-700"
+                    >
+                      {row[column.accessorKey]}
+                    </Td>
+                  ))}
+                </Tr>
+              ))}
+            </TBody>
+          </Table>
+        </Card>
+      ) : (
+        <Card
+          className="h-[200px]"
+          bodyClass="h-full flex justify-center items-center"
+        >
+          No dropped spots to show
+        </Card>
+      )}
+    </>
+  );
+}
+
+export default DroppedSpotsTable;

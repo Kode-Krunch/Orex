@@ -1,0 +1,218 @@
+import { openNotification } from 'views/Controls/GLOBALFUNACTION';
+import { validateComm } from '../commOperations/utils';
+import { isNTCDragValid, validateNTCs } from '../ntcOperations/utils';
+import { moveNTCsBasedOnOffsetTimeAutoCalculation } from './ntcDragUtils';
+
+const {
+  rowDataTypesEnum,
+  tableTypesEnum,
+  additionalRowInfoEnum,
+  featuresEnum,
+} = require('views/Scheduling/Scheduler/enum');
+const {
+  getCorrectedDestIndexForIntraTableDrag,
+  getTableDataWithAdditionalInfo,
+  removeRowsFromTableData,
+  getCorrectedDestIndexIfDestIndexIsNtc,
+} = require('../../utils');
+
+const getCorrectedDestIndexForPromoPage = (
+  dragInfo,
+  tableData,
+  activeFeatures,
+) => {
+  let newDestIndex = dragInfo.destination.index;
+  newDestIndex = getCorrectedDestIndexForIntraTableDrag(
+    dragInfo,
+    tableData,
+    activeFeatures,
+  );
+  if (tableData[newDestIndex - 1].F_C_S_P === rowDataTypesEnum.COMMERCIAL) {
+    newDestIndex = newDestIndex - 1;
+  }
+  return newDestIndex > 1 ? newDestIndex : 2;
+};
+
+const getCorrectedDestIndexForSongPage = (
+  dragInfo,
+  tableData,
+  activeFeatures,
+) => {
+  let newDestIndex = dragInfo.destination.index;
+  newDestIndex = getCorrectedDestIndexForIntraTableDrag(
+    dragInfo,
+    tableData,
+    activeFeatures,
+  );
+  if (tableData[newDestIndex - 1].F_C_S_P === rowDataTypesEnum.COMMERCIAL) {
+    newDestIndex = newDestIndex - 1;
+  }
+  return newDestIndex > 1 ? newDestIndex : 2;
+};
+
+const getCorrectedDestIndexForCommPage = (
+  dragInfo,
+  tableData,
+  activeFeatures,
+) => {
+  let newDestIndex = dragInfo.destination.index;
+  newDestIndex = getCorrectedDestIndexForIntraTableDrag(
+    dragInfo,
+    tableData,
+    activeFeatures,
+  );
+  return newDestIndex > 1 ? newDestIndex : 2;
+};
+
+const getCorrectedDestIndexForNTCPage = (
+  dragInfo,
+  tableData,
+  activeFeatures,
+) => {
+  let newDestIndex = dragInfo.destination.index;
+  newDestIndex = getCorrectedDestIndexForIntraTableDrag(
+    dragInfo,
+    tableData,
+    activeFeatures,
+  );
+  return newDestIndex > 1 ? newDestIndex : 2;
+};
+
+const getCorrectedDestIndexForFinalLogPage = (
+  dragInfo,
+  tableData,
+  activeFeatures,
+) => {
+  let newDestIndex = dragInfo.destination.index;
+  newDestIndex = getCorrectedDestIndexForIntraTableDrag(
+    dragInfo,
+    tableData,
+    activeFeatures,
+  );
+  /* DESTINATION INDEX CORRECTION IF DESTINATION ROW IS NTC */
+  newDestIndex = getCorrectedDestIndexIfDestIndexIsNtc(newDestIndex, tableData);
+  return newDestIndex > 1 ? newDestIndex : 2;
+};
+
+const moveSimpleRows = (tableData, selectedRows, destIndex, isCopyEnabled) => {
+  // Move rows like Promo, Song, Segment and CT
+  let newTableData = [...tableData];
+  const selectedRowsWithNewRowId = getTableDataWithAdditionalInfo({
+    tableData: selectedRows,
+    tableType: tableTypesEnum.SCHEDULING,
+    additionalInfo: [additionalRowInfoEnum.ROW_ID],
+  });
+  newTableData.splice(destIndex, 0, ...selectedRowsWithNewRowId);
+  if (!isCopyEnabled) {
+    newTableData = removeRowsFromTableData(selectedRows, newTableData);
+  }
+  return newTableData;
+};
+
+const moveCommercials = (tableData, destIndex, selectedRows) => {
+  let newTableData = [...tableData];
+  const validComm = validateComm({
+    destIndex,
+    tableData,
+    selectedRows,
+  });
+  if (!validComm) return false;
+  const validCommWithNewRowId = getTableDataWithAdditionalInfo({
+    tableData: validComm,
+    tableType: tableTypesEnum.SCHEDULING,
+    additionalInfo: [additionalRowInfoEnum.ROW_ID],
+  });
+  newTableData.splice(destIndex, 0, ...validCommWithNewRowId);
+  newTableData = removeRowsFromTableData(validComm, newTableData);
+  return { newTableData, validComm };
+};
+
+const moveNTCs = (
+  dragInfo,
+  selectedRows,
+  tableData,
+  destIndex,
+  isAutoCalculateOffsetTime,
+  isCopyEnabled,
+  channel,
+  isResetOffsetStartTime = true,
+) => {
+  let result;
+  /* DRAG VALIDATION */
+  if (!isNTCDragValid(dragInfo, tableData, destIndex)) return false;
+  if (isAutoCalculateOffsetTime) {
+    result = moveNTCsBasedOnOffsetTimeAutoCalculation(
+      selectedRows.map((row) => ({
+        ...row,
+        OffsetStartTime: isResetOffsetStartTime
+          ? '00:00:00:00'
+          : row.OffsetStartTime,
+      })),
+      tableData,
+      destIndex,
+      isCopyEnabled,
+    );
+  } else {
+    result = moveNTCsWithoutOffsetTimeAutoCalc(
+      tableData,
+      destIndex,
+      selectedRows,
+      isCopyEnabled,
+      channel,
+      isAutoCalculateOffsetTime,
+    );
+  }
+  return result;
+};
+
+const moveNTCsWithoutOffsetTimeAutoCalc = (
+  tableData,
+  destIndex,
+  selectedRows,
+  isCopyEnabled,
+  channel,
+  isAutoCalculateOffsetTime,
+) => {
+  let newTableData = [...tableData];
+  const validNTCs = validateNTCs({
+    destIndex,
+    tableData: newTableData,
+    selectedRows,
+    channel,
+    isAutoCalculateOffsetTime,
+  });
+  if (!validNTCs) {
+    openNotification('danger', `NTCs are out of parent's duration`);
+  } else {
+    // Move NTCs
+    let validNTCsWithNewRowId = getTableDataWithAdditionalInfo({
+      tableData: validNTCs,
+      tableType: tableTypesEnum.SCHEDULING,
+      additionalInfo: [additionalRowInfoEnum.ROW_ID],
+    });
+    newTableData.splice(destIndex, 0, ...validNTCsWithNewRowId);
+    // If few NTCs are not inserted, give notification to user
+    if (validNTCs.length < selectedRows.length)
+      openNotification(
+        'danger',
+        'Some NTCs are not moved due to insufficient duration',
+      );
+    // Remove moved NTCs
+    let ntcsToRemove = isCopyEnabled
+      ? validNTCs.filter((row) => row.BookingDetailID)
+      : validNTCs;
+    newTableData = removeRowsFromTableData(ntcsToRemove, newTableData);
+  }
+  return { newTableData };
+};
+
+export {
+  getCorrectedDestIndexForPromoPage,
+  getCorrectedDestIndexForSongPage,
+  getCorrectedDestIndexForCommPage,
+  getCorrectedDestIndexForNTCPage,
+  getCorrectedDestIndexForFinalLogPage,
+  moveSimpleRows,
+  moveCommercials,
+  moveNTCs,
+};

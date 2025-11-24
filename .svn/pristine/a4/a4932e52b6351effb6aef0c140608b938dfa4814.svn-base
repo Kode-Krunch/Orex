@@ -1,0 +1,33 @@
+const featuresEnum = {
+  MANAGE_COLUMNS: 'manageColumns',
+  EXPORT: 'export',
+  MAXIMIZE: 'maximize',
+  FILTER: 'filter',
+  ROTATION_INFO: 'rotationInfo',
+  HOURS: 'hours',
+  FPC_TIME: 'fpcTime',
+  INSERT: 'insert',
+};
+
+const droppableIdsEnum = {
+  PRIMARY: 'primaryTableDroppableArea',
+  SECONDARY: 'secondaryTableDroppableArea',
+};
+
+const tableTypesEnum = {
+  SCHEDULING: 'scheduling',
+  SECONDARY: 'secondary',
+};
+
+const secTableBottomToolbarFeaturesEnum = {
+  INSERT: 'insert',
+  REPLACE: 'replace',
+};
+const IS_BACKDATED_FPC_ALLOWED_TO_EDIT = false;
+export {
+  featuresEnum,
+  droppableIdsEnum,
+  tableTypesEnum,
+  secTableBottomToolbarFeaturesEnum,
+  IS_BACKDATED_FPC_ALLOWED_TO_EDIT
+};

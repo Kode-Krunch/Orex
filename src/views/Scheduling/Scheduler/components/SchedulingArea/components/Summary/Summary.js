@@ -1,0 +1,83 @@
+import { Button, Card, Tooltip } from 'components/ui';
+import React, { useContext, useEffect, useState } from 'react';
+import { IoMdClose } from 'react-icons/io';
+import { handleFeatureClose } from '../../utils/utils';
+import { featuresEnum } from 'views/Scheduling/Scheduler/enum';
+import SchedulerContext from 'views/Scheduling/Scheduler/context/SchedulerContext';
+import { openNotification } from 'views/Controls/GLOBALFUNACTION';
+import { getSummaryList } from './utils';
+
+function Summary() {
+  /* CONTEXT */
+  const {
+    page,
+    schedulingTableData,
+    setActiveFeatures,
+    dropBucket,
+    lastMinuteSpots,
+    secondaryAreaZindexRef,
+  } = useContext(SchedulerContext);
+
+  /* STATES */
+  const [summaryList, setSummaryList] = useState([]);
+
+  /* USE EFFECTS */
+  useEffect(() => {
+    try {
+      setSummaryList(
+        getSummaryList(page, schedulingTableData, dropBucket, lastMinuteSpots),
+      );
+    } catch (error) {
+      openNotification('danger', 'Something went wrong while loading summary');
+    }
+  }, [schedulingTableData]);
+
+  return (
+    <div
+      className="h-full w-full flex flex-col bg-gray-800 p-3 pt-2 rounded-lg absolute top-0 left-0"
+      style={{ zIndex: secondaryAreaZindexRef.current[featuresEnum.SUMMARY] }}
+    >
+      <div className="flex justify-between items-center mb-2">
+        <h5>Summary</h5>
+        <Tooltip title="Close">
+          <Button
+            size="xs"
+            icon={<IoMdClose />}
+            onClick={() =>
+              handleFeatureClose(setActiveFeatures, featuresEnum.SUMMARY)
+            }
+          />
+        </Tooltip>
+      </div>
+      <div className="h-[92%] flex flex-col overflow-auto no-scrollbar border-t border-t-gray-700">
+        {summaryList.length > 0 ? (
+          summaryList.map((summary) => (
+            <div
+              className="flex justify-between items-center gap-3 py-2 border-b border-b-gray-700"
+              key={summary.title}
+            >
+              <p className="flex items-center gap-2 text-gray-200 text-[0.95rem]">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-600 bg-opacity-50 border border-gray-700">
+                  {summary.icon}
+                </div>
+                {summary.title}
+              </p>
+              <p className="text-white text-base font-semibold py-1 px-3 rounded flex justify-center items-center bg-gray-700">
+                {summary.total}
+              </p>
+            </div>
+          ))
+        ) : (
+          <Card
+            className="h-full w-full"
+            bodyClass="h-full w-full flex justify-center items-center p-2"
+          >
+            No summary to show
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default Summary;

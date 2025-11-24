@@ -1,0 +1,418 @@
+import React, { useEffect, useState } from 'react';
+import Header from 'components/template/Header';
+import SidePanel from 'components/template/SidePanel';
+import UserDropdown from 'components/template/UserDropdown';
+import Notification from 'components/template/Notification';
+import MobileNav from 'components/template/MobileNav';
+import StackedSideNav from 'components/template/StackedSideNav';
+import View from 'views';
+import Logo from 'components/template/Logo';
+import { SIDE_NAV_CONTENT_GUTTER } from 'constants/theme.constant';
+import { useDispatch, useSelector } from 'react-redux';
+import ChannelSelectForHouse from 'components/template/ChannelSelectForHouse';
+import {
+  HiOutlineArrowLeft,
+  HiOutlineArrowRight,
+  HiOutlineEye,
+  HiOutlineEyeOff,
+  HiOutlineUser,
+  HiOutlineViewGrid,
+} from 'react-icons/hi';
+import {
+  hideStackedSideNav_secondary,
+  hideStackedSideNav_secondaryShow,
+} from 'views/Scheduling/general';
+import { Button, Dialog, Dropdown, Input, Tooltip } from 'components/ui';
+import { HEADER_HEIGHT_CLASS } from 'constants/theme.constant';
+import { useNavigate } from 'react-router-dom';
+import { loginupdate } from 'services/MasterService';
+import { openNotification } from 'views/Controls/GLOBALFUNACTION';
+import { setUser } from 'store/auth/userSlice';
+import { apiUserformaccessTop } from 'services/AuthService';
+import { MdExitToApp, MdOutlineRecentActors } from 'react-icons/md';
+import { CLIENT } from 'views/Controls/clientListEnum';
+import LanguageSelectorDropdown from 'views/Controls/LanguageSelectorDropdown/LanguageSelectorDropdown';
+import Search from 'components/template/Search';
+import useAuth from 'utils/hooks/useAuth';
+
+const HeaderActionsStart = () => {
+  const nav = useNavigate();
+  const mode = useSelector((state) => state.theme.mode);
+  const { signOut } = useAuth();
+
+  const [dropdownItems, setdropdownItems] = useState([]);
+  const { ModuleList } = useSelector((state) => state.auth.user);
+  const onDropdownItemClick = (eventKey, e) => {
+    const item = ModuleList.find(
+      (navItem) => navItem.title[1].toLowerCase() === eventKey.toLowerCase(),
+    );
+
+    // If a matching item is found, navigate to the corresponding path
+    if (item) {
+      nav(item.path);
+    } else {
+      console.warn(`No matching key found for: ${eventKey}`);
+    }
+  };
+
+
+  const currentRouteKey = useSelector(
+    (state) => state.auth.session.currentRouteKey,
+  );
+
+  useEffect(() => {
+    if (ModuleList?.length > 0 && currentRouteKey != '') {
+      let matchFound = false;
+
+      ModuleList.forEach((item) => {
+        const key = item.key.toLowerCase();
+        if (key == currentRouteKey.toLowerCase()) {
+          matchFound = true;
+        }
+        //
+      });
+      if (!matchFound) {
+        nav('/access-denied');
+      }
+    }
+    UserformaccessTop();
+  }, [currentRouteKey]);
+
+  const UserformaccessTop = async () => {
+    try {
+      const res = await apiUserformaccessTop();
+      if (res.status == 200) {
+        const formattedOptions = res.data.map((option) => ({
+          key: option.FormName,
+          name: option.FormName,
+        }));
+        setdropdownItems(formattedOptions);
+      } else if (res.status == 204) {
+        setdropdownItems([]);
+      }
+    } catch (error) {
+      if (error.response.status == '401') {
+        setdropdownItems([]);
+        return;
+      }
+      setdropdownItems([]);
+    }
+  };
+  return (
+    <>
+      <MobileNav />
+      <Logo mode={mode} type="streamline" gutter={SIDE_NAV_CONTENT_GUTTER} />
+      <div className="flex items-center ">
+        <Button
+          onClick={toggleStackedSideNav}
+          shape="circle"
+          variant="plain"
+          size="sm"
+          icon={<HiOutlineViewGrid />}
+        />
+        <Button
+          onClick={() => hideStackedSideNav_secondary()}
+          shape="circle"
+          variant="plain"
+          size="sm"
+          id="leftIndicator"
+          icon={<HiOutlineArrowLeft />}
+        />
+        <Button
+          onClick={() => hideStackedSideNav_secondaryShow()}
+          shape="circle"
+          id="rightIndicator"
+          variant="plain"
+          size="sm"
+          icon={<HiOutlineArrowRight />}
+        />
+        {/* {window.localStorage.getItem('OneSolutionURL') && ( */}
+        <Button
+          variant="twoTone"
+          icon={<MdExitToApp />}
+          size="sm"
+          // onClick={() =>
+          //   signOut()
+          //     (window.location.href =
+          //       window.localStorage.getItem('OneSolutionURL') + '/?token=' + window.localStorage.getItem('tokenValue')) 
+
+          // }
+          onClick={() => {
+            signOut();
+
+            localStorage.removeItem('admin');
+
+            window.location.href =
+              'https://telstra-pam.planetcast.in/pam/' +
+              '/?token=' +
+              window.localStorage.getItem('tokenValue');
+
+            localStorage.removeItem('tokenValue');
+            localStorage.removeItem('OneSolutionURL');
+          }}
+
+
+        >
+          <span>Exit Scheduler</span>
+        </Button>
+        {/* )} */}
+        <Search />
+        {/* <Dropdown
+          trigger="hover"
+          placement="bottom-start"
+          renderTitle={
+            <div>
+              <Button
+                size="sm"
+                icon={<MdOutlineRecentActors />}
+                variant="twoTone"
+              />
+            </div>
+          }
+          onClick={onDropdownClick}
+        >
+          {dropdownItems.map((item) => (
+            <Dropdown.Item
+              key={item.key}
+              eventKey={item.key}
+              onSelect={onDropdownItemClick}
+            >
+              <p className="dark:hover:text-teal-500">{item.name}</p>
+            </Dropdown.Item>
+          ))}
+        </Dropdown> */}
+      </div>
+    </>
+  );
+};
+
+export function toggleStackedSideNav() {
+  const stackedSideNav = document.getElementsByClassName('stacked-side-nav')[0];
+
+  stackedSideNav.classList.toggle('hidden');
+
+  return stackedSideNav.classList.contains('hidden');
+}
+const HeaderActionsEnd = () => {
+  const passwordRequirements = {
+    minLength: 12,
+    uppercase: true,
+    lowercase: true,
+    number: true,
+    symbol: true,
+  };
+  const { PasswordExpiry } = useSelector((state) => state.auth.user);
+
+  const LoginId = useSelector((state) => state.auth.session.LoginId);
+  const tokenS = useSelector((state) => state.auth.session.token);
+  const Username = useSelector((state) => state.auth.session.Username);
+  const [Password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [validationErrors, setValidationErrors] = useState([]);
+  const [ShowconfirmPassword, setShowconfirmPassword] = useState(true);
+  const [PasswordMatch, setPasswordMatch] = useState(false);
+  const [pwInputType, setPwInputType] = useState('password');
+  const [pwInputType2, setPwInputType2] = useState('password');
+  const [dialogIsOpen, setIsOpen] = useState(PasswordExpiry == 1);
+  const onDialogClose = () => {
+    setPassword('');
+    setConfirmPassword('');
+    if (PasswordExpiry == 0) {
+      setIsOpen(false);
+    }
+    setPwInputType2('password');
+    setPwInputType('password');
+    setShowconfirmPassword(true);
+    setPasswordMatch(false);
+    setValidationErrors([]);
+  };
+  const validatePassword = (password) => {
+    const errors = [];
+    if (password.length < passwordRequirements.minLength) {
+      errors.push(
+        `Password must be at least ${passwordRequirements.minLength} characters long.`,
+      );
+    } else if (!/[A-Z]/.test(password)) {
+      errors.push('Password must contain at least one uppercase letter.');
+    } else if (!/[a-z]/.test(password)) {
+      errors.push('Password must contain at least one lowercase letter.');
+    } else if (!/\d/.test(password)) {
+      errors.push('Password must contain at least one number.');
+    } else if (!/[^a-zA-Z0-9]/.test(password)) {
+      errors.push('Password must contain at least one special symbol.');
+    }
+    if (errors.length === 0) {
+      setShowconfirmPassword(false);
+    }
+    setValidationErrors(errors);
+  };
+  const onPasswordVisibleClick = (e) => {
+    e.preventDefault();
+    setPwInputType(pwInputType === 'password' ? 'text' : 'password');
+  };
+
+  const onPasswordVisibleClick2 = (e) => {
+    e.preventDefault();
+    setPwInputType2(pwInputType2 === 'password' ? 'text' : 'password');
+  };
+  const inputIconw = (
+    <span
+      className="cursor-pointer"
+      onClick={(e) => onPasswordVisibleClick2(e)}
+    >
+      {pwInputType2 === 'password' ? <HiOutlineEyeOff /> : <HiOutlineEye />}
+    </span>
+  );
+  const inputIcon = (
+    <span className="cursor-pointer" onClick={(e) => onPasswordVisibleClick(e)}>
+      {pwInputType === 'password' ? <HiOutlineEyeOff /> : <HiOutlineEye />}
+    </span>
+  );
+  const Channel = useSelector((state) => state.locale.selectedChannel);
+  console.log("ChannelChannelChannel", Channel)
+  const dispatch = useDispatch();
+  return (
+    <div className="flex items-center">
+      <ChannelSelectForHouse />
+      {/* <LanguageSelectorDropdown /> */}
+
+      {Channel?.label !== CLIENT.FOOD_INDIA &&
+        Channel?.label !== CLIENT.FOOD_USA && <Notification />}
+      <SidePanel />
+      <UserDropdown hoverable={false} />
+      <Dialog isOpen={false} width={390} onClose={onDialogClose}>
+        <div className="flex flex-col h-full justify-between">
+          <div className="mb-4">
+            <Input
+              placeholder="Enter your name"
+              prefix={<HiOutlineUser className="text-lg" />}
+              value={Username}
+              disabled
+            />
+          </div>
+          <div>
+            <Input
+              type={pwInputType}
+              value={Password}
+              onChange={(e) => setPassword(e.target.value)}
+              suffix={inputIcon}
+              onBlur={(e) => validatePassword(e.target.value)}
+              onPaste={(e) => {
+                e.preventDefault();
+                return false;
+              }}
+              onCopy={(e) => {
+                e.preventDefault();
+                return false;
+              }}
+              maxLength="20"
+              placeholder="New Password"
+            />
+            {validationErrors.length > 0 && (
+              <ul>
+                {validationErrors.map((error) => (
+                  <li className="text-red-600" key={error}>
+                    {error}
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <div style={{ marginTop: '15px' }}>
+              <Input
+                type={pwInputType2} // Use the same type as the password field
+                value={confirmPassword}
+                disabled={ShowconfirmPassword}
+                maxLength="20" // Store the confirm password value
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                onBlur={(e) => setPasswordMatch(Password == e.target.value)}
+                onPaste={(e) => {
+                  e.preventDefault();
+                  return false;
+                }}
+                onCopy={(e) => {
+                  e.preventDefault();
+                  return false;
+                }}
+                suffix={inputIconw} // Optional: Add the same suffix icon if desired
+                placeholder="Confirm Password"
+              />
+              {!PasswordMatch && !ShowconfirmPassword && (
+                <div className="text-red-500 text-sm mt-1">
+                  Passwords do not match.
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="text-right mt-6">
+            <Button
+              className="ltr:mr-2 rtl:ml-2"
+              variant="plain"
+              onClick={() => onDialogClose(setPassword, setConfirmPassword)}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={!PasswordMatch}
+              variant="solid"
+              onClick={() => {
+                let data = {};
+                data.password = Password;
+                loginupdate(LoginId, data, tokenS).then((resp) => {
+                  if (resp.status === 200) {
+                    openNotification(
+                      'success',
+                      '  Password Updated Successfully',
+                    );
+                    dispatch(
+                      setUser({
+                        avatar: 'Anonymous',
+                        userName: Username,
+                        authority: 'user',
+                        email: 'Anonymous',
+                        PasswordExpiry: 0,
+                        ChannelCode: Channel.ChannelCode,
+                        LocationCode: Channel.LocationCode,
+                      }),
+                    );
+                    setIsOpen(false);
+                  } else {
+                    openNotification('danger', resp.detail);
+                  }
+                });
+              }}
+            >
+              Submit
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+    </div>
+  );
+};
+
+const StackedSideLayout = () => {
+  return (
+    <div className="app-layout-stacked-side flex flex-auto flex-col">
+      <div className="flex flex-auto min-w-0">
+        <div className="flex flex-col flex-auto h-screen min-w-0 relative w-full">
+          <Header
+            className={`shadow dark:shadow-2xl ${HEADER_HEIGHT_CLASS}`}
+            headerStart={<HeaderActionsStart />}
+            headerEnd={<HeaderActionsEnd />}
+          />
+
+          <div className="flex w-full grow">
+            <StackedSideNav />
+
+            <div className="flex  w-full ">
+              <View />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default StackedSideLayout;

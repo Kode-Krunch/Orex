@@ -1,0 +1,162 @@
+import { useState, useEffect, useMemo } from 'react';
+import { Input, Tooltip } from 'components/ui';
+import { Button, Card } from 'components/ui';
+import { HiPlusCircle } from 'react-icons/hi';
+import HeaderExtra from 'views/Controls/HeaderExtra';
+import { useDispatch, useSelector } from 'react-redux';
+import { setContent } from 'store/base/commonSlice';
+import { useNavigate } from 'react-router-dom';
+import { apiGetBooking } from 'services/SalesAdminService';
+import { hideStackedSideNav_secondary } from 'views/Scheduling/general';
+import BookingDashbaord from './BookingDashbaord';
+import Loader from 'views/Controls/Loader';
+import { MdDownload } from 'react-icons/md';
+
+const headerExtraContent = (
+  openDrawer,
+  globalFilter,
+  setGlobalFilter,
+  Path,
+  spotBooking,
+) => {
+  /* EVENT HANDLERS */
+  const handleDownloadRoTemplate = () => {
+    const link = document.createElement('a');
+    link.href = `${process.env.PUBLIC_URL}/templates/RO_Import_Template.xls`;
+    link.download = 'RO_Import_Template.xls';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  return (
+    <span className="flex items-center gap-2">
+      <span className="font-semibold flex items-center">
+        <Input
+          value={globalFilter ?? ''}
+          className=" solid"
+          placeholder="Search all columns..."
+          size="sm"
+          onChange={(e) => {
+            if (/^[0-9a-zA-Z\s,-]*$/.test(e.target.value)) {
+              setGlobalFilter(e.target.value);
+            }
+          }}
+        />
+      </span>
+      {spotBooking === 'RoImport' && (
+        <Tooltip title="Download RO Template">
+          <Button
+            size="sm"
+            variant="twoTone"
+            icon={<MdDownload />}
+            onClick={handleDownloadRoTemplate}
+          />
+        </Tooltip>
+      )}
+      <span className="font-semibold">
+        <Button
+          block
+          variant="solid"
+          size="sm"
+          icon={<HiPlusCircle />}
+          onClick={() => openDrawer([])}
+        >
+          {spotBooking === 'RoImport'
+            ? 'Add RO Import'
+            : spotBooking === 'NTCRoImport'
+              ? 'Add NTC RO Import'
+              : spotBooking === 'SpotBooking'
+                ? 'Add Booking'
+                : 'Add NTC Booking'}
+
+        </Button>
+      </span>
+    </span>
+  );
+};
+
+const BookingDetails = () => {
+  const currentHref = window.location.href; // Get the full URL
+  const hashPart = currentHref.split('#')[1]; // Get the part after the '#'
+  const spotBooking = hashPart ? hashPart.split('/')[1] : ''; // Extract "SpotBooking" 
+
+  const Path =
+    spotBooking == 'RoImport' || spotBooking == 'SpotBooking' ? 0 : 1;
+
+  const Channel = useSelector((state) => state.locale.selectedChannel);
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const [showLoader, setshowLoader] = useState(false);
+  const [globalFilter, setGlobalFilter] = useState('');
+  const [data, setdata] = useState(['']);
+
+  useEffect(() => {
+    hideStackedSideNav_secondary();
+    setshowLoader(true);
+    dispatch(setContent([]));
+
+    (async (values) => {
+      const isntc = Path;
+      try {
+        let Parameters = {
+          LocationCode: Channel.LocationCode,
+          ChannelCode: Channel.ChannelCode,
+          IsNTC: isntc,
+        };
+
+        const resp = await apiGetBooking(Parameters, isntc);
+        if (resp.status == 204) {
+          setshowLoader(false);
+          setdata([]);
+          return;
+        }
+        const updatedData = resp.data.map((item) => ({
+          ...item,
+          value: item.DealMaster?.DealNumber,
+          DealNumber: undefined, // To remove the original DealNumber key
+        }));
+
+        setshowLoader(false);
+        setdata(updatedData);
+      } catch (error) {
+        console.error('Error fetching booking data:', error);
+      }
+    })();
+  }, [Path, Channel]);
+
+  const openDrawer = (r) => {
+    dispatch(setContent(r));
+
+    navigate(
+      spotBooking === 'RoImport'
+        ? '/RoImportDetails'
+        : spotBooking === 'NTCRoImport'
+          ? '/NTCRoImportDetails'
+          : spotBooking === 'SpotBooking'
+            ? '/BookingDetails'
+            : '/NTCBookingDetails',
+    );
+  };
+
+  return (
+    <>
+      <Card
+        header={<HeaderExtra />}
+        headerExtra={headerExtraContent(
+          openDrawer,
+          globalFilter,
+          setGlobalFilter,
+          Path,
+          spotBooking,
+        )}
+        bodyClass="grow"
+      >
+        <Loader showLoader={showLoader} />
+        <BookingDashbaord data={data} />
+      </Card>
+    </>
+  );
+};
+
+export default BookingDetails;

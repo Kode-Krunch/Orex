@@ -1,0 +1,24 @@
+
+import appConfig from 'configs/app.config'
+import ApiService from './ApiService'
+
+const axios = require('axios')
+
+const APIURL = process.env.APIURL
+
+export async function apiGetdealsearchdrop(Parameters, data) {
+    return ApiService.fetchData({
+        url: `/dealmaster/search/?LocationCode=${Parameters.LocationCode}&ChannelCode=${Parameters.ChannelCode}&keys=${data}`,
+        method: 'get',
+
+    })
+}
+export async function apiGetcancelremarkmasterdrop(data) {
+    return ApiService.fetchData({
+        url: '/cancelremarkmaster/',
+        method: 'get',
+
+    })
+}
+
+

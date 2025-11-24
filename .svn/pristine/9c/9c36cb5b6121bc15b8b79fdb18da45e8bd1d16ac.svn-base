@@ -1,0 +1,235 @@
+import { Card, Notification, toast as toa } from 'components/ui';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  apiGetAmortisationMaster,
+  UpdateAmortisationType,
+  AddAmortisationType,
+} from 'services/ProgrammingService';
+import HeaderExtra from 'views/Controls/HeaderExtra';
+import { Toast } from 'primereact/toast';
+import { useSelector } from 'react-redux';
+import { ConfirmDialog } from 'primereact/confirmdialog';
+import DisplaytablewithEdit, {
+  headerExtra,
+} from 'views/Controls/DisplaytablewithEdit';
+
+const AmortisationTypeMaster = () => {
+  const token = useSelector((state) => state.auth.session.token);
+
+  const count = useRef(0);
+
+  function closeAfter2000ms(mes, ty) {
+    toa.push(
+      <Notification
+        closable
+        type={ty}
+        duration={1000}
+        title={ty.charAt(0).toUpperCase() + ty.slice(1)}
+      >
+        {mes}
+      </Notification>,
+    );
+  }
+  const [AmortisationTypeName, setAmortisationTypeName] = useState('');
+  const [addnew, setaddnew] = useState(false);
+  const [globalFilter, setGlobalFilter] = useState('');
+
+  const [visible, setVisible] = useState(false);
+  const [yup, setyup] = useState();
+  const toast = useRef(null);
+
+  const accept = () => {
+    toggleSwitch(yup);
+  };
+  const [AmortisationType, setAmortisationType] = useState();
+
+  useEffect(() => {
+    count.current = count.current + 1;
+
+    if (count.current == 1) {
+      (async (values) => {
+        const respAmortisationType = await apiGetAmortisationMaster();
+        const reversedAmortisationTypeWithNumbers = [
+          ...respAmortisationType.data,
+        ]
+          .reverse()
+          .map((category, index) => ({
+            ...category,
+            serialNumber: index + 1,
+          }));
+
+        setAmortisationType(reversedAmortisationTypeWithNumbers);
+        // console.log('SongGenre',newData)
+      })();
+    }
+  }, []);
+
+  const onRowEditComplete = (e) => {
+    let _AmortisationType = [...AmortisationType];
+    let { newData, index } = e;
+    if (!newData.AmortisationTypeName) {
+      return;
+    }
+
+    _AmortisationType[index].AmortisationTypeName =
+      newData.AmortisationTypeName;
+    _AmortisationType[index].IsActive = newData.IsActive;
+
+    console.log('_AmortisationType', _AmortisationType);
+
+    UpdateAmortisationType(newData, token)
+      .then((response) => {
+        if (response.status == 204) {
+          closeAfter2000ms('Data Already Exists.', 'warning');
+          return;
+        }
+
+        return response.json();
+      })
+      .then((data) => {
+        // handle successful response
+        console.log(data);
+
+        _AmortisationType[index] = data;
+        _AmortisationType[index].serialNumber = newData.serialNumber;
+        _AmortisationType[index].AmortisationTypeName =
+          newData.AmortisationTypeName;
+        _AmortisationType[index].IsActive = newData.IsActive;
+        setAmortisationType(_AmortisationType);
+        closeAfter2000ms('Data Updated Succesfully', 'success');
+      })
+      .catch((error) => {
+        // handle error
+        console.log(error);
+      });
+  };
+
+  const addNewRecord = () => {
+    if (AmortisationTypeName) {
+      const newRecord = {
+        AmortisationTypeName: AmortisationTypeName,
+        IsActive: 1,
+      };
+
+      AddAmortisationType(newRecord, token)
+        .then((response) => {
+          if (response.status == 204) {
+            closeAfter2000ms('Data Already Exists.', 'warning');
+            return;
+          }
+          if (response.status == 200) {
+            newRecord.serialNumber = AmortisationType.length + 1;
+            setAmortisationType((prevAmortisationType) => [
+              ...prevAmortisationType,
+              newRecord,
+            ]);
+            // show('Data Added Successfully')
+            closeAfter2000ms('Data Added Succesfully', 'success');
+          }
+          setAmortisationTypeName('');
+          setaddnew(false);
+        })
+        .catch((error) => {
+          // handle error
+          console.log(error);
+        });
+    } else {
+      closeAfter2000ms('Kindly Enter Amortisation Type Name', 'danger');
+    }
+  };
+
+  const toggleSwitch = (index) => {
+    console.log('AmortisationType', AmortisationType);
+    const updatedAmortisationType = [...AmortisationType];
+    let row = updatedAmortisationType[index];
+    row.IsActive = row.IsActive == 1 ? 0 : 1;
+    UpdateAmortisationType(row, token)
+      .then((response) => {
+        if (response.status == 204) {
+          closeAfter2000ms('Data Already Exists.', 'warning');
+          return;
+        }
+
+        return response.json();
+      })
+      .then((data) => {
+        // handle successful response
+        data.serialNumber = row.serialNumber;
+        data.IsActive = row.IsActive;
+        data.AmortisationTypeName = row.AmortisationTypeName;
+
+        updatedAmortisationType[index] = data;
+        setAmortisationType(updatedAmortisationType);
+        closeAfter2000ms('Data Updated Succesfully', 'success');
+      })
+      .catch((error) => {
+        // handle error
+        console.log(error);
+      });
+  };
+  const columns = [
+    { field: 'serialNumber', header: 'Sr.', width: '0.5%' },
+    {
+      field: 'AmortisationTypeName',
+      header: 'AmortisationTypeName',
+      width: '20%',
+    },
+  ];
+  return (
+    <>
+      <Toast ref={toast} />
+      <ConfirmDialog
+        group="declarative"
+        visible={visible}
+        onHide={() => setVisible(false)}
+        message="Are you sure you want to proceed?"
+        header="Confirmation"
+        icon="pi pi-exclamation-triangle"
+        accept={accept}
+      />
+      <Card
+        header={
+          <div className="flex justify-between">
+            <div>
+              <span className="flex items-center">
+                <HeaderExtra />
+              </span>
+            </div>
+            <div
+              className="flex flex-col items-center"
+              style={{ marginLeft: '-20%' }}
+            ></div>
+
+            <div></div>
+          </div>
+        }
+        headerExtra={headerExtra(
+          globalFilter,
+          setGlobalFilter,
+          setaddnew,
+          addnew,
+          addNewRecord,
+          AmortisationTypeName,
+          setAmortisationTypeName,
+          'Amortisation Type',
+          AmortisationType,
+          columns,
+        )}
+        bodyClass="text-center"
+      >
+        <DisplaytablewithEdit
+          data={AmortisationType}
+          onRowEditComplete={onRowEditComplete}
+          globalFilter={globalFilter}
+          dataKey="AmortisationTypeCode"
+          columns={columns}
+          setyup={setyup}
+          scrollHeight="70vh"
+          setVisible={setVisible}
+        />
+      </Card>
+    </>
+  );
+};
+
+export default AmortisationTypeMaster;

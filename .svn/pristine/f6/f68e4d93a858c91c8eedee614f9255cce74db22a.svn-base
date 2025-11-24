@@ -1,0 +1,146 @@
+import React, { useContext } from 'react';
+import { openNotification } from 'views/Controls/GLOBALFUNACTION';
+import {
+  getUpdatedSelectedRows,
+  getUpdatedSelectedRowsForShiftClick,
+} from './utils';
+import {
+  featuresEnum,
+  pagesEnum,
+  rowDataTypesEnum,
+  rowTypesEnum,
+  tableTypesEnum,
+} from 'views/Scheduling/Scheduler/enum';
+import Cell from './Cell/Cell';
+import DraggableTableContext from './context/DraggableTableContext';
+import SchedulerContext from 'views/Scheduling/SchedulerOld/context/SchedulerContext';
+// import SchedulerContext from 'views/Scheduling/Scheduler/context/SchedulerContext';
+
+function Row({ row, provided, rowType, selectedRows, setSelectedRows, style }) {
+  /* CONTEXT */
+  const {
+    page,
+    schedulingTableData,
+    secondaryTableData,
+    setLeftClickedSchTableRow,
+    setLeftClickedSecTableRow,
+    maintainScrolledOffsetOfTables,
+    activeFeatures,
+    secondaryTableSelectedRows,
+    isScheduleAllowedToEdit,
+  } = useContext(SchedulerContext);
+  const { tableType, isDragDisabled } = useContext(DraggableTableContext);
+
+  /* EVENT HANDLERS */
+  const handleLeftClick = (row) => {
+    try {
+      if (tableType === tableTypesEnum.SCHEDULING) {
+        setLeftClickedSchTableRow(row);
+      } else {
+        setLeftClickedSecTableRow(row);
+      }
+      maintainScrolledOffsetOfTables();
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const handleSelect = (event) => {
+    try {
+      const isInsertActive =
+        activeFeatures[featuresEnum.INSERT]?.isActive ||
+        (typeof activeFeatures[featuresEnum.INSERT] === 'boolean' &&
+          activeFeatures[featuresEnum.INSERT]);
+      // Add support for page wise row selection
+      const pageDataTypes = {
+        [pagesEnum.PROMO]: rowDataTypesEnum.PROMO,
+        [pagesEnum.SONG]: rowDataTypesEnum.SONG,
+        [pagesEnum.COMMERCIAL]: rowDataTypesEnum.COMMERCIAL,
+        [pagesEnum.NTC]: rowDataTypesEnum.NTC,
+        [pagesEnum.FINAL_LOG]: [
+          rowDataTypesEnum.PROMO,
+          rowDataTypesEnum.SONG,
+          rowDataTypesEnum.COMMERCIAL,
+          rowDataTypesEnum.NTC,
+        ],
+      };
+      // If manage segment feature is active, then add selection support for segment and content termination
+      activeFeatures[featuresEnum.MANAGE_SEGMENT] &&
+        pageDataTypes[page].push(
+          ...[rowDataTypesEnum.SEGMENT, rowDataTypesEnum.CONTENT_TERMINATION],
+        );
+      // Check if current row is valid for selection
+      const isPageMatch = Array.isArray(pageDataTypes[page])
+        ? pageDataTypes[page].includes(row.F_C_S_P)
+        : row.F_C_S_P === pageDataTypes[page];
+      if (
+        isPageMatch ||
+        (isInsertActive && secondaryTableSelectedRows.length > 0)
+      ) {
+        if (activeFeatures[featuresEnum.ROTATION_INFO]) {
+          setSelectedRows([row]);
+          handleLeftClick(row);
+        } else if (event.ctrlKey || event.metaKey) {
+          const updatedSelectedRows = getUpdatedSelectedRows(
+            selectedRows,
+            row,
+            tableType,
+            schedulingTableData,
+            secondaryTableData,
+            secondaryTableSelectedRows,
+          );
+          setSelectedRows(updatedSelectedRows);
+          handleLeftClick(updatedSelectedRows[updatedSelectedRows.length - 1]);
+        } else if (event.shiftKey) {
+          const updatedSelectedRows = getUpdatedSelectedRowsForShiftClick(
+            row,
+            selectedRows,
+            tableType === tableTypesEnum.SCHEDULING
+              ? [...schedulingTableData]
+              : [...secondaryTableData],
+            tableType,
+            activeFeatures[featuresEnum.MANAGE_SEGMENT],
+          );
+          setSelectedRows(updatedSelectedRows);
+          handleLeftClick(updatedSelectedRows[updatedSelectedRows.length - 1]);
+        } else {
+          setSelectedRows([]);
+          handleLeftClick(row);
+        }
+      } else {
+        setSelectedRows([]);
+        handleLeftClick(row);
+      }
+    } catch (error) {
+      openNotification('danger', 'Something went wrong while selecting row');
+      console.error(error);
+    }
+  };
+
+  return (
+    <div
+      ref={provided.innerRef}
+      {...provided.draggableProps}
+      {...provided.dragHandleProps}
+      className={`flex group ${
+        (isDragDisabled || !isScheduleAllowedToEdit) && 'hover:cursor-pointer'
+      } ${rowType === rowTypesEnum.NORMAL ? 'min-w-full' : 'w-1/2'}`}
+      {...(rowType === rowTypesEnum.NORMAL && {
+        style: {
+          ...style,
+          ...provided.draggableProps.style,
+          display: 'flex',
+        },
+      })}
+      onClick={handleSelect}
+    >
+      <Cell
+        row={row}
+        selectedRows={selectedRows}
+        setSelectedRows={setSelectedRows}
+      />
+    </div>
+  );
+}
+
+export default Row;

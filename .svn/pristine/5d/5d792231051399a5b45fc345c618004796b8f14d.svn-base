@@ -1,0 +1,91 @@
+import { Button, Dropdown, Tooltip } from 'components/ui';
+import React, { useContext } from 'react';
+import { getClassNames } from '../../utils/utils';
+import { MdOutlinePlaylistAdd, MdOutlineWatchLater } from 'react-icons/md';
+import {
+  IoPlay,
+  IoPlayForwardSharp,
+  IoPlaySkipForwardSharp,
+} from 'react-icons/io5';
+import SchedulerContext from 'views/Scheduling/Scheduler/context/SchedulerContext';
+
+function InsertNTCPattern({ onSelect }) {
+  /* CONTEXTS */
+  const { leftClickedSchTableRow } = useContext(SchedulerContext);
+
+  return (
+    <Dropdown
+      renderTitle={
+        <Tooltip title="Insert Pattern">
+          <Button
+            className={getClassNames()}
+            variant="plain"
+            size="sm"
+            icon={<MdOutlinePlaylistAdd className="text-[1.35rem]" />}
+          />
+        </Tooltip>
+      }
+      trigger="hover"
+      menuClass="w-52"
+      onSelect={onSelect}
+    >
+      <p className="text-[0.9rem] font-semibold text-white border-b border-b-gray-600 px-2 pb-2 pt-1">
+        Insert Pattern
+      </p>
+      <Dropdown.Item
+        eventKey="now"
+        className="p-2 pt-1 hover:bg-gray-600 !h-auto border-b border-gray-600 group"
+        disabled={!leftClickedSchTableRow}
+      >
+        <Tooltip title="Please select an event to import NTCs">
+          <div className="flex items-center gap-2 pr-2">
+            <span className="h-8 w-8 rounded-full bg-gray-600 border border-gray-700 flex items-center justify-center">
+              <IoPlay className="text-base" />
+            </span>
+            <span>Now</span>
+          </div>
+        </Tooltip>
+      </Dropdown.Item>
+      <Dropdown.Item
+        eventKey="next"
+        className="p-2 pt-1 hover:bg-gray-600 !h-auto border-b border-gray-600 group"
+        disabled={!leftClickedSchTableRow}
+      >
+        <Tooltip title="Please select an event to import NTCs">
+          <div className="flex items-center gap-2 pr-2">
+            <span className="h-8 w-8 rounded-full bg-gray-600 border border-gray-700 flex items-center justify-center">
+              <IoPlaySkipForwardSharp className="text-base" />
+            </span>
+            <span>Next</span>
+          </div>
+        </Tooltip>
+      </Dropdown.Item>
+      <Dropdown.Item
+        eventKey="later"
+        className="p-2 hover:bg-gray-600 !h-auto border-b border-gray-600"
+        disabled={!leftClickedSchTableRow}
+      >
+        <div className="flex items-center gap-2 pr-2">
+          <span className="h-8 w-8 rounded-full bg-gray-600 border border-gray-700 flex items-center justify-center">
+            <IoPlayForwardSharp className="text-base" />
+          </span>
+          <span>Later</span>
+        </div>
+      </Dropdown.Item>
+      <Dropdown.Item
+        eventKey="timer"
+        className="p-2 hover:bg-gray-600 !h-auto border-b border-gray-600"
+        disabled={!leftClickedSchTableRow}
+      >
+        <div className="flex items-center gap-2 pr-2">
+          <span className="h-8 w-8 rounded-full bg-gray-600 border border-gray-700 flex items-center justify-center">
+            <MdOutlineWatchLater className="text-base" />
+          </span>
+          <span>Timer</span>
+        </div>
+      </Dropdown.Item>
+    </Dropdown>
+  );
+}
+
+export default InsertNTCPattern;

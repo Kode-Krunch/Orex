@@ -1,0 +1,20 @@
+export const CLIENT = {
+    LOCAL: 'LOCAL',
+    INDIA_SPORTS: 'INDIA SPORTS TV',
+    USA_Forbes: 'Forbes',
+    FOOD_INDIA: 'India Food Food',
+    FOOD_USA: 'USA Food Food INT',
+    SWAMI: 'INDIA SWAMI FILMS',
+    GEC: 'GEC CHANNEL',
+    USA_GEC: "USA GEC CHANNEL",
+    NEWS: 'NEWS CHANNEL',
+    USA_NEWS: 'NEWS CHANNEL USA',
+    BeIN_Sports: 'BeIN Sports',
+    MASST_INDIA: 'INDIA MASST',
+    ASIANET: 'INDIA ASIANET CINEMA'
+}
+
+export const CLIENTWiseUploadPath = {
+    USA_Forbes: '/playlist',
+    ASIANET: '/video/volume1/playlist'
+}

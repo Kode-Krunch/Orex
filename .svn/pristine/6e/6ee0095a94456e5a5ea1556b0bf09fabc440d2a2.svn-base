@@ -1,0 +1,2040 @@
+import { Button, Input, Card, Drawer, Tooltip, Tag } from 'components/ui';
+import { Formik } from 'formik';
+import * as Yup from 'yup';
+import {
+  PostContent,
+  PutContent,
+  apiGetContentTypemaster,
+  PostFPC,
+  apisendnotification,
+  PostFPCSaveAs,
+  PostFPCSaveAs2,
+  apiGetPatternmasterDropDown,
+  apiGetFPCMasterWithHouseID,
+  apiGetfpcorgrepmaster,
+  apiGetContentmasterbyid,
+  apiGetcontentcontractmasterId,
+  Postdailyfpc,
+  apiFPCDELETE,
+  apiGetcontentcontractdetailsId,
+  VerifyFPC,
+} from 'services/ProgrammingService';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  HiOutlinePencil,
+  HiOutlinePlusCircle,
+  HiOutlineTrash,
+} from 'react-icons/hi';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import '../fpccomman.css';
+import DrawerFooter from 'views/Controls/DrawerFooter';
+import { MultiSelect } from 'primereact/multiselect';
+import {
+  convertDateFormatyyyyMMdd,
+  formatStartDate,
+  hideCursorLoader,
+  isJSONArrayEqual,
+  openNotification,
+  showCursorLoader,
+} from 'views/Controls/GLOBALFUNACTION';
+import Loader from 'views/Controls/Loader';
+import { IoMdInformationCircleOutline } from 'react-icons/io';
+import { setdateForm } from 'store/locale/localeSlice';
+import {
+  getDummyRow,
+  isTrafficDayOpenFn,
+} from 'views/Scheduling/Scheduler/components/SchedulingArea/utils/utils';
+import Toolbar from './components/Toolbar/Toolbar';
+import classNames from 'classnames';
+import { setContent, setContentSeg } from 'store/base/commonSlice';
+import { SetMAXSegment } from 'store/auth/userSlice';
+import { droppableIdsEnum, featuresEnum } from '../enums';
+import {
+  isAnyRHSFeatureActive,
+  getDestinationIndex,
+  finalizeInsert,
+  handleStartTimeChange,
+  getRowId,
+  getCellClassNames,
+  maintainScrolledOffsetOfTables,
+  executeProgToPriTableInsert,
+  getColumnsState,
+  isFPCAllowedToEditFn,
+  isFPCAllowedToSaveFn,
+} from './utils/logicalUtils';
+import Hours from './components/Hours';
+import { addMinutes, format } from 'date-fns';
+import { apiCallstoreprocedure } from 'services/CommonService';
+import ContentInfoDialog from './components/Toolbar/components/ContentInfoDialog';
+import { CgAlbum } from 'react-icons/cg';
+import EditContentDialog from './components/Toolbar/components/EditContentDialog';
+import { upperCase } from 'lodash';
+import WarningDialog from 'views/Controls/WarningDialog';
+import appConfig from 'configs/app.config';
+import InsertProgram from './components/InsertProgram';
+import { hideStackedSideNav_secondary } from 'views/Scheduling/general';
+import { DragDropContext } from '@hello-pangea/dnd';
+import BeautifulDndDraggableTable from 'views/Controls/BeautifulDndDraggableTable/BeautifulDndDraggableTable';
+import { CLIENT } from 'views/Controls/clientListEnum';
+import BottomBar from './components/BottomBar';
+import ContractShowDialog from '../ContractShowDialog';
+import { FaExternalLinkAlt } from 'react-icons/fa';
+import { RxCrossCircled } from 'react-icons/rx';
+import { useDebounce } from 'use-debounce';
+import { TW_COLORS } from 'views/Controls/Dashboard/constants/tw_colors';
+
+/* CONSTANTS */
+const sampleRow = [
+  {
+    Id: 1,
+    ContentTypeCode: '',
+    ContentCode: 0,
+    StartTime: '',
+    EndTime: '',
+    SlotDuration: '0',
+    OriginalRepeatCode: '1',
+    EpisodeNo: 0,
+    ContentName: '',
+    ActualDuration: '',
+    SeasonNo: 0,
+    IsRecorded: 0,
+    Genre: '',
+    SubGenre: '',
+    BreakPatternCode: 0,
+    BreakPattern: '',
+    HouseID: '',
+    TimeCategory: '',
+    GroupName: 0,
+    NewTelecastDate: '1900-01-01T00:00:00',
+    IsLicense: 0,
+  },
+];
+const validationSchema = Yup.object().shape({
+  ContentName: Yup.string()
+    .min(3, 'Too Short!')
+    .max(50, 'Too Long!')
+    .required('ContentName Required'),
+  ShortName: Yup.string()
+    .min(1, 'Too Short!')
+    .max(200, 'Too Long!')
+    .required('ShortName Required'),
+  ContentTypeCode: Yup.string()
+    .min(1, 'Too Short!')
+    .max(50, 'Too Long!')
+    .required('ContentType Required'),
+  Audience: Yup.string().required('Audience Required'),
+  ClassificationCode: Yup.string()
+    .min(3, 'Too Short!')
+    .max(50, 'Too Long!')
+    .required('ClassificationCode Required'),
+  LanguageCode: Yup.string()
+    .min(1, 'Too Short!')
+    .max(200, 'Too Long!')
+    .required('LanguageCode Required'),
+  FPCReleaseDate: Yup.string()
+    .min(3, 'Too Short!')
+    .max(200, 'Too Long!')
+    .required('FPCReleaseDate Required'),
+  SlotDuration: Yup.string()
+    .min(1, 'Too Short!')
+    .max(50, 'Too Long!')
+    .required('SlotDuration Required'),
+  CensorshipCode: Yup.string()
+    .min(1, 'Too Short!')
+    .max(200, 'Too Long!')
+    .required('CensorshipCode Required'),
+  IsActive: Yup.string().required('IsActives Required'),
+  rememberMe: Yup.bool(),
+});
+const customStyles = {
+  control: (base) => ({
+    ...base,
+    minHeight: '10px',
+  }),
+};
+const Days = ['0', '1', '2', '3', '4', '5', '6'];
+const FpcErrorheaders = ['StartTime', 'Content', 'Remark'];
+const maxUpload = 1;
+const PRIMARY_TABLE_NAME = 'FPCMasterPrimaryTable';
+
+const FPCEdit = () => {
+  hideStackedSideNav_secondary();
+  /* REDUX */
+  const channel = useSelector((state) => state.locale.selectedChannel);
+  const LoginId = useSelector((state) => state.auth.session.LoginId);
+  const token = useSelector((state) => state.auth.session.token);
+  const Username = useSelector((state) => state.auth.session.Username);
+  const { Content } = useSelector((state) => state.base.common);
+  const dispatch = useDispatch();
+
+  /* STATES */
+  const [showLoader, setShowLoader] = useState(false);
+  const [vTelecastDate, setvTelecastDate] = useState();
+  const [contenttype, setcontenttype] = useState({
+    value: '',
+    label: '',
+  });
+  const [selectedContenttype, setSelectedContenttype] = useState(null);
+  const [isOpen, setdrwaerIsOpen] = useState(false);
+  const [FCPSaveDt, setFCPSaveDt] = useState([]);
+  const [isFPCAllowedToEdit, setIsFPCAllowedToEdit] = useState(null);
+  const [isFPCAllowedToSave, setIsFPCAllowedToSave] = useState(null);
+  // const [itemsA, setItemsA] = useState(generateData(50, 'A')); // Container A
+  const [channelStartTime, setChannelStartTime] = useState('');
+  const [toolbarActiveFeatures, setToolbarActiveFeatures] = useState({});
+  const [startDate, setStartDate] = useState(new Date());
+  const [endDate, setEndDate] = useState(new Date());
+  const [selectedWeekdays, setSelectedWeekdays] = useState(Days);
+  const [isSaveAsFpcDateDialogOpen, setIsSaveAsFpcDateDialogOpen] =
+    useState(false);
+  const [isSaveAsFpcDaysDialogOpen, setIsSaveAsFpcDaysDialogOpen] =
+    useState(false);
+  const [data10, setdata10] = useState([]);
+  const [resultaftercheck, setresultaftercheck] = useState([]);
+  const [originalData, setoriginalData] = useState([]);
+  const [Pattern, setPattern] = useState([]);
+  const [ContentList, setContentList] = useState([]);
+  const [ContentListForSeasonEpisode, setContentListForSeasonEpisode] =
+    useState([]);
+  const [orgContentList, setOrgContentList] = useState(['']);
+  const [slotDurationValue, setSlotDurationValue] = useState(0, 0);
+  const [isContractPopup, setisContractPopup] = useState(false);
+  const [arr, setarr] = useState([]);
+  const [SelectedRow, setSelectedRow] = useState(null);
+  const [Dialogbox, setDialogbox] = useState(false);
+  const [contentInfo, setContentInfo] = useState({});
+  const [SelContent, setSelContent] = useState({
+    value: null,
+    label: 'Please Select Content',
+  });
+  const [SelSeason, setSelSeason] = useState(null);
+  const [SelEpisode, setSelEpisode] = useState(null);
+  const [selectedContentToSearch, setSelectedContentToSearch] = useState(null);
+  const [Slotduration, setSlotduration] = useState('');
+  const [BreakPattSelect, setBreakPattSelect] = useState(null);
+  const [breakPatternList, setBreakPatternList] = useState([]);
+  const [SearchContent, setSearchContent] = useState(null);
+  const [SeasonList, setSeasonList] = useState([]);
+  const [EpisodeList, setEpisode] = useState([]);
+  const [btnMode, setbtnMode] = useState('ADD');
+  const [visible, setVisible] = useState(false);
+  const [DialogContentS, setDialogContentS] = useState(false);
+  const [checked, setChecked] = useState(false);
+  const [isConfirmDeleteRowDialogOpen, setIsConfirmDeleteRowDialogOpen] =
+    useState(false);
+  const [dialogIsOpen, setdialogIsOpen] = useState(false);
+  const [fpcimportdata, setFpcimportdata] = useState([]);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [DailyFPCdialogVisible, setDailyFPCDialogVisible] = useState(false);
+  const [data, setdata] = useState(['']);
+  const [emptySegmentData, setemptySegmentData] = useState(['']);
+  const [secTableData, setSecTableData] = useState([]);
+  const [ogSecTableData, setOgSecTableData] = useState([]);
+  const [primaryTableScrolledOffset, setPrimaryTableScrolledOffset] =
+    useState(0);
+  const [secTableScrolledOffset, setSecTableScrolledOffset] = useState(0);
+  const [primaryTableSelectedRows, setPrimaryTableSelectedRows] = useState([]);
+  const [secTableSelectedRows, setSecTableSelectedRows] = useState([]);
+  const [lastClickedTable, setLastClickedTable] = useState(null);
+  const [priTableManagedColumns, setPriTableManagedColumns] = useState({
+    originalColumns: [],
+    visibleColumns: [],
+    removedColumns: [],
+  });
+  const [generateFpc, setGenerateFpc] = useState(null);
+  const [isTrafficDayOpen, setIsTrafficDayOpen] = useState(null);
+  const [priTableSelectedOrgRepRunStatus, setPriTableSelectedOrgRepRunStatus] =
+    useState(null);
+  const [legends, setLegends] = useState({});
+
+  /* HOOKS */
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { state } = useLocation();
+  const formikRef = useRef();
+  const primaryTableRef = useRef(null);
+  const secTableRef = useRef(null);
+  const [debouncedSelectedRows] = useDebounce(primaryTableSelectedRows, 300);
+
+  /* CONSTANTS */
+  const queryParams = new URLSearchParams(location.search);
+  let SelTelecastDate = queryParams.get('dt');
+  var formattedDate = '';
+  if (SelTelecastDate) {
+    const dateObject = new Date(SelTelecastDate);
+    const day = dateObject.toLocaleDateString('en-GB', { day: '2-digit' });
+    const month = dateObject.toLocaleDateString('en-GB', {
+      month: 'short',
+    });
+    const year = dateObject.toLocaleDateString('en-GB', {
+      year: 'numeric',
+    });
+    formattedDate = `${day}-${month}-${year}`;
+  }
+  let SelectedDate = '';
+  if (vTelecastDate) {
+    SelectedDate = convertDateFormatyyyyMMdd(vTelecastDate);
+  }
+
+  /* TABLE COLUMNS */
+  const PROGRAMS_TABLE_COLUMNS = [
+    {
+      accessorKey: 'ContentName',
+      header: 'Content',
+      style: { width: '65' },
+      customCell: (row) => (
+        <div className="flex items-center gap-1.5 h-full">
+          <img src={row.Content_Image} height="25px" width="25px"></img>
+          <span className="grow overflow-hidden whitespace-nowrap text-ellipsis">
+            {row.ContentName}
+          </span>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'SlotDuration',
+      header: 'Dur(Min)',
+      style: {
+        width: '15',
+        header: { align: 'center' },
+        cell: { align: 'center' },
+      },
+    },
+    {
+      accessorKey: 'SeasonNo',
+      header: 'S',
+      style: {
+        width: '10',
+        header: { align: 'center' },
+        cell: { align: 'center' },
+      },
+    },
+    {
+      accessorKey: 'EpisodeNo',
+      header: 'E',
+      style: {
+        width: '10',
+        header: { align: 'center' },
+        cell: { align: 'center' },
+      },
+    },
+  ];
+
+  const PROGRAMS_TABLE_COLUMNS_FOR_FORBES = [
+    {
+      accessorKey: 'ContentName',
+      header: 'Content',
+      style: { width: '70' },
+      customCell: (row) => (
+        <div className="flex items-center gap-1.5 h-full">
+          <img src={row.Content_Image} height="25px" width="25px"></img>
+          <span className="grow overflow-hidden whitespace-nowrap text-ellipsis">
+            {row.ContentName}
+          </span>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'SlotDuration',
+      header: 'Dur(Min)',
+      style: {
+        width: '30',
+        header: { align: 'center' },
+        cell: { align: 'center' },
+      },
+    },
+  ];
+
+  /* USE EFFECTS */
+  useEffect(() => {
+    (async () => {
+      if (channel && channel.ChannelCode) {
+        /* BLOCK 1 */
+        dispatch(setContent(''));
+        dispatch(setContentSeg(''));
+        dispatch(SetMAXSegment(''));
+        try {
+          const reps = await apiCallstoreprocedure('GetChannelStartTime', {
+            par_LocationCode: channel.LocationCode,
+            par_ChannelCode: channel.ChannelCode,
+          });
+          if (reps.data && reps.data.length > 0) {
+            const startTime = reps.data[0].StartTime;
+            if (typeof startTime === 'string') {
+              setChannelStartTime(startTime.substring(0, 5));
+            } else {
+              openNotification(
+                'danger',
+                'Selected Channel Settings details Not Found.',
+              );
+            }
+          } else {
+            openNotification(
+              'danger',
+              'Selected Channel Settings details Not Found.',
+            );
+          }
+        } catch (error) {
+          openNotification(
+            'danger',
+            'Selected Channel Settings details Not Found.',
+          );
+        }
+        /* BLOCK 2 */
+        const resp = await apiGetContentTypemaster();
+        const formattedOptions = resp.data.map((option) => ({
+          value: option.ContentTypeCode,
+          label: option.ContentTypeName,
+        }));
+        setcontenttype(formattedOptions);
+        setvTelecastDate(SelTelecastDate);
+        /* BLOCK 3 */
+
+        /* BLOCK 4 */
+        const resp2 = await apiGetfpcorgrepmaster();
+        setarr(resp2.data);
+        const firstOrgRepInfo = resp2.data[0];
+        const firstOrgRepTWColor = firstOrgRepInfo.NewColourCode.split('-');
+        const secondOrgRepInfo = resp2.data[1];
+        const secondOrgRepTWColor = secondOrgRepInfo.NewColourCode.split('-');
+        setLegends({
+          [firstOrgRepInfo.ShortName]:
+            TW_COLORS[firstOrgRepTWColor[0]][firstOrgRepTWColor[1]],
+          [secondOrgRepInfo.ShortName]:
+            TW_COLORS[secondOrgRepTWColor[0]][secondOrgRepTWColor[1]],
+          LIVE: TW_COLORS.green['300'],
+        });
+      } else {
+        navigate('/fpcmasterNew');
+      }
+    })();
+  }, [channel]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        let Parameters = {
+          par_LocationCode: channel.LocationCode,
+          par_ChannelCode: channel.ChannelCode,
+          vTelecastDate: SelTelecastDate,
+        };
+        const resp = await apiCallstoreprocedure(
+          'USP_PG_FPC_Get_ContentList',
+          Parameters,
+        );
+        if (resp.status == 204) {
+          setContentList([]);
+          return;
+        }
+        const mergedData = resp.data.map((item, index) => ({
+          label: item.ContentName,
+          value: item.ContentCode,
+        }));
+        setContentList(mergedData);
+        setOrgContentList(resp.data);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
+    })();
+    (async () => {
+      try {
+        const resp = await apiGetPatternmasterDropDown();
+        if (resp.status == 204) {
+          setBreakPatternList([]);
+          return;
+        }
+        const mergedData = resp.data.map((item) => ({
+          label: item.PatternName,
+          value: item.PatternCode,
+          TotalDurInSec: item.TotalDurInSec,
+        }));
+        setBreakPatternList(mergedData);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
+    })();
+    document.querySelector('.page-container').classList.add('!py-2');
+    return () => {
+      document.querySelector('.page-container').classList.remove('!py-2');
+      const gboxElement = document.getElementsByClassName('Gbox2')[0];
+      const gboxElementchild =
+        document.getElementsByClassName('Gbox2')[0].children[1];
+      if (gboxElement) {
+        gboxElement.style.display = 'none';
+        gboxElementchild.style.display = 'none';
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (vTelecastDate) {
+      const checkTrafficDayStatus = async () => {
+        if (isTrafficDayOpen == null) {
+          const checkisTrafficDayOpen = await isTrafficDayOpenFn(
+            new Date(vTelecastDate),
+            channel,
+            token,
+          );
+          setIsTrafficDayOpen(checkisTrafficDayOpen);
+        }
+      };
+      checkTrafficDayStatus();
+      dispatch(
+        setdateForm([
+          vTelecastDate,
+          channel.ChannelName == appConfig.ChannelName
+            ? 'Playlist Creation'
+            : 'FPC Master',
+        ]),
+      );
+      const gboxElement = document.getElementsByClassName('Gbox2')[0];
+      const gboxElementchild =
+        document.getElementsByClassName('Gbox2')[0].children[1];
+      if (gboxElement) {
+        gboxElement.style.display = 'block';
+        gboxElementchild.style.display = 'block';
+      }
+    }
+  }, [vTelecastDate]);
+
+  useEffect(() => {
+    const checkTrafficDayAndEditStatus = async () => {
+      if (!vTelecastDate || !channel || !token) return;
+      const isEditable = await isFPCAllowedToEditFn(
+        new Date(vTelecastDate),
+        isTrafficDayOpen,
+      );
+      const isSaveable = await isFPCAllowedToSaveFn(
+        new Date(vTelecastDate),
+        data10,
+        isTrafficDayOpen,
+        channel,
+      );
+      setIsFPCAllowedToSave(isSaveable);
+      setIsFPCAllowedToEdit(isEditable);
+    };
+    checkTrafficDayAndEditStatus();
+  }, [vTelecastDate, channel, token, data10]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!channelStartTime || !SelectedDate || arr.length === 0) return;
+        setShowLoader(true);
+        const resp = await apiGetPatternmasterDropDown();
+        if (Array.isArray(resp.data)) {
+          const formattedOptions = resp.data.map((option) => ({
+            value: option.PatternCode,
+            label: option.PatternName,
+          }));
+          setPattern(formattedOptions);
+        }
+        const respfpc = await apiGetFPCMasterWithHouseID(
+          channel.LocationCode,
+          channel.ChannelCode,
+          SelectedDate,
+        );
+        let updatedData = [];
+        if (respfpc.status === 200) {
+          var updt = handleStartTimeChange(0, channelStartTime, respfpc.data);
+          updatedData =
+            updt.length > 0
+              ? [getDummyRow(updt[0]), ...updt].map((row, index) => ({
+                  ...row,
+                  rowId: getRowId('primary', row, 'ContentCode'),
+                  rowIndex: index,
+                  cellClassNames: getCellClassNames(row, arr),
+                  verify: false,
+                }))
+              : [];
+        }
+        maintainScrolledOffsetOfTablesFn();
+        setdata10(updatedData);
+        setoriginalData(updatedData);
+        /* SET COLUMNS STATE */
+        const columnsState = await getColumnsState(
+          updatedData,
+          PRIMARY_TABLE_NAME,
+          token,
+          channel,
+        );
+        setPriTableManagedColumns(columnsState);
+        /* SET ACTIVE FEATURES */
+        const newActiveFeatures = {
+          ...toolbarActiveFeatures,
+          [featuresEnum.MANAGE_COLUMNS]: {
+            isDropdownVisible: false,
+            isActive:
+              columnsState.removedColumns.length > 0 ||
+              isJSONArrayEqual(
+                columnsState.originalColumns,
+                columnsState.visibleColumns,
+              ),
+          },
+        };
+        setToolbarActiveFeatures(newActiveFeatures);
+        setShowLoader(false);
+      } catch (error) {
+        console.error(error);
+        openNotification('danger', 'Something went wrong');
+        maintainScrolledOffsetOfTablesFn();
+        setShowLoader(false);
+      }
+    })();
+  }, [channelStartTime, SelectedDate, arr, generateFpc]);
+
+  useEffect(() => {
+    try {
+      const filteredContentList = orgContentList.filter(
+        (item) =>
+          item.SlotDuration >= slotDurationValue[0] &&
+          item.SlotDuration <= slotDurationValue[1],
+      );
+      setContentListForSeasonEpisode(filteredContentList);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    }
+  }, [slotDurationValue]);
+
+  useEffect(() => {
+    let primaryTableData = [...data10].slice(1);
+    const savdata = addNewTelecastDate(primaryTableData);
+    setFCPSaveDt(savdata);
+  }, [data10]);
+
+  useEffect(() => {
+    if (isFPCAllowedToEdit)
+      setToolbarActiveFeatures({ [featuresEnum.INSERT]: true });
+  }, [isFPCAllowedToEdit]);
+
+  useEffect(() => {
+    setSecTableSelectedRows([]);
+  }, [vTelecastDate, secTableData]);
+
+  useEffect(() => {
+    if (channel?.label === CLIENT.USA_Forbes && breakPatternList.length > 0) {
+      setBreakPattSelect(breakPatternList[0]);
+    }
+  }, [channel?.label, breakPatternList]);
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [primaryTableSelectedRows, data10, secTableSelectedRows, secTableData]);
+
+  useEffect(() => {
+    try {
+      setPriTableSelectedOgRepRunStatusFn(debouncedSelectedRows[0].ContentCode);
+    } catch (error) {
+      console.error(
+        'danger',
+        'Something went wrong while fetching Original Repeat Run Status',
+      );
+    }
+  }, [debouncedSelectedRows]);
+
+  /* EVENT HANDLERS */
+  const onDrawerClose = () => {
+    setdrwaerIsOpen(false);
+  };
+
+  const formSubmit = () => {
+    formikRef.current?.submitForm();
+  };
+
+  const redirectContract = useCallback(() => {
+    dispatch(setContent(Content.Data));
+    navigate('/ContentContractEdit');
+  }, []);
+
+  const closeDialogBoxContract = useCallback(() => {
+    setisContractPopup(false);
+  }, []);
+
+  const headerExtraContent = (
+    <span className="flex items-center">
+      <Button
+        icon={<FaExternalLinkAlt />}
+        size="sm"
+        variant="solid"
+        onClick={redirectContract}
+      >
+        Check Contract
+      </Button>
+    </span>
+  );
+
+  const handleVerifyClick = async () => {
+    try {
+      setShowLoader(true);
+
+      const response = await VerifyFPC(FCPSaveDt);
+      const validationResponse = await apiCallstoreprocedure(
+        'USP_PG_WeeklyFPC_Validation',
+        {
+          par_LocationCode: channel.LocationCode,
+          par_ChannelCode: channel.ChannelCode,
+          LoginCode: LoginId,
+          IsWeeklyFPC: 0,
+        },
+      );
+      const formattedData = [
+        getDummyRow(validationResponse.data?.[0]),
+        ...validationResponse.data,
+      ].map((row, index) => ({
+        ...row,
+        rowId: getRowId('primary', row, 'ContentCode'),
+        rowIndex: index,
+        cellClassNames: getCellClassNames(row, arr, true),
+        verify: true,
+      }));
+
+      setdata10(formattedData);
+      openNotification('success', 'FPC verified successfully');
+    } catch (error) {
+      console.error('Error verifying FPC:', error);
+    } finally {
+      setShowLoader(false);
+    }
+  };
+
+  const handleSaveClick = async () => {
+    try {
+      setShowLoader(true);
+      if (originalData.length !== 0 && channel?.label === CLIENT.USA_Forbes) {
+        await apiFPCDELETE(
+          channel.LocationCode,
+          channel.ChannelCode,
+          SelectedDate,
+        );
+      }
+      if (!FCPSaveDt.length) {
+        openNotification('info', 'Kindly add at least one row to save data.');
+        return;
+      }
+      await PostFPC(FCPSaveDt);
+      await apisendnotification({
+        NotificationId: (Math.random() + 1).toString(36).substring(7),
+        user_ids: [10],
+        message: `${new Date(formattedDate).toDateString()} FPC CREATED`,
+        image: '',
+        type: '1',
+        location: 'FPC CREATED',
+        locationLabel: Username,
+        Status: '1',
+        isGroup: 1,
+        Ispriority: 1,
+        readed: 0,
+      });
+      openNotification('success', 'FPC saved successfully');
+      let transformedData = FCPSaveDt.map((item, key) => ({
+        RowNumber: key,
+        ContentCode: item.ContentCode,
+        StartTime: item.StartTime,
+        EndTime: item.EndTime,
+        SlotDuration: item.SlotDuration,
+        OriginalRepeatCode: item.OriginalRepeatCode,
+        EpisodeNo: 1,
+        ContentName: item.ContentName,
+        ActualDuration: item.ActualDuration,
+        SeasonNo: 1,
+        BreakPatternCode: item.BreakPatternCode,
+        BreakPattern: item.BreakPattern,
+        HouseID: 'LIVE',
+        ChannelTimeDescription: '00:00 - 23:59',
+        Id: key,
+        TimeCategoryStartTime: '00:00:00',
+        TimeCategoryEndTime: '23:59:59',
+        MinDiff: 1439,
+        Consumption: 0,
+        LocationCode: channel.LocationCode,
+        ChannelCode: channel.ChannelCode,
+        TelecastDate: SelectedDate,
+      }));
+      if (channel.label === CLIENT.USA_Forbes) {
+        try {
+          setemptySegmentData([]);
+          transformedData = addNewTelecastDate(transformedData);
+          const resp = await Postdailyfpc(transformedData, token);
+          if (resp.status === 200) {
+            setDailyFPCDialogVisible(false);
+            openNotification('success', 'Added Successfully');
+          } else {
+            openNotification('danger', 'Failed to Add Data');
+          }
+        } catch (error) {
+          const status = error.response?.status || 'unknown';
+          console.error('Error occurred:', error);
+
+          // Handle specific HTTP error codes
+          if (status === 500) {
+            openNotification('danger', 'Server Error: Failed to Add Data');
+          } else {
+            openNotification('danger', 'An unexpected error occurred');
+          }
+        } finally {
+          // Always hide the loader
+          setShowLoader(false);
+        }
+      }
+
+      setShowLoader(false);
+    } catch (error) {
+      setShowLoader(false);
+      openNotification('danger', 'An error occurred while saving FPC.');
+      console.error('Save FPC Error:', error);
+    } finally {
+      setShowLoader(false);
+    }
+  };
+
+  const handleDateChange = (newDates) => {
+    const [newStartDate, newEndDate] = newDates;
+    setStartDate(newStartDate);
+    setEndDate(newEndDate);
+  };
+
+  const handleSaveASFPC = async () => {
+    const editedData = {
+      FromDate: formatStartDate(startDate),
+      ToDate: formatStartDate(endDate),
+      selectedWeekdays: isSaveAsFpcDaysDialogOpen ? Days : selectedWeekdays,
+      LocationCode: channel.LocationCode,
+      ChannelCode: channel.ChannelCode,
+      TelecastDate: SelectedDate,
+    };
+    if (!isSaveAsFpcDaysDialogOpen) {
+      try {
+        const resp = await PostFPCSaveAs(editedData, token);
+        if (resp.data.code === '200') {
+          openNotification('success', 'FPC Saved successfully');
+          navigate('/fpcmasterNew');
+          setIsSaveAsFpcDateDialogOpen(false);
+          setIsSaveAsFpcDaysDialogOpen(false);
+          return;
+        } else {
+          openNotification('danger', 'FPC Did Not Saved');
+          setIsSaveAsFpcDateDialogOpen(false);
+          setIsSaveAsFpcDaysDialogOpen(false);
+          return;
+        }
+      } catch (error) {
+        openNotification('danger', 'FPC Did Not Saved');
+        setIsSaveAsFpcDateDialogOpen(false);
+        setIsSaveAsFpcDaysDialogOpen(false);
+        return;
+      }
+    } else {
+      try {
+        const resp = await PostFPCSaveAs2(editedData, token);
+        if (resp.data.code === '200') {
+          openNotification('success', 'FPC Saved successfully');
+          navigate('/fpcmasterNew');
+          setIsSaveAsFpcDateDialogOpen(false);
+          setIsSaveAsFpcDaysDialogOpen(false);
+          return;
+        } else {
+          openNotification('danger', 'FPC Did Not Saved');
+          setIsSaveAsFpcDateDialogOpen(false);
+          setIsSaveAsFpcDaysDialogOpen(false);
+          return;
+        }
+      } catch (error) {
+        openNotification('danger', 'FPC Did Not Saved');
+        setIsSaveAsFpcDateDialogOpen(false);
+        setIsSaveAsFpcDaysDialogOpen(false);
+        return;
+      }
+    }
+  };
+
+  const beforeUpload = async (files, fileList) => {
+    const allowedFileType = [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ];
+    const invalidFileTypeMessage = 'Please upload an XLSX file!';
+    if (fileList.length >= maxUpload) {
+      return `You can only upload ${maxUpload} file(s)`;
+    }
+    const selectedFile = files[0];
+
+    if (!allowedFileType.includes(selectedFile.type)) {
+      return invalidFileTypeMessage;
+    }
+    setSelectedFile(selectedFile);
+  };
+
+  const onDialogOKAI = async () => {
+    const headersList = {
+      Accept: '*/*',
+      Authorization: `Bearer ${token}`,
+    };
+    const bodyContent = new FormData();
+    // Convert binary data to a string
+    const reader = new FileReader();
+    reader.onload = function (event) {
+      const arrayBuffer = event.target.result;
+      const blob = new Blob([arrayBuffer], { type: selectedFile.type });
+      bodyContent.append('file', blob, selectedFile.name);
+      // Now you can make the API call
+      try {
+        fetch(
+          appConfig.apiPrefix +
+            `/fpcmaster/upload/?LocationCode=${channel.LocationCode}&ChannelCode=${channel.ChannelCode}&TelecastDate=${SelTelecastDate}`,
+          {
+            method: 'POST',
+            body: bodyContent,
+            headers: headersList,
+          },
+        )
+          .then((response) => response.json())
+          .then((data) => {
+            setFpcimportdata(data);
+          })
+          .catch((error) => {});
+      } catch (error) {}
+    };
+    reader.readAsArrayBuffer(selectedFile);
+  };
+
+  const handleRowClick = (event, row) => {
+    try {
+      event.stopPropagation();
+      maintainScrolledOffsetOfTablesFn();
+      setLastClickedTable(droppableIdsEnum.PRIMARY);
+      updatePriTableSelectedRows(row);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const updatePriTableSelectedRows = (row) => {
+    try {
+      setPrimaryTableSelectedRows([row]);
+      const clickedContent = ContentList.filter(
+        (content) =>
+          content.label === row.ContentName &&
+          content.value === row.ContentCode,
+      );
+      if (clickedContent.length > 0) {
+        setSelectedContentToSearch(clickedContent[0]);
+      } else {
+        const clickedContentItem = {
+          value: row.ContentCode,
+          label: row.ContentName,
+        };
+        setSelectedContentToSearch({
+          value: row.ContentCode,
+          label: row.ContentName,
+        });
+        setContentList([...ContentList, clickedContentItem]);
+      }
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const setPriTableSelectedOgRepRunStatusFn = async (contentCode) => {
+    try {
+      showCursorLoader();
+      const response = await apiCallstoreprocedure(
+        'usp_PG_FPC_ContractUtilisation',
+        {
+          ContentCode: contentCode,
+        },
+      );
+      if (response.status === 200) {
+        const totalsRow =
+          response.data[0].RunDetails === 'Totals'
+            ? response.data[0]
+            : response.data[1];
+        const consumedRow =
+          response.data[0].RunDetails === 'Consumed'
+            ? response.data[0]
+            : response.data[1];
+        const orgRepRunStatus = {
+          orgRunStatus: {
+            total: totalsRow?.TotalOrignalRun
+              ? totalsRow.TotalOrignalRun
+              : 'Unlimited',
+            consumed: consumedRow.TotalOrignalRun,
+            balance: totalsRow?.TotalOrignalRun
+              ? totalsRow.TotalOrignalRun - consumedRow.TotalOrignalRun
+              : 'Unlimited',
+          },
+          repRunStatus: {
+            total: totalsRow?.TotalRepeatRun
+              ? totalsRow.TotalRepeatRun
+              : 'Unlimited',
+            consumed: consumedRow.TotalRepeatRun,
+            balance: totalsRow?.TotalRepeatRun
+              ? totalsRow.TotalRepeatRun - consumedRow.TotalRepeatRun
+              : 'Unlimited',
+          },
+        };
+        setPriTableSelectedOrgRepRunStatus(orgRepRunStatus);
+      } else setPriTableSelectedOrgRepRunStatus(null);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      hideCursorLoader();
+    }
+  };
+
+  const handleDragEnd = (dragInfo) => {
+    try {
+      /* GET REQUIRED DATA TO UPDATE SCHEDULING TABLE FOR APPROPRIATE DRAG */
+      let sourceDroppableId = dragInfo.source.droppableId;
+      let destinationDroppableId = dragInfo.destination.droppableId;
+      let sourceIndex =
+        sourceDroppableId === droppableIdsEnum.PRIMARY
+          ? dragInfo.source.index
+          : secTableData.findIndex((row) => row.rowId === dragInfo.draggableId);
+      let destinationIndex = getDestinationIndex(
+        sourceIndex,
+        dragInfo.destination.index,
+        sourceDroppableId,
+        destinationDroppableId,
+      );
+      if (!isDragValid(dragInfo, destinationDroppableId)) return;
+      let sourceRow =
+        sourceDroppableId === droppableIdsEnum.PRIMARY
+          ? data10[sourceIndex]
+          : secTableData[sourceIndex];
+      let selectedRows = getDraggedRows(sourceDroppableId, sourceRow);
+      /* PLACE SELECTED ROWS IN SCHEDULING TABLE */
+      let newPrimaryTableData = [...data10];
+      if (sourceDroppableId === droppableIdsEnum.PRIMARY) {
+        newPrimaryTableData = executePrimaryTableDrag(
+          selectedRows,
+          destinationIndex,
+        );
+      } else if (
+        sourceDroppableId === droppableIdsEnum.SECONDARY &&
+        destinationDroppableId === droppableIdsEnum.PRIMARY
+      ) {
+        newPrimaryTableData = executeProgToPriTableInsert(
+          selectedRows,
+          SelectedDate,
+          BreakPattSelect,
+          channel,
+          data10,
+          destinationIndex,
+        );
+      }
+      finalizeInsert({
+        tableData: newPrimaryTableData,
+        channelStartTime,
+        setdata10,
+        arr,
+        setPrimaryTableScrolledOffset,
+        setSecTableScrolledOffset,
+        primaryTableRef,
+        secTableRef,
+      });
+    } catch (error) {
+      console.error(error);
+      openNotification('danger', 'Something went wrong');
+    }
+  };
+
+  const handleKeyDown = (event) => {
+    try {
+      const key = event.key;
+      if (key === 'ArrowUp') handleVerticalArrowKeyDown('up');
+      else if (key === 'ArrowDown') handleVerticalArrowKeyDown('down');
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleVerticalArrowKeyDown = (direction) => {
+    try {
+      if (
+        !lastClickedTable ||
+        (primaryTableSelectedRows.length === 0 &&
+          secTableSelectedRows.length === 0)
+      )
+        return;
+      const isPrimaryTableSelected =
+        lastClickedTable === droppableIdsEnum.PRIMARY;
+      const tableData = isPrimaryTableSelected ? data10 : secTableData;
+      const curSelectedRow = isPrimaryTableSelected
+        ? primaryTableSelectedRows[0]
+        : secTableSelectedRows[0];
+      const selectedRowIndex = curSelectedRow.rowIndex;
+      const tableRef = isPrimaryTableSelected ? primaryTableRef : secTableRef;
+      let newSelectedRow;
+      if (direction === 'up') {
+        const prevRow = tableData[selectedRowIndex - 1];
+        if (prevRow && prevRow.rowIndex !== 0) newSelectedRow = prevRow;
+      } else if (direction === 'down') {
+        const nextRow = tableData[selectedRowIndex + 1];
+        if (nextRow) newSelectedRow = nextRow;
+      }
+      if (newSelectedRow) {
+        maintainScrolledOffsetOfTablesFn();
+        isPrimaryTableSelected
+          ? updatePriTableSelectedRows(newSelectedRow)
+          : setSecTableSelectedRows([newSelectedRow]);
+      }
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  /* HELPER FUNCTIONS */
+  const AddContent = async (values, token) => {
+    try {
+      const resp = await PostContent(values, token);
+      if (resp.data.msg === 'success') {
+        return;
+      } else if (resp.data.msg === 'Server Error.') {
+        return;
+      }
+    } catch (errors) {
+      return {};
+    }
+  };
+
+  const EditContent = async (values, token) => {
+    try {
+      const resp = await PutContent(values, token);
+      if (resp.data.msg === 'Updated') {
+        return;
+      } else if (resp.data.msg === 'Entity is Already Exists') {
+        return;
+      }
+    } catch (errors) {
+      return {};
+    }
+  };
+
+  const GetContents = async (ContentCode) => {
+    try {
+      setShowLoader(true);
+      const datas = await apiGetContentmasterbyid(ContentCode);
+      setDialogbox(true);
+      setContentInfo(datas.data);
+      setShowLoader(false);
+    } catch (error) {
+      console.error('Error fetching content info:', error);
+      setShowLoader(false);
+    }
+  };
+
+  const APIHIT = async (IsLicense) => {
+    try {
+      setShowLoader(true); // Show loader before starting the API calls
+
+      const [dataResponse, detailsResponse] = await Promise.all([
+        apiGetcontentcontractmasterId(IsLicense),
+        apiGetcontentcontractdetailsId(IsLicense),
+      ]);
+
+      dispatch(
+        setContent({
+          Data: dataResponse.data,
+          Details: detailsResponse.data,
+        }),
+      );
+      setisContractPopup(true);
+      // navigate('/ContentContractEdit'); // Uncomment if navigation is needed
+    } catch (error) {
+      console.error('Error fetching content contract data:', error);
+    } finally {
+      setShowLoader(false); // Hide loader regardless of success or failure
+    }
+  };
+
+  const withIcon = (component) => {
+    return <div className="text-lg">{component}</div>;
+  };
+
+  const FooterContent = () => {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'end' }} className="mt-5">
+        <Button
+          variant="solid"
+          type="button"
+          className="btnEdit mr-2"
+          size="sm"
+          icon={
+            btnMode === 'ADD' ? <HiOutlinePlusCircle /> : <HiOutlinePencil />
+          }
+          onClick={() => ModifyContent()}
+        >
+          {btnMode}
+        </Button>
+        <Button
+          type="button"
+          className="btnEdit"
+          size="sm"
+          onClick={() => {
+            setVisible(false);
+            setSelectedContentToSearch(null);
+            setSelContent({ value: null, label: 'Please Select Content' });
+            setSelSeason(null);
+            setSelEpisode(null);
+            setSlotduration('');
+            setSearchContent(null);
+            setBreakPattSelect(null);
+          }}
+        >
+          Cancel
+        </Button>
+      </div>
+    );
+  };
+
+  const ModifyContent = async () => {
+    const fil = ContentListForSeasonEpisode.filter(
+      (item) =>
+        item.ContentCode == SelContent.value ||
+        item.ContentCode == SelContent.ContentCode,
+    );
+    if (Number(Slotduration) < fil[0]?.SlotDuration) {
+      openNotification(
+        'info',
+        ` Slot Duration is not less then Content Duration (${fil[0].SlotDuration})`,
+      );
+      return;
+    }
+    if (Slotduration == null || Slotduration == 0 || Slotduration == '') {
+      openNotification('info', 'Kindly Enter Duration!');
+      return;
+    }
+    if (SelSeason === null || SelSeason === 0) {
+      openNotification('info', 'Please select Season!');
+      return;
+    }
+    if (SelEpisode === null || SelEpisode === 0) {
+      openNotification('info', 'Please select Episode!');
+      return;
+    }
+    // SeasonNo;
+    // EpisodeNo;
+    const filteredArray = SearchContent.filter(
+      (item) =>
+        item.ContentCode == (SelContent.value || SelContent.ContentCode) &&
+        item.SeasonNo == SelSeason.value &&
+        item.EpisodeNo == SelEpisode.value,
+    );
+    let primaryTableData = [...data10].slice(1);
+    //if you want copy of data use this message from akash//
+    let isAlreadySchdule = primaryTableData.filter(
+      (item) =>
+        item.ContentCode == (SelContent.value || SelContent.ContentCode) &&
+        item.SeasonNo == SelSeason.value &&
+        item.EpisodeNo == SelEpisode.value,
+    );
+    if (btnMode === 'Modify') {
+      isAlreadySchdule = [];
+    }
+    if (isAlreadySchdule.length > 0) {
+      openNotification('warning', 'Event Already Schdule For This Date');
+    }
+    let ORG_REP = '';
+    let OriginalRepeatCode = 0;
+    if (isAlreadySchdule.length > 0) {
+      ORG_REP = 'REP';
+      OriginalRepeatCode = 2;
+    } else if (isAlreadySchdule.length > 0 && btnMode == 'ADD') {
+      ORG_REP = 'REP';
+      OriginalRepeatCode = 2;
+    } else if (
+      filteredArray.length > 0 &&
+      filteredArray[0].OriginalRepeatCode == 'REP'
+    ) {
+      ORG_REP = 'REP';
+      OriginalRepeatCode = 2;
+    } else {
+      ORG_REP = 'ORG';
+      OriginalRepeatCode = 1;
+    }
+    if (filteredArray.length > 0) {
+    } else {
+      filteredArray.push(...isAlreadySchdule);
+    }
+    const editedData = {
+      RowNumber: 1,
+      ContentCode: filteredArray[0]?.ContentCode,
+      ContentName: filteredArray[0]?.ContentName,
+      SlotDuration: Slotduration,
+      EpisodeNo: filteredArray[0]?.EpisodeNo,
+      SeasonNo: filteredArray[0]?.SeasonNo,
+      status: ORG_REP,
+      Genre: filteredArray[0]?.Genre,
+      HouseID: '',
+      StartTime: '00:00',
+      EndTime: '00:00',
+      ActualDuration: '00',
+      BreakPattern: (BreakPattSelect && BreakPattSelect.label) || '',
+      BreakPatternCode: (BreakPattSelect && BreakPattSelect.value) || null,
+      LocationCode: channel.LocationCode,
+      ChannelCode: channel.ChannelCode,
+      TelecastDate: SelectedDate,
+      EpisodeSpecific: filteredArray[0]?.EpisodeSpecific,
+      Id: primaryTableData.length + 1,
+      OriginalRepeatCode: OriginalRepeatCode,
+      ChannelTimeDescription: '',
+      TimeCategoryEndTime: '',
+      TimeCategoryStartTime: '',
+      RowNumber:
+        primaryTableData?.length == 0 ? 1 : primaryTableData?.length + 1,
+      MinDiff: 0,
+      IsRecorded: filteredArray[0]?.IsRecorded,
+      ContentTypeCode: filteredArray[0]?.ContentTypeCode,
+      ContentTypeName: filteredArray[0]?.ContentTypeName,
+    };
+    if (primaryTableData.length !== 0) {
+      // delete editedData.RowNumber;
+    }
+    let selectedIndex = 0;
+    let updatedData = primaryTableData.filter((row) => row.Id === row.Id);
+    let RefRow = [];
+    if (btnMode === btnMode) {
+      if (!SelectedRow) {
+        RefRow.push(updatedData[updatedData.length - 1]);
+      } else {
+        RefRow.push(SelectedRow);
+      }
+      if (RefRow[0]) {
+        editedData.LocationCode = RefRow[0].LocationCode;
+        editedData.ChannelCode = RefRow[0].ChannelCode;
+        editedData.ChannelTimeDescription = RefRow[0].ChannelTimeDescription;
+        editedData.Consumption = RefRow[0].Consumption;
+        editedData.TimeCategoryEndTime = RefRow[0].TimeCategoryEndTime;
+        editedData.TimeCategoryStartTime = RefRow[0].TimeCategoryStartTime;
+        editedData.RowNumber = RefRow[0].RowNumber + 1;
+        editedData.MinDiff = RefRow[0].MinDiff;
+        if (upperCase(btnMode) === 'ADD') {
+          selectedIndex = updatedData.findIndex(
+            (row) => row.Id === RefRow[0].Id,
+          );
+          for (let i = selectedIndex + 1; i < updatedData.length; i++) {
+            updatedData[i].RowNumber = updatedData[i].RowNumber + 1;
+          }
+          updatedData.push(editedData);
+        } else {
+          selectedIndex = updatedData.findIndex(
+            (row) => row.Id === RefRow[0].Id,
+          );
+          updatedData[selectedIndex] = editedData;
+        }
+      } else {
+        updatedData.push(editedData);
+      }
+    }
+    const filteredData = updatedData.filter(
+      (entry) => entry.ContentCode !== null && entry.ContentCode !== '',
+    );
+    var updt = handleStartTimeChange(0, channelStartTime, filteredData);
+    maintainScrolledOffsetOfTablesFn();
+    setdata10((prevData) => {
+      const dt = [...updt];
+      let updatedDatax =
+        dt.length > 0
+          ? [getDummyRow(dt[0]), ...dt].map((row, index) => ({
+              ...row,
+              rowId: getRowId('primary', row, 'ContentCode'),
+              rowIndex: index,
+              cellClassNames: getCellClassNames(row, arr, true),
+              verify: false,
+            }))
+          : [];
+      return updatedDatax;
+    });
+    setVisible(false);
+    setSelectedContentToSearch(null);
+    setSelContent({ value: null, label: 'Please Select Content' });
+    setSelSeason(null);
+    setSelEpisode(null);
+    setSearchContent(null);
+    setSlotduration('');
+    setBreakPattSelect(null);
+    setSelectedRow(null);
+  };
+
+  const accept = (SelectedRowrr) => {
+    if (SelectedRowrr) {
+      maintainScrolledOffsetOfTablesFn();
+      setdata10((prevData) => {
+        let newData = [...prevData].slice(1);
+        newData = newData.filter((row) => row.rowId !== SelectedRowrr.rowId);
+        if (newData.length === 0) return [];
+        newData = handleStartTimeChange(0, channelStartTime, newData);
+        let updatedt =
+          newData.length > 0
+            ? [getDummyRow(newData[0]), ...newData].map((row, index) => ({
+                ...row,
+                rowId: getRowId('primary', row, 'ContentCode'),
+                rowIndex: index,
+                cellClassNames: getCellClassNames(row, arr, true),
+                verify: false,
+              }))
+            : [];
+        return updatedt;
+      });
+      setIsConfirmDeleteRowDialogOpen(false);
+      openNotification('success', 'Removed successfully');
+    } else {
+      openNotification('warning', 'No row selected');
+    }
+  };
+
+  const apexBarChar = async (transformedData, condition) => {
+    try {
+      setShowLoader(true);
+      if (!condition) {
+        // Check if there are missing segments
+        if (emptySegmentData.length !== 0) {
+          setShowLoader(false);
+          setDailyFPCDialogVisible(false);
+          openNotification('danger', 'Please Create Missing Segment First..');
+          return;
+        }
+      }
+      // Transform Data
+      const transformData = (data) =>
+        data.map((item) => ({
+          RowNumber: item.data.RowNumber,
+          ContentCode:
+            item.data.GroupName === 1
+              ? item.children[0]?.data.ContentCode
+              : item.data.ContentCode,
+          StartTime: item.data.StartTime,
+          EndTime: item.data.EndTime,
+          SlotDuration: item.data.SlotDuration,
+          OriginalRepeatCode: item.data.OriginalRepeatCode,
+          EpisodeNo: item.data.EpisodeNo,
+          ContentName:
+            item.data.GroupName === 1
+              ? item.children[0]?.data.ContentName
+              : item.data.ContentName,
+          ActualDuration: item.data.ActualDuration,
+          SeasonNo: item.data.SeasonNo,
+          BreakPatternCode: item.data.BreakPatternCode,
+          BreakPattern: item.data.BreakPattern,
+          HouseID: item.data.HouseID,
+          ChannelTimeDescription: item.data.ChannelTimeDescription,
+          Id: item.data.Id,
+          TimeCategoryStartTime: item.data.TimeCategoryStartTime,
+          TimeCategoryEndTime: item.data.TimeCategoryEndTime,
+          MinDiff: item.data.MinDiff,
+          Consumption: item.data.Consumption,
+          LocationCode: item.data.LocationCode,
+          ChannelCode: item.data.ChannelCode,
+          TelecastDate: item.data.TelecastDate,
+        }));
+
+      // Determine which data to transform
+      let transformedArray = transformData([...transformedData]);
+      transformedArray = addNewTelecastDate(transformedArray);
+
+      // Post transformed data to the API
+      const resp = await Postdailyfpc(transformedArray, token);
+
+      if (resp.data.code === '200') {
+        if (!condition) {
+          setDailyFPCDialogVisible(false);
+          openNotification('success', 'Added Successfully');
+        }
+      } else {
+        openNotification('danger', 'Failed to Add Data');
+      }
+    } catch (error) {
+      const status = error.response?.status || 'unknown';
+      console.error('Error occurred:', error);
+
+      // Handle specific HTTP error codes
+      if (status === 500) {
+        openNotification('danger', 'Server Error: Failed to Add Data');
+      } else {
+        openNotification('danger', 'An unexpected error occurred');
+      }
+    } finally {
+      // Always hide the loader
+      setShowLoader(false);
+    }
+  };
+
+  const getDraggedRows = (sourceDroppableId, sourceRow) => {
+    try {
+      return [sourceRow];
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const isDragValid = (dragInfo, destinationDroppableId) => {
+    return (
+      dragInfo.destination &&
+      destinationDroppableId !== droppableIdsEnum.SECONDARY
+    );
+  };
+
+  function executePrimaryTableDrag(selectedRows, destinationIndex) {
+    try {
+      let newPrimaryTableData = [...data10];
+      let selectedRowsWithNewRowId = selectedRows.map((row) => ({
+        ...row,
+        rowId: getRowId('primary', row, 'ContentCode'),
+      }));
+      newPrimaryTableData.splice(
+        destinationIndex,
+        0,
+        ...selectedRowsWithNewRowId,
+      );
+      newPrimaryTableData = removeRowsFromTableData(
+        selectedRows,
+        newPrimaryTableData,
+      );
+      return newPrimaryTableData;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  function removeRowsFromTableData(rows, tableData) {
+    let rowsId = rows.map((row) => row.rowId);
+    return [...tableData].filter((row) => !rowsId.includes(row.rowId));
+  }
+
+  const maintainScrolledOffsetOfTablesFn = () => {
+    maintainScrolledOffsetOfTables(
+      setPrimaryTableScrolledOffset,
+      setSecTableScrolledOffset,
+      primaryTableRef,
+      secTableRef,
+    );
+  };
+
+  const addNewTelecastDate = (data) => {
+    let previousNewTelecastDate = null;
+    let previousSlotDuration = null;
+    return data.map((item, key) => {
+      let newTelecastDate;
+
+      if (key === 0) {
+        if (item.TelecastDate)
+          newTelecastDate = new Date(`${item.TelecastDate}T${item.StartTime}`);
+        else newTelecastDate = new Date(item.NewTelecastDate);
+      } else {
+        newTelecastDate = addMinutes(
+          previousNewTelecastDate,
+          parseInt(previousSlotDuration),
+        );
+      }
+      previousNewTelecastDate = newTelecastDate;
+      previousSlotDuration = item.SlotDuration;
+      return {
+        ...item,
+        RowNumber: key + 1,
+        NewTelecastDate: format(
+          new Date(newTelecastDate),
+          'yyyy-MM-dd HH:mm:ss',
+        ),
+        TelecastDate: SelectedDate,
+      };
+    });
+  };
+
+  const getPrimaryTableColumns = () => {
+    try {
+      const visibleColumns = priTableManagedColumns.visibleColumns;
+      let columns = [];
+      visibleColumns.forEach((column) => {
+        if (column.accessorKey === 'ContentName') {
+          columns.push({
+            accessorKey: column.accessorKey,
+            header: 'Content',
+            style: {
+              width: column.style.width,
+              header: { borderColor: 'white' },
+            },
+            customCell: (row) => (
+              <div className="flex justify-between items-center w-full">
+                <Tooltip
+                  wrapperClass="grow text-ellipsis overflow-hidden whitespace-nowrap"
+                  title={
+                    row.ContentStatus ? row.ContentStatus : row.ContentName
+                  }
+                >
+                  <span className={row.ContentStatus && 'line-through'}>
+                    {row.ContentName}
+                  </span>
+                </Tooltip>
+                <div className="flex justify-between items-center">
+                  {row.ContentStatus && (
+                    <Tooltip
+                      wrapperClass="grow text-ellipsis overflow-hidden whitespace-nowrap"
+                      title={row.ContentStatus}
+                    >
+                      <Tag
+                        showCloseButton={false}
+                        className="bg-red-100 text-emerald-600 dark:bg-red-500 dark:text-emerald-100 border-0 rounded"
+                      >
+                        <RxCrossCircled />
+                      </Tag>
+                    </Tooltip>
+                  )}
+
+                  {row.IsLicense > 0 && (
+                    <Tooltip title="Show License">
+                      <Button
+                        type="button"
+                        className="mr-2"
+                        size="xs"
+                        icon={<CgAlbum className="!text-black" />}
+                        style={{ background: 'transparent', border: 'none' }}
+                        onMouseDown={(event) => {
+                          event.stopPropagation();
+                          APIHIT(row.IsLicense);
+                        }}
+                      />
+                    </Tooltip>
+                  )}
+
+                  <Tooltip title="Show content info">
+                    <Button
+                      type="button"
+                      size="xs"
+                      icon={
+                        <IoMdInformationCircleOutline
+                          className={classNames(
+                            '!text-black hover:!text-white',
+                            primaryTableSelectedRows.length > 0 &&
+                              row.rowIndex ===
+                                primaryTableSelectedRows[0].rowIndex &&
+                              '!text-white',
+                          )}
+                        />
+                      }
+                      style={{ background: 'transparent', border: 'none' }}
+                      onMouseDown={(event) => {
+                        event.stopPropagation();
+                        GetContents(row.ContentCode);
+                      }}
+                    />
+                  </Tooltip>
+                </div>
+              </div>
+            ),
+          });
+        } else if (column.accessorKey === 'status') {
+          columns.push({
+            accessorKey: column.accessorKey,
+            header: 'Org/Rep',
+            style: {
+              width: column.style.width,
+              header: { align: 'center', borderColor: 'white' },
+              cell: { align: 'center' },
+            },
+            customCell: (row) => (
+              <div className="flex justify-center items-center w-full">
+                <Tag showCloseButton={false}>{row.status}</Tag>
+              </div>
+            ),
+          });
+        } else if (column.accessorKey === 'Action') {
+          columns.push({
+            accessorKey: column.accessorKey,
+            header: 'Action',
+            style: {
+              width: column.style.width,
+              header: { align: 'center', borderColor: 'white' },
+              cell: { align: 'center' },
+            },
+            customCell: (row) => (
+              <div className="w-full flex justify-center items-center">
+                <Tooltip title="Delete" placement="top">
+                  <div
+                    className="rounded-full p-1 hover:bg-gray-800 hover:bg-opacity-80 group/action"
+                    onMouseDown={(event) => {
+                      event.stopPropagation();
+                      setPrimaryTableSelectedRows([row]);
+                      setIsConfirmDeleteRowDialogOpen(true);
+                      setSelectedRow(row);
+                    }}
+                  >
+                    <HiOutlineTrash className="text-black group-hover/action:text-gray-200 group-hover/action:cursor-pointer text-[1rem]" />
+                  </div>
+                  <WarningDialog
+                    isDialogOpen={isConfirmDeleteRowDialogOpen}
+                    title="Confirm Delete?"
+                    description={`Are you sure to remove this record?`}
+                    submitButtonTitle="Delete"
+                    handleDialogSubmit={() => accept(SelectedRow)}
+                    handleDialogClose={() => {
+                      setIsConfirmDeleteRowDialogOpen(false);
+                      setSelectedRow(null);
+                    }}
+                    overlayClassName="bg-transparent"
+                  />
+                </Tooltip>
+              </div>
+            ),
+          });
+        } else if (
+          column.accessorKey === 'StartTime' ||
+          column.accessorKey === 'EndTime'
+        ) {
+          columns.push({
+            accessorKey: column.accessorKey,
+            header: column.header,
+            style: {
+              width: column.style.width,
+              header: { align: 'center', borderColor: 'white' },
+              cell: { align: 'center', fontWeight: 'bold', color: 'black' },
+            },
+          });
+        } else if (column.accessorKey === 'SeasonAndEpisode') {
+          columns.push({
+            header: column.header,
+            accessorKey: column.accessorKey,
+            style: {
+              width: column.style.width,
+              header: { align: 'center', borderColor: 'white' },
+              cell: { align: 'center' },
+            },
+            customCell: (row) => (
+              <div className="flex items-center justify-center w-full h-full">
+                {row.IsRecorded === 1 ? (
+                  <p
+                    className={`py-0.5 px-2 rounded-full 
+             bg-blue-900 text-white w-max`}
+                  >
+                    LIVE
+                  </p>
+                ) : row.EpisodeSpecific === 0 ? (
+                  <p
+                    className={`py-0.5 px-2 rounded-full 
+           bg-blue-900 bg-opacity-80 text-white w-max`}
+                  >
+                    {row.ContentTypeName}
+                  </p>
+                ) : (
+                  <p
+                    className={`py-0.5 px-2 rounded-lg 
+              bg-sky-700 text-white w-max`}
+                  >
+                    S{row.SeasonNo} - E
+                    {row.EpisodeNo > 9 ? row.EpisodeNo : '0' + row.EpisodeNo}
+                  </p>
+                )}
+              </div>
+            ),
+          });
+        } else {
+          columns.push({
+            accessorKey: column.accessorKey,
+            header: column.header,
+            style: {
+              width: column.style.width,
+              header: { align: 'center', borderColor: 'white' },
+              cell: { align: 'center', color: 'black' },
+            },
+          });
+        }
+      });
+      return columns;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  return (
+    <div className="h-full select-none">
+      <Formik
+        initialValues={{
+          ContentCode: state?.editData.ContentCode || '',
+          ContentName: state?.editData.ContentName || '',
+          ShortName: state?.editData.ShortName || '',
+          ERPCode: state?.editData.ERPCode || '',
+          ContentTypeCode: state?.editData.ContentType?.ContentTypeCode || '',
+          LanguageCode: state?.editData.Language?.LanguageCode || '',
+          ClassificationCode:
+            state?.editData.Classification?.ClassificationCode || '',
+          FPCReleaseDate: state?.editData.FPCReleaseDate?.FPCReleaseDate || '',
+          SlotDuration: state?.editData.SlotDuration || '',
+          GenreCode: state?.editData.Genre?.GenreCode || '',
+          SubGenreCode: state?.editData.SubGenre?.SubGenreCode || '',
+          CensorshipCode: state?.editData.Censorship?.CensorshipCode || '',
+          TxMasterCode: state?.editData.TxMasterCode || '',
+          IsActive: state?.editData.IsActive === 1 ? true : false,
+        }}
+        validationSchema={validationSchema}
+        onSubmit={(values, { resetForm, setSubmitting }) => {
+          setTimeout(() => {
+            if (!state?.editData.ContentCode) {
+              new Promise((resolve, reject) => {
+                AddContent(values, token)
+                  .then((response) => {
+                    resolve(response);
+                  })
+                  .catch((errors) => {
+                    reject(errors);
+                  });
+              });
+            } else {
+              new Promise((resolve, reject) => {
+                setSubmitting(false);
+                EditContent(values, token)
+                  .then((response) => {
+                    resolve(response);
+                  })
+                  .catch((errors) => {
+                    reject(errors);
+                  });
+              });
+            }
+            resetForm();
+          }, 400);
+        }}
+      >
+        {({ values, touched, errors }) => (
+          <div className="h-full flex flex-col">
+            <Toolbar
+              activeFeatures={toolbarActiveFeatures}
+              setActiveFeatures={setToolbarActiveFeatures}
+              vTelecastDate={vTelecastDate}
+              setvTelecastDate={setvTelecastDate}
+              formattedDate={formattedDate}
+              handleVerifyClick={handleVerifyClick}
+              handleSaveClick={handleSaveClick}
+              isFPCAllowedToEdit={isFPCAllowedToEdit}
+              isFPCAllowedToSave={isFPCAllowedToSave}
+              startDate={startDate}
+              endDate={endDate}
+              handleDateChange={handleDateChange}
+              handleSaveASFPC={handleSaveASFPC}
+              selectedWeekdays={selectedWeekdays}
+              setSelectedWeekdays={setSelectedWeekdays}
+              isSaveAsFpcDateDialogOpen={isSaveAsFpcDateDialogOpen}
+              setIsSaveAsFpcDateDialogOpen={setIsSaveAsFpcDateDialogOpen}
+              isSaveAsFpcDaysDialogOpen={isSaveAsFpcDaysDialogOpen}
+              setIsSaveAsFpcDaysDialogOpen={setIsSaveAsFpcDaysDialogOpen}
+              dialogIsOpen={dialogIsOpen}
+              setdialogIsOpen={setdialogIsOpen}
+              fpcimportdata={fpcimportdata}
+              setFpcimportdata={setFpcimportdata}
+              beforeUpload={beforeUpload}
+              onDialogOKAI={onDialogOKAI}
+              FpcErrorheaders={FpcErrorheaders}
+              maxUpload={maxUpload}
+              data10={[...data10].slice(1)}
+              setdata10={setdata10}
+              channel={channel}
+              SelectedDate={SelectedDate}
+              DailyFPCdialogVisible={DailyFPCdialogVisible}
+              setDailyFPCDialogVisible={setDailyFPCDialogVisible}
+              data={data}
+              setdata={setdata}
+              emptySegmentData={emptySegmentData}
+              setemptySegmentData={setemptySegmentData}
+              apexBarChar={apexBarChar}
+              setbtnMode={setbtnMode}
+              setDialogContentS={setDialogContentS}
+              sampleRow={sampleRow}
+              tableName={PRIMARY_TABLE_NAME}
+              priTableManagedColumns={priTableManagedColumns}
+              setPriTableManagedColumns={setPriTableManagedColumns}
+              maintainScrolledOffsetOfTablesFn={
+                maintainScrolledOffsetOfTablesFn
+              }
+              setGenerateFpc={setGenerateFpc}
+            />
+            <div className="grow h-0 mt-2 mb-2 flex gap-2">
+              {toolbarActiveFeatures[featuresEnum.HOURS] && (
+                <div className="h-full min-w-[5%] max-w-max transition-all">
+                  <Hours tableRef={primaryTableRef} tableData={[...data10]} />
+                </div>
+              )}
+              {toolbarActiveFeatures[featuresEnum.FPC_TIME] && (
+                <div className="h-full min-w-[5%] max-w-max transition-all">
+                  {/* <FpcTime /> */}
+                </div>
+              )}
+
+              <div
+                className={classNames(
+                  'h-full flex gap-2 transition-all',
+                  toolbarActiveFeatures[featuresEnum.HOURS]
+                    ? 'w-[95%]'
+                    : 'w-full',
+                )}
+              >
+                <DragDropContext onDragEnd={handleDragEnd}>
+                  <div
+                    className={classNames(
+                      'h-full bg-gray-800 p-3 pt-2 rounded-lg flex flex-col transition-all',
+                      isAnyRHSFeatureActive(toolbarActiveFeatures)
+                        ? 'w-[65%]'
+                        : 'w-full',
+                    )}
+                  >
+                    <BeautifulDndDraggableTable
+                      droppableId={droppableIdsEnum.PRIMARY}
+                      droppableMessage="Drag contents here"
+                      tableData={data10}
+                      columns={getPrimaryTableColumns(priTableManagedColumns)}
+                      selectedRows={primaryTableSelectedRows}
+                      scrolledOffset={primaryTableScrolledOffset}
+                      tableRef={primaryTableRef}
+                      isDragDisabled={false}
+                      handleRowClick={handleRowClick}
+                    />
+                  </div>
+                  {isAnyRHSFeatureActive(toolbarActiveFeatures) && (
+                    <div className="h-full w-[35%] bg-gray-800 p-3 pt-2 rounded-lg flex flex-col transition-all">
+                      {toolbarActiveFeatures[featuresEnum.INSERT] && (
+                        <InsertProgram
+                          setActiveFeatures={setToolbarActiveFeatures}
+                          selectedContentToSearch={selectedContentToSearch}
+                          setSelectedContentToSearch={
+                            setSelectedContentToSearch
+                          }
+                          secTableData={secTableData}
+                          columns={
+                            channel.label === CLIENT.USA_Forbes
+                              ? PROGRAMS_TABLE_COLUMNS_FOR_FORBES
+                              : PROGRAMS_TABLE_COLUMNS
+                          }
+                          secTableRef={secTableRef}
+                          scrolledOffset={secTableScrolledOffset}
+                          primaryTableSelectedRows={primaryTableSelectedRows}
+                          setPrimaryTableSelectedRows={
+                            setPrimaryTableSelectedRows
+                          }
+                          secTableSelectedRows={secTableSelectedRows}
+                          setSecTableSelectedRows={setSecTableSelectedRows}
+                          data10={data10}
+                          setdata10={setdata10}
+                          arr={arr}
+                          channelStartTime={channelStartTime}
+                          setPrimaryTableScrolledOffset={
+                            setPrimaryTableScrolledOffset
+                          }
+                          setSecTableScrolledOffset={setSecTableScrolledOffset}
+                          primaryTableRef={primaryTableRef}
+                          SelectedDate={SelectedDate}
+                          maintainScrolledOffsetOfTablesFn={
+                            maintainScrolledOffsetOfTablesFn
+                          }
+                          ContentList={ContentList}
+                          setContentList={setContentList}
+                          breakPatternList={breakPatternList}
+                          setBreakPattSelect={setBreakPattSelect}
+                          BreakPattSelect={BreakPattSelect}
+                          formattedDate={formattedDate}
+                          setContentListForSeasonEpisode={
+                            setContentListForSeasonEpisode
+                          }
+                          setOrgContentList={setOrgContentList}
+                          setSecTableData={setSecTableData}
+                          setLastClickedTable={setLastClickedTable}
+                          ogSecTableData={ogSecTableData}
+                          setOgSecTableData={setOgSecTableData}
+                        />
+                      )}
+                    </div>
+                  )}
+                </DragDropContext>
+              </div>
+            </div>
+            <BottomBar
+              primaryTableData={data10}
+              FCPSaveDt={FCPSaveDt}
+              handleSaveClick={handleSaveClick}
+              priTableSelectedOrgRepRunStatus={priTableSelectedOrgRepRunStatus}
+              isFPCAllowedToEdit={isFPCAllowedToEdit}
+              legends={legends}
+            />
+          </div>
+        )}
+      </Formik>
+      <Drawer
+        title="Filter"
+        isOpen={isOpen}
+        onClose={onDrawerClose}
+        onRequestClose={onDrawerClose}
+        footer={
+          <DrawerFooter
+            onCancel={onDrawerClose}
+            onSaveClick={formSubmit}
+            BtnSaveTxt="Apply"
+            ref={formikRef}
+          />
+        }
+      >
+        <Card>
+          <div className="col-span-4 mb-1">
+            <p>Content/House ID</p>
+          </div>
+          <div>
+            <Input size="sm" placeholder="Search By Content" />
+          </div>
+
+          <div className="col-span-4 mt-1 mb-1">
+            <p>Search By Content Type</p>
+          </div>
+          <MultiSelect
+            value={selectedContenttype}
+            onChange={(e) => setSelectedContenttype(e.value)}
+            options={contenttype}
+            optionLabel="label"
+            filter
+            placeholder="Select Content Type"
+            maxSelectedLabels={3}
+            className="w-full md:w-20rem"
+            styles={customStyles}
+          />
+        </Card>
+        <br></br>
+      </Drawer>
+      <ContentInfoDialog
+        isDialogOpen={Dialogbox}
+        setIsDialogOpen={setDialogbox}
+        contentInfo={contentInfo}
+      />
+      <EditContentDialog
+        isDialogOpen={visible}
+        setIsDialogOpen={setVisible}
+        setSelectedContentToSearch={setSelectedContentToSearch}
+        SelContent={SelContent}
+        setSelContent={setSelContent}
+        SelSeason={SelSeason}
+        setSelSeason={setSelSeason}
+        SelEpisode={SelEpisode}
+        setSelEpisode={setSelEpisode}
+        Slotduration={Slotduration}
+        setSlotduration={setSlotduration}
+        BreakPattSelect={BreakPattSelect}
+        setBreakPattSelect={setBreakPattSelect}
+        checked={checked}
+        onSwitcherToggle={(val) => setChecked(!val)}
+        withIcon={withIcon}
+        SelectedRow={SelectedRow}
+        setSelectedRow={setSelectedRow}
+        data10={[...data10].slice(1)}
+        SeasonList={SeasonList}
+        EpisodeList={EpisodeList}
+        Pattern={Pattern}
+        FooterContent={FooterContent}
+      />
+      <ContractShowDialog
+        Content={Content}
+        isContractPopup={isContractPopup}
+        closeDialogBoxContract={closeDialogBoxContract}
+        headerExtraContent={headerExtraContent}
+      />
+      <Loader showLoader={showLoader} />
+    </div>
+  );
+};
+
+export default FPCEdit;

@@ -1,0 +1,2163 @@
+import React, { useRef, useState } from 'react';
+import SchedulerContext from './SchedulerContext';
+import {
+  DEFAULT_COL_SORTING_INFO,
+  DEFAULT_SEC_TABLE_TOOLBAR_STATE,
+  DTMF_ROWS,
+  SCTE_ON_ROW,
+  SCTE_ROWS,
+} from '../constants';
+import {
+  finalizeData,
+  getCustomCellColorFromTable,
+  getDefaultActiveFeatures,
+  getDroppedSpots,
+  getFeaturesList,
+  getFilteredTableData,
+  getLastMinuteSpots,
+  getNowNTCsForSegment,
+  getNTCParentRow,
+  getNTCRowsForSegment,
+  getProgramWithSegmentContent,
+  getPromoRowsForSegment,
+  getSchedulingTableData,
+  getSegmentWiseContent,
+  getTableDataWithAdditionalInfo,
+  getTableScrolledOffset,
+  isDtmfRowsPresent,
+  isScteOnRowsPresent,
+  removeAdditionalInfoFromRows,
+  updateOffsetStartTime,
+  updateProgramInSchedulingTableData,
+} from './utils';
+import {
+  getUniqueObjects,
+  isJSONArrayEqual,
+  openNotification,
+  sortArray,
+  subtractTimes,
+  timeToSeconds,
+} from 'views/Controls/GLOBALFUNACTION';
+import {
+  additionalRowInfoEnum,
+  droppableIdsEnum,
+  featuresEnum,
+  ntcDescriptionTypesEnum,
+  ntcDurationTypesEnum,
+  operationTypesEnum,
+  pagesEnum,
+  rowDataTypesEnum,
+  secondaryTableTypesEnum,
+  tableFilterOptionsEnum,
+  tableTypesEnum,
+} from '../enum';
+import { addTimes } from '../components/SchedulingArea/components/Summary/utils';
+import { updateStartTimes } from 'views/Scheduling/general';
+import {
+  getDummyRow,
+  getColumnsState,
+  getContentSegmentsForContent,
+} from '../components/SchedulingArea/utils/utils';
+import { useSelector } from 'react-redux';
+import { convertDateToYMD } from 'components/validators';
+import { CLIENT } from 'views/Controls/clientListEnum';
+import {
+  executeSecNTCDrag,
+  executeSecToSchTableNtcInsert,
+  insertNTCsBasedOnOffsetTimeAutoCalculation,
+} from './utils/ntcOperations/ntcDrag';
+import { executeSecCommDrag } from './utils/commOperations/commDrag';
+import { executeSecPromoDrag } from './utils/promoOperations/promoDrag';
+import { executeSecSongDrag } from './utils/songOperations/songDrag';
+import { executeSchTableDrag } from './utils/schTableOperations/schTableDrag';
+import { executePromoInsert } from './utils/promoOperations/promoInsert';
+import { executeSongInsert } from './utils/songOperations/songInsert';
+import { executeNtcInsert } from './utils/ntcOperations/ntcInsert';
+import { executeCommInsert } from './utils/commOperations/commInsert';
+import { executeSongBulkInsert } from './utils/songOperations/songBulkInsert';
+import {
+  executeBulkNTCInsert,
+  executeBulkNTCInsertBelowExactMatch,
+} from './utils/ntcOperations/ntcBulkInsert';
+import { executePromoBulkInsert } from './utils/promoOperations/promoBulkInsert';
+import {
+  addPropertiesToSelectedNTCs,
+  updateOffsetStartTimeOfNTCs,
+} from './utils/ntcOperations/utils';
+import { executePromoReplace } from './utils/promoOperations/promoReplace';
+import { executeSongReplace } from './utils/songOperations/songReplace';
+import { executeNtcReplace } from './utils/ntcOperations/ntcReplace';
+import { executePromoReplaceAll } from './utils/promoOperations/promoReplaceAll';
+import { executeSongReplaceAll } from './utils/songOperations/songReplaceAll';
+import { executeNtcReplaceAll } from './utils/ntcOperations/ntcReplaceAll';
+import { executeSecProgramDrag } from './utils/programOperations/programDrag';
+import {
+  getPromosFromTemplateId,
+  insertPromos,
+} from '../components/SchedulingArea/components/Toolbar/components/AutoShuffleDialog/utils';
+import { getContentIndexes } from '../components/SchedulingArea/components/BottomSummary/utils';
+import { executeNtcRepeatInsert } from './utils/ntcOperations/ntcRepeatInsert';
+
+const SchedulerContextProvider = ({ children }) => {
+  /* REDUX */
+  const channel = useSelector((state) => state.locale.selectedChannel);
+  const channelSettings = useSelector(
+    (state) => state.auth.session.ChannelSetting,
+  )[0];
+  const token = useSelector((state) => state.auth.session.token);
+
+  /* STATES */
+  const [page, setPage] = useState(null);
+  const [date, setDate] = useState(null);
+  const [featuresList, setFeaturesList] = useState(null);
+  const [activeFeatures, setActiveFeatures] = useState(null);
+  /* UNSAVED WORK STATES */
+  const [loadUnsavedWork, setLoadUnsavedWork] = useState(false);
+  const [unsavedWorkState, setUnsavedWorkState] = useState(null);
+  const [updateSchedulerStateInRedux, setUpdateSchedulerStateInRedux] =
+    useState(false);
+  /* SCHEDULING TABLE STATES */
+  const [schedulingTableName, setSchedulingTableName] = useState(null);
+  const [ogSchTableData, setOgSchTableData] = useState([]);
+  const [schedulingTableData, setSchedulingTableData] = useState([]);
+  const [schTableSortingInfo, setSchTableSortingInfo] = useState(
+    DEFAULT_COL_SORTING_INFO,
+  );
+  const [schedulingTableOffset, setSchedulingTableOffset] = useState(0);
+  const [schedulingTableManagedColumns, setSchedulingTableManagedColumns] =
+    useState({
+      originalColumns: [],
+      visibleColumns: [],
+      removedColumns: [],
+    });
+  const [schedulingTableSelectedRows, setSchedulingTableSelectedRows] =
+    useState([]);
+  const [leftClickedSchTableRow, setLeftClickedSchTableRow] = useState(null);
+  const [schTableSelectedFilters, setSchTableSelectedFilters] = useState([]);
+  /* SECONDARY TABLE STATES */
+  const [secondaryTableName, setSecondaryTableName] = useState(null);
+  const [secondaryTableType, setSecondaryTableType] = useState(null);
+  const [ogSecTableData, setOgSecTableData] = useState([]);
+  const [secondaryTableData, setSecondaryTableData] = useState([]);
+  const [secTableSortingInfo, setSecTableSortingInfo] = useState(
+    DEFAULT_COL_SORTING_INFO,
+  );
+  const [secondaryTableOffset, setSecondaryTableOffset] = useState(0);
+  const [secondaryTableManagedColumns, setSecondaryTableManagedColumns] =
+    useState({
+      originalColumns: [],
+      visibleColumns: [],
+      removedColumns: [],
+    });
+  const [secTableToolbarState, setSecTableToolbarState] = useState(
+    DEFAULT_SEC_TABLE_TOOLBAR_STATE,
+  );
+  const [secondaryTableSelectedRows, setSecondaryTableSelectedRows] = useState(
+    [],
+  );
+  const [leftClickedSecTableRow, setLeftClickedSecTableRow] = useState(null);
+  const [secTableSelectedFilters, setSecTableSelectedFilters] = useState([]);
+  /* DROP BUCKET STATE */
+  const [dropBucket, setDropBucket] = useState([]);
+  /* LAST MINUTE SPOTS STATE */
+  const [lastMinuteSpots, setLastMinuteSpots] = useState([]);
+  /* UNDO/REDO */
+  const [undoStack, setUndoStack] = useState([]);
+  const [redoStack, setRedoStack] = useState([]);
+  /* ROTATION INFO */
+  const [rotationInfoTableSelectedRows, setRotationInfoTableSelectedRows] =
+    useState([]);
+
+  /* UI STATES */
+  const [startTime, setStartTime] = useState('');
+  const [showLoader, setShowLoader] = useState(false);
+  const [customCellColor, setCustomCellColor] = useState(null);
+  const [isScheduleAllowedToEdit, setIsScheduleAllowedToEdit] = useState(null);
+  const [isInsertLiveDialogOpen, setIsInsertLiveDialogOpen] = useState(false);
+  const [isAutoCalcNtcOffsetTime, setIsAutoCalcNtcOffsetTime] = useState(false);
+  const [isNtcGroupingEnabled, setIsNtcGroupingEnabled] = useState(false);
+
+  /* SELECTOR OPTIONS */
+  const [promoTypeOptions, setPromoTypeOptions] = useState([]);
+  const [songTypeOptions, setSongTypeOptions] = useState([]);
+  const [ntcTypeOptions, setNtcTypeOptions] = useState([]);
+
+  /* REFS */
+  const schedulingTableRef = useRef(null);
+  const secondaryTableRef = useRef(null);
+  const secondaryAreaZindexRef = useRef({
+    [featuresEnum.ROTATION_INFO]: 10,
+    [featuresEnum.ROTATION_INFO_WITH_MANAGE_COLUMNS]: 10,
+    [featuresEnum.HOURWISE_INVENTORY]: 10,
+    [featuresEnum.SUMMARY]: 10,
+    [featuresEnum.RULE_CHECK]: 10,
+    [featuresEnum.DURATION]: 10,
+  });
+
+  /* CONSTANTS */
+  const isChannelForbes = channel.label === CLIENT.USA_Forbes;
+  const isChannelAniPlus = channel.label === CLIENT.ANI_PLUS;
+
+  /* MOST IMPORTANT FUNCTIONS */
+  async function executeOperation({
+    operation,
+    dragInfo,
+    insertPosition,
+    time,
+    selectedBreaks,
+    isSkipLastBreak,
+    isOnlyLastBreak,
+    isRandomizeIns,
+    isRepeatRandomIns,
+    insCountPerSeg,
+    isSkipInsInSameProg,
+    selectedRowsToDelete,
+    selectedRowsToDrop,
+    clickedProgram,
+    clickedProgramSchedule,
+    newProgramSchedule,
+    startTimeValue,
+    tableType,
+    selectedFilters,
+    externalActiveFeatures,
+    isHideCommercial,
+    isShowProgramBaseTime,
+    isShowNTC,
+    isFirstLoad = false,
+    isLoadUnsavedWork = false,
+    isGenerateLog = false,
+    customCellColorParam,
+    mode = 'Add',
+    descriptionType,
+    bulkNTCInsDesc,
+    durationType,
+    bulkNTCInsDuration,
+    bulkNTCInsOffsetTime,
+    isShowSCTE,
+    promoShuffleTemplate,
+    deleteEventTypes,
+    repeatInsertType,
+    bulkInsertExactMatchString,
+    liveRow,
+    newSchTableData,
+    selProgramsFpcId,
+    sortingInfo,
+  }) {
+    try {
+      let operationResult = true;
+      let newStartTime = startTime;
+      let newCustomCellColor =
+        operation === operationTypesEnum.RESET_CELL_COLOR
+          ? null
+          : customCellColorParam
+          ? customCellColorParam
+          : customCellColor;
+      /* ADD NEW OPERATIONS HERE, AND GET UPDATED SCHEDULING, SECONDARY AND DROP BUCKET TABLE DATA */
+      if (operation === operationTypesEnum.INITIALIZE_SCHEDULER) {
+        operationResult = await executeInitializeScheduler(
+          isFirstLoad,
+          isLoadUnsavedWork,
+          isGenerateLog,
+          mode,
+          operation,
+        );
+        newStartTime = operationResult.newStartTime;
+      } else if (operation === operationTypesEnum.DRAG_ROW) {
+        operationResult = executeDragRow(dragInfo);
+      } else if (operation === operationTypesEnum.INSERT_ROW) {
+        operationResult = executeInsertRow();
+      } else if (operation === operationTypesEnum.REPEAT_INSERT_ROW) {
+        operationResult = executeRepeatInsertRow(repeatInsertType);
+      } else if (operation === operationTypesEnum.BULK_INSERT_ROW) {
+        operationResult = executeBulkInsert({
+          insertPosition,
+          time,
+          selectedBreaks,
+          isSkipLastBreak,
+          isOnlyLastBreak,
+          isRandomizeIns,
+          isRepeatRandomIns,
+          insCountPerSeg,
+          isSkipInsInSameProg,
+          selectedRows: secondaryTableSelectedRows.map((row) => ({
+            ...row,
+            VideoID: row.HouseID,
+          })),
+          descriptionType,
+          bulkNTCInsDesc,
+          durationType,
+          bulkNTCInsDuration,
+          bulkNTCInsOffsetTime,
+          selProgramsFpcId,
+        });
+      } else if (
+        operation === operationTypesEnum.BULK_INSERT_BELOW_EXACT_MATCH
+      ) {
+        operationResult = await executeBulkInsertBelowExactMatch({
+          time,
+          bulkInsertExactMatchString,
+          selectedRows: secondaryTableSelectedRows.map((row) => ({
+            ...row,
+            VideoID: row.HouseID,
+          })),
+          selProgramsFpcId,
+        });
+      } else if (operation === operationTypesEnum.SHOW_SCTE) {
+        operationResult = executeSCTEInsert(isShowSCTE);
+      } else if (operation === operationTypesEnum.REPLACE_ROW) {
+        operationResult = executeReplaceRow();
+      } else if (operation === operationTypesEnum.REPLACE_ALL_ROW) {
+        operationResult = executeReplaceAllRow();
+      } else if (operation === operationTypesEnum.DELETE_ROW) {
+        operationResult = executeDeleteRow(selectedRowsToDelete);
+      } else if (operation === operationTypesEnum.DROP_ROW) {
+        operationResult = executeDropRow(selectedRowsToDrop);
+      } else if (operation === operationTypesEnum.REPLACE_PROGRAM) {
+        operationResult = executeReplaceProgram(
+          clickedProgram,
+          clickedProgramSchedule,
+          newProgramSchedule,
+        );
+      } else if (operation === operationTypesEnum.MANAGE_START_TIME) {
+        newStartTime = startTimeValue;
+      } else if (operation === operationTypesEnum.FILTER_ROW) {
+        operationResult = executeFilterRow(tableType, selectedFilters);
+        if (tableType.includes(tableTypesEnum.SCHEDULING))
+          setOgSchTableData(operationResult.newSchedulingTableData);
+        if (tableType.includes(tableTypesEnum.SECONDARY))
+          setOgSecTableData(operationResult.newSecondaryTableData);
+      } else if (operation === operationTypesEnum.SORT) {
+        operationResult = executeSort(sortingInfo);
+      } else if (operation === operationTypesEnum.HIDE_COMMERCIAL) {
+        operationResult = executeHideCommercial(isHideCommercial, newStartTime);
+      } else if (operation === operationTypesEnum.SHOW_PROGRAM_BASE_TIME) {
+        operationResult = executeShowProgramBaseTime(
+          isShowProgramBaseTime,
+          newStartTime,
+        );
+      } else if (operation === operationTypesEnum.SHOW_NTC) {
+        operationResult = executeShowNTC(isShowNTC);
+      } else if (operation === operationTypesEnum.INSERT_NTC_BY_START_TIME) {
+        operationResult = executeInsertNTCByStartTime();
+      } else if (operation === operationTypesEnum.PROMO_AUTO_SHUFFLE) {
+        operationResult = await executePromoAutoShuffle(
+          promoShuffleTemplate,
+          time,
+        );
+      } else if (operation === operationTypesEnum.DELETE_EVENTS) {
+        operationResult = executeDeleteEvents(deleteEventTypes);
+      } else if (operation === operationTypesEnum.IMPORT_NTCS_FOR_SEL_CONTENT) {
+        operationResult = await executeImportNTCsForSelectedContent();
+      } else if (operation === operationTypesEnum.IMPORT_NTCS_FOR_ALL_CONTENTS)
+        operationResult = await executeImportNTCsForAllContents();
+      else if (operation === operationTypesEnum.TOGGLE_DTMF_PATTERN)
+        operationResult = executeToggleDtmfPattern();
+      else if (operation === operationTypesEnum.TOGGLE_SCTE_ON_PATTERN)
+        operationResult = executeToggleScteOnPattern();
+      else if (operation === operationTypesEnum.INSERT_NOW_NTCS) {
+        operationResult = await executeInsertNowNTCs();
+      } else if (operation === operationTypesEnum.INSERT_NEXT_NTCS)
+        operationResult = await executeInsertNextNTCs();
+      else if (operation === operationTypesEnum.INSERT_LIVE_EVENT)
+        operationResult = executeInsertLiveEvent(liveRow);
+      else if (operation === operationTypesEnum.IMPORT_PROMOS_FOR_SEL_CONTENT)
+        operationResult = await executeImportPromosForSelectedContent();
+      else if (operation === operationTypesEnum.IMPORT_PROMOS_FOR_ALL_CONTENTS)
+        operationResult = await executeImportPromosForAllContents();
+      else if (operation === operationTypesEnum.UPDATE_TABLE)
+        operationResult = { newSchedulingTableData: newSchTableData };
+      if (!operationResult)
+        /* EXTRACT NEW DATAs FROM RESULT */
+        return false;
+      let newSchedulingTableData = operationResult?.newSchedulingTableData
+        ? operationResult.newSchedulingTableData
+        : [...schedulingTableData];
+      let newSecondaryTableData = operationResult?.newSecondaryTableData
+        ? operationResult.newSecondaryTableData
+        : [...secondaryTableData];
+      let newDropBucket = operationResult?.newDropBucket
+        ? operationResult.newDropBucket
+        : [...dropBucket];
+      let newLastMinuteSpots = operationResult?.newLastMinuteSpots
+        ? operationResult.newLastMinuteSpots
+        : [...lastMinuteSpots];
+      let newActiveFeatures = operationResult?.newActiveFeatures
+        ? operationResult.newActiveFeatures
+        : externalActiveFeatures
+        ? externalActiveFeatures
+        : activeFeatures
+        ? activeFeatures
+        : getDefaultActiveFeatures(page);
+      /* AVOID FINALIZE DATA FOR CERTAIN CONDITIONS */
+      if (
+        operation !== operationTypesEnum.FILTER_ROW &&
+        operation !== operationTypesEnum.HIDE_COMMERCIAL &&
+        operation !== operationTypesEnum.SHOW_PROGRAM_BASE_TIME &&
+        operation !== operationTypesEnum.SHOW_NTC &&
+        !isLoadUnsavedWork
+      ) {
+        const finalizedData = finalizeData({
+          schedulingTableData: newSchedulingTableData,
+          secondaryTableData: newSecondaryTableData,
+          dropBucket: newDropBucket,
+          lastMinuteSpots: newLastMinuteSpots,
+          startTime: newStartTime,
+          newActiveFeatures,
+          customCellColor: newCustomCellColor,
+          page,
+          channel,
+          isNtcGroupingEnabled,
+          isFirstLoad,
+          frames: Number(channelSettings.FramePerSec),
+        });
+        newSchedulingTableData = finalizedData.newSchedulingTableData;
+        newSecondaryTableData = finalizedData.newSecondaryTableData;
+        newDropBucket = finalizedData.newDropBucket;
+        newLastMinuteSpots = finalizedData.newLastMinuteSpots;
+      }
+      /* UPDATE SCHEDULING TABLE */
+      newSchedulingTableData = isChannelForbes
+        ? newSchedulingTableData.map((row) => ({
+            ...row,
+            isHidden: row.F_C_S_P === rowDataTypesEnum.SEGMENT && true,
+          }))
+        : newSchedulingTableData;
+      setSchedulingTableData(newSchedulingTableData);
+      if (operation !== operationTypesEnum.SORT)
+        setOgSchTableData(newSchedulingTableData);
+      /* UPDATE SECONDARY TABLE */
+      setSecondaryTableData(newSecondaryTableData);
+      /* UPDATE DROP BUCKET */
+      setDropBucket(newDropBucket);
+      /* UPDATE LAST MINUTE SPOTS */
+      setLastMinuteSpots(newLastMinuteSpots);
+      /* UPDATE SCHEDULER STATE IN REDUX */
+      setUpdateSchedulerStateInRedux(true);
+      /* UPDATE ACTIVE FEATURES */
+      setActiveFeatures(newActiveFeatures);
+      /* UPDATE CUSTOM CELL COLOR */
+      newCustomCellColor = newCustomCellColor
+        ? newCustomCellColor
+        : getCustomCellColorFromTable(newSchedulingTableData);
+      setCustomCellColor(newCustomCellColor);
+      if (operation !== operationTypesEnum.INITIALIZE_SCHEDULER) {
+        /* UPDATE UNDO REDO STACK */
+        updateUndoRedoStacksForNewOperation();
+        /* UNSELECT ALL ROWS FROM BOTH TABLE*/
+        resetAllSelectedRows();
+        /* MAINTAIN SCROLLED OFFSET OF BOTH TABLES */
+        maintainScrolledOffsetOfTables();
+      }
+      return { newSchedulingTableData, newSecondaryTableData, newDropBucket };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /* =============================================================================== */
+  /* WRITE OPERATION FUNCTIONS HERE */
+  async function executeInitializeScheduler(
+    isFirstLoad,
+    isLoadUnsavedWork,
+    isGenerateLog,
+    mode,
+    operation,
+  ) {
+    try {
+      /* SET CHANNEL SETTINGS */
+      setIsAutoCalcNtcOffsetTime(
+        channelSettings.IsNTCAutoCalc === 1 ? true : false,
+      );
+      setIsNtcGroupingEnabled(channelSettings.IsNTCGroup === 1 ? true : false);
+      /* EXECUTE SCHEDULER INITIALIZATION */
+      let newSchedulingTableData = [],
+        newDropBucket,
+        newLastMinuteSpots;
+      let newActiveFeatures = getDefaultActiveFeatures(
+        page,
+        isScheduleAllowedToEdit,
+      );
+      const featureList = getFeaturesList(page, isScheduleAllowedToEdit);
+      if (isFirstLoad && isLoadUnsavedWork) {
+        /* GET SCHEDULING TABLE DATA FROM UNSAVED WORK STATE
+             AND ADD ROW ACTIONS TO SCHEDULING TABLE DATA */
+        newSchedulingTableData = getTableDataWithAdditionalInfo({
+          tableData: unsavedWorkState.schedulingTableData,
+          tableType: tableTypesEnum.SCHEDULING,
+          additionalInfo: [additionalRowInfoEnum.ACTIONS],
+          channel,
+        });
+        /* GET ACTIVE FEATURES FROM UNSAVED STATE */
+        newActiveFeatures = unsavedWorkState.activeFeatures;
+      } else {
+        /* GET SCHEDULING TABLE DATA FROM API */
+        newSchedulingTableData = await getSchedulingTableData(
+          isGenerateLog,
+          mode,
+          date,
+          page,
+          channel,
+        );
+      }
+      /* SET COLUMNS STATE */
+      const columnsState = await getColumnsState(
+        page,
+        newSchedulingTableData,
+        token,
+        channel,
+      );
+      setSchedulingTableManagedColumns(columnsState);
+      /* ADD MANAGE COLUMNS IN ACTIVE FEATURES */
+      if ([featuresEnum.MANAGE_COLUMNS] in featureList) {
+        newActiveFeatures = {
+          ...newActiveFeatures,
+          [featuresEnum.MANAGE_COLUMNS]: {
+            isDropdownVisible: false,
+            isActive:
+              columnsState.removedColumns.length > 0 ||
+              isJSONArrayEqual(
+                columnsState.originalColumns,
+                columnsState.visibleColumns,
+              ),
+          },
+        };
+      }
+      /* SET NECESSARY STATES */
+      setFeaturesList(featureList);
+      resetTableStatesForInitialization();
+      let newStartTime =
+        newSchedulingTableData.length > 0
+          ? newSchedulingTableData[1].Tel_Time
+          : '';
+      /* INITIALIZE DROP BUCKET */
+      if (page === pagesEnum.COMMERCIAL || page === pagesEnum.FINAL_LOG) {
+        newDropBucket = await getDroppedSpots(
+          channel,
+          convertDateToYMD(date),
+          newSchedulingTableData,
+          operation,
+        );
+        /* INITIALIZE LAST MINUTE SPOTS */
+        newLastMinuteSpots = await getLastMinuteSpots(
+          channel,
+          convertDateToYMD(date),
+          newSchedulingTableData,
+          [...newDropBucket],
+          page,
+          operation,
+        );
+      }
+      return {
+        newSchedulingTableData: newSchedulingTableData.map((row) => ({
+          ...row,
+          DefaultGAP: '00:00:00:00',
+        })),
+        newSecondaryTableData: [],
+        newDropBucket,
+        newLastMinuteSpots,
+        newActiveFeatures,
+        newStartTime,
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  function executeDragRow(dragInfo) {
+    try {
+      /* GUARD CLAUSE */
+      if (!dragInfo.destination) return false;
+      /* GET REQUIRED DATA TO UPDATE SCHEDULING TABLE FOR APPROPRIATE DRAG */
+      let newSchedulingTableData = [...schedulingTableData];
+      let newSecondaryTableData = [...secondaryTableData];
+      let newDropBucket = [...dropBucket];
+      let newLastMinuteSpots = [...lastMinuteSpots];
+      let sourceDroppableId = dragInfo.source.droppableId;
+      if (sourceDroppableId === droppableIdsEnum.SECONDARY) {
+        if (
+          activeFeatures[featuresEnum.INSERT].eventType ===
+          secondaryTableTypesEnum.PROMO
+        ) {
+          const result = executeSecPromoDrag(
+            dragInfo,
+            schedulingTableData,
+            secondaryTableData,
+            secondaryTableSelectedRows,
+            activeFeatures,
+            page,
+          );
+          newSchedulingTableData = result.newSchTableData;
+          newSecondaryTableData = result.newSecTableData;
+        } else if (
+          activeFeatures[featuresEnum.INSERT].eventType ===
+          secondaryTableTypesEnum.SONG
+        ) {
+          const result = executeSecSongDrag(
+            dragInfo,
+            schedulingTableData,
+            secondaryTableData,
+            secondaryTableSelectedRows,
+            activeFeatures,
+            page,
+          );
+          newSchedulingTableData = result.newSchTableData;
+          newSecondaryTableData = result.newSecTableData;
+        } else if (
+          activeFeatures[featuresEnum.INSERT].eventType ===
+          secondaryTableTypesEnum.NTC
+        ) {
+          const result = executeSecNTCDrag(
+            dragInfo,
+            schedulingTableData,
+            secondaryTableData,
+            secondaryTableSelectedRows,
+            activeFeatures,
+            channel,
+            isAutoCalcNtcOffsetTime,
+          );
+          if (!result) return false;
+          newSchedulingTableData = result.newSchTableData;
+          newSecondaryTableData = result.newSecTableData;
+        } else if (
+          activeFeatures[featuresEnum.INSERT].eventType ===
+          secondaryTableTypesEnum.DROPPED_SPOTS
+        ) {
+          const result = executeSecCommDrag(
+            dragInfo,
+            schedulingTableData,
+            secondaryTableData,
+            secondaryTableSelectedRows,
+            activeFeatures,
+          );
+          if (!result) return false;
+          newSchedulingTableData = result.newSchTableData;
+          newSecondaryTableData = result.newSecTableData;
+          newDropBucket = result.newSecTableData;
+        } else if (
+          activeFeatures[featuresEnum.INSERT].eventType ===
+          secondaryTableTypesEnum.LAST_MINUTE_SPOTS
+        ) {
+          const result = executeSecCommDrag(
+            dragInfo,
+            schedulingTableData,
+            secondaryTableData,
+            secondaryTableSelectedRows,
+            activeFeatures,
+          );
+          newSchedulingTableData = result.newSchTableData;
+          newSecondaryTableData = result.newSecTableData;
+          newLastMinuteSpots = result.newSecTableData;
+        } else if (activeFeatures[featuresEnum.MANAGE_SEGMENT]) {
+          const result = executeSecProgramDrag(
+            dragInfo,
+            schedulingTableData,
+            secondaryTableData,
+            secondaryTableSelectedRows,
+          );
+          if (!result) return false;
+          newSchedulingTableData = result.newSchTableData;
+          newSecondaryTableData = result.newSecTableData;
+        }
+      } else if (sourceDroppableId === droppableIdsEnum.SCHEDULING) {
+        const result = executeSchTableDrag(
+          dragInfo,
+          schedulingTableData,
+          schedulingTableSelectedRows,
+          activeFeatures,
+          page,
+          isAutoCalcNtcOffsetTime,
+          channel,
+        );
+        if (!result) return false;
+        newSchedulingTableData = result;
+      } else return false;
+      return {
+        newSchedulingTableData,
+        newSecondaryTableData,
+        newDropBucket,
+        newLastMinuteSpots,
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  function executeInsertRow() {
+    try {
+      let newSchedulingTableData = [...schedulingTableData];
+      let newSecondaryTableData = [...secondaryTableData];
+      let newDropBucket = [...dropBucket];
+      let newLastMinuteSpots = [...lastMinuteSpots];
+      let destinationIndex = schedulingTableSelectedRows[0].rowIndex + 1;
+      if (
+        activeFeatures[featuresEnum.INSERT].eventType ===
+        secondaryTableTypesEnum.PROMO
+      ) {
+        newSchedulingTableData = executePromoInsert(
+          destinationIndex,
+          schedulingTableData,
+          secondaryTableSelectedRows,
+          activeFeatures,
+          page,
+        );
+      } else if (
+        activeFeatures[featuresEnum.INSERT].eventType ===
+        secondaryTableTypesEnum.SONG
+      ) {
+        newSchedulingTableData = executeSongInsert(
+          destinationIndex,
+          schedulingTableData,
+          secondaryTableSelectedRows,
+          activeFeatures,
+          page,
+        );
+      } else if (
+        activeFeatures[featuresEnum.INSERT].eventType ===
+        secondaryTableTypesEnum.NTC
+      ) {
+        const result = executeNtcInsert(
+          destinationIndex,
+          schedulingTableData,
+          secondaryTableData,
+          secondaryTableSelectedRows,
+          activeFeatures,
+          channel,
+          isAutoCalcNtcOffsetTime,
+        );
+        if (!result) return false;
+        newSchedulingTableData = result.newSchTableData;
+        newSecondaryTableData = result.newSecTableData;
+      } else if (
+        activeFeatures[featuresEnum.INSERT].eventType ===
+        secondaryTableTypesEnum.DROPPED_SPOTS
+      ) {
+        const result = executeCommInsert(
+          destinationIndex,
+          schedulingTableData,
+          secondaryTableData,
+          secondaryTableSelectedRows,
+          activeFeatures,
+        );
+        if (!result) return false;
+        newSchedulingTableData = result.newSchTableData;
+        newSecondaryTableData = result.newSecTableData;
+        newDropBucket = result.newSecTableData;
+      } else if (
+        activeFeatures[featuresEnum.INSERT].eventType ===
+        secondaryTableTypesEnum.LAST_MINUTE_SPOTS
+      ) {
+        const result = executeCommInsert(
+          destinationIndex,
+          schedulingTableData,
+          secondaryTableData,
+          secondaryTableSelectedRows,
+          activeFeatures,
+        );
+        if (!result) return false;
+        newSchedulingTableData = result.newSchTableData;
+        newSecondaryTableData = result.newSecTableData;
+        newLastMinuteSpots = result.newSecTableData;
+      } else return false;
+      return {
+        newSchedulingTableData,
+        newSecondaryTableData,
+        newDropBucket,
+        newLastMinuteSpots,
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  function executeRepeatInsertRow(repeatInsertType) {
+    try {
+      let newSchedulingTableData = [...schedulingTableData];
+      let destinationIndex = schedulingTableSelectedRows[0].rowIndex + 1;
+      if (
+        activeFeatures[featuresEnum.INSERT].eventType ===
+        secondaryTableTypesEnum.NTC
+      ) {
+        const result = executeNtcRepeatInsert(
+          destinationIndex,
+          schedulingTableData,
+          secondaryTableSelectedRows,
+          activeFeatures,
+          channel,
+          isAutoCalcNtcOffsetTime,
+          repeatInsertType,
+        );
+        if (!result) return false;
+        newSchedulingTableData = result.newSchTableData;
+      }
+      return {
+        newSchedulingTableData,
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  function executeBulkInsert({
+    insertPosition,
+    time,
+    selectedBreaks,
+    isSkipLastBreak,
+    isOnlyLastBreak,
+    isRandomizeIns,
+    isRepeatRandomIns,
+    insCountPerSeg,
+    isSkipInsInSameProg,
+    selectedRows,
+    descriptionType,
+    bulkNTCInsDesc,
+    durationType,
+    bulkNTCInsDuration,
+    bulkNTCInsOffsetTime,
+    selProgramsFpcId,
+  }) {
+    let newSchedulingTableData = [];
+    if (
+      activeFeatures[featuresEnum.INSERT].eventType ===
+      secondaryTableTypesEnum.PROMO
+    ) {
+      newSchedulingTableData = executePromoBulkInsert(
+        insertPosition,
+        time,
+        selectedBreaks,
+        isSkipLastBreak,
+        isOnlyLastBreak,
+        isRandomizeIns,
+        isRepeatRandomIns,
+        insCountPerSeg,
+        isSkipInsInSameProg,
+        selectedRows,
+        selProgramsFpcId,
+        schedulingTableData,
+        channel,
+        page,
+      );
+    } else if (
+      activeFeatures[featuresEnum.INSERT].eventType ===
+      secondaryTableTypesEnum.SONG
+    ) {
+      newSchedulingTableData = executeSongBulkInsert(
+        insertPosition,
+        time,
+        selectedBreaks,
+        isSkipLastBreak,
+        isOnlyLastBreak,
+        isRandomizeIns,
+        isRepeatRandomIns,
+        insCountPerSeg,
+        isSkipInsInSameProg,
+        selectedRows,
+        selProgramsFpcId,
+        schedulingTableData,
+        channel,
+      );
+    } else if (
+      activeFeatures[featuresEnum.INSERT].eventType ===
+      secondaryTableTypesEnum.NTC
+    ) {
+      newSchedulingTableData = executeBulkNTCInsert({
+        insertPosition,
+        time,
+        selectedBreaks,
+        isSkipLastBreak,
+        isOnlyLastBreak,
+        selectedRows,
+        descriptionType,
+        bulkNTCInsDesc,
+        durationType,
+        bulkNTCInsDuration,
+        bulkNTCInsOffsetTime,
+        schedulingTableData,
+        channel,
+        isAutoCalcNtcOffsetTime,
+        selProgramsFpcId,
+      });
+    } else return false;
+    return { newSchedulingTableData };
+  }
+
+  async function executeBulkInsertBelowExactMatch({
+    time,
+    bulkInsertExactMatchString,
+    selectedRows,
+    selProgramsFpcId,
+  }) {
+    let newSchedulingTableData = [];
+    if (
+      activeFeatures[featuresEnum.INSERT].eventType ===
+      secondaryTableTypesEnum.NTC
+    ) {
+      newSchedulingTableData = await executeBulkNTCInsertBelowExactMatch(
+        time,
+        bulkInsertExactMatchString,
+        schedulingTableData,
+        selectedRows,
+        isAutoCalcNtcOffsetTime,
+        selProgramsFpcId,
+      );
+    }
+    if (!newSchedulingTableData) return false;
+    return { newSchedulingTableData };
+  }
+
+  function executeSCTEInsert(isShowSCTE) {
+    try {
+      let newSchedulingTableData = [];
+      if (isShowSCTE) {
+        let selectedRows = SCTE_ROWS.map((row) => ({
+          ...row,
+          VideoID: row.HouseID,
+        }));
+        selectedRows = addPropertiesToSelectedNTCs(
+          selectedRows,
+          undefined,
+          ntcDescriptionTypesEnum.CUSTOM,
+          '',
+          ntcDurationTypesEnum.CUSTOM,
+          '00:00:00:00',
+          '00:00:00:00',
+        );
+        for (let index = 0; index < schedulingTableData.length; index++) {
+          const row = schedulingTableData[index];
+          if (row.F_C_S_P === rowDataTypesEnum.BREAK) {
+            newSchedulingTableData.push(selectedRows[0]);
+            newSchedulingTableData.push(row);
+            newSchedulingTableData.push(selectedRows[1]);
+          } else {
+            newSchedulingTableData.push(row);
+          }
+        }
+      } else {
+        newSchedulingTableData = schedulingTableData.filter(
+          (row) =>
+            row.Event_Name !== 'SCTE ON' && row.Event_Name !== 'SCTE OFF',
+        );
+      }
+      return { newSchedulingTableData };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  function executeReplaceRow() {
+    try {
+      const secTableSelRow = secondaryTableSelectedRows[0];
+      let newSchedulingTableData = [...schedulingTableData];
+      if (
+        activeFeatures[featuresEnum.INSERT].eventType ===
+        secondaryTableTypesEnum.PROMO
+      )
+        newSchedulingTableData = executePromoReplace(
+          schedulingTableData,
+          schedulingTableSelectedRows,
+          secTableSelRow,
+        );
+      else if (
+        activeFeatures[featuresEnum.INSERT].eventType ===
+        secondaryTableTypesEnum.SONG
+      )
+        newSchedulingTableData = executeSongReplace(
+          schedulingTableData,
+          schedulingTableSelectedRows,
+          secTableSelRow,
+        );
+      else if (
+        activeFeatures[featuresEnum.INSERT].eventType ===
+        secondaryTableTypesEnum.NTC
+      )
+        newSchedulingTableData = executeNtcReplace(
+          schedulingTableData,
+          schedulingTableSelectedRows,
+          secTableSelRow,
+          isAutoCalcNtcOffsetTime,
+        );
+      return {
+        newSchedulingTableData,
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  function executeReplaceAllRow() {
+    try {
+      let newSchedulingTableData = [...schedulingTableData];
+      const schTableSelectedRows = getUniqueObjects(
+        schedulingTableSelectedRows,
+        'Event_Name',
+      ).map((row) => row.Event_Name);
+      const secTableSelRow = secondaryTableSelectedRows[0];
+      if (
+        activeFeatures[featuresEnum.INSERT].eventType ===
+        secondaryTableTypesEnum.PROMO
+      )
+        newSchedulingTableData = executePromoReplaceAll(
+          newSchedulingTableData,
+          schTableSelectedRows,
+          secTableSelRow,
+        );
+      else if (
+        activeFeatures[featuresEnum.INSERT].eventType ===
+        secondaryTableTypesEnum.SONG
+      )
+        newSchedulingTableData = executeSongReplaceAll(
+          newSchedulingTableData,
+          schTableSelectedRows,
+          secTableSelRow,
+        );
+      else if (
+        activeFeatures[featuresEnum.INSERT].eventType ===
+        secondaryTableTypesEnum.NTC
+      )
+        newSchedulingTableData = executeNtcReplaceAll(
+          newSchedulingTableData,
+          schTableSelectedRows,
+          secTableSelRow,
+        );
+      return {
+        newSchedulingTableData,
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  function executeDeleteRow(selectedRowsToDelete) {
+    try {
+      let selectedRowsId = selectedRowsToDelete.map((row) => row.rowId);
+      let newSchedulingTableData = [];
+      if (isAutoCalcNtcOffsetTime) {
+        let newOffsetTime = null;
+        schedulingTableData.forEach((row, index) => {
+          let curRow = { ...row };
+          if (selectedRowsId.includes(row.rowId)) {
+            const prevRow = schedulingTableData[index - 1];
+            const nextRow = schedulingTableData[index + 1];
+            const isCurRowNTC = row.F_C_S_P === rowDataTypesEnum.NTC;
+            const isPrevRowNTC = prevRow.F_C_S_P === rowDataTypesEnum.NTC;
+            const isPrevNtcGrpSameAsCurGrp =
+              prevRow.NTCGroupCode === row.NTCGroupCode;
+            const isNextNtcGrpSameAsCurGrp =
+              row.NTCGroupCode === nextRow?.NTCGroupCode;
+            if (
+              isCurRowNTC &&
+              ((!isPrevRowNTC && nextRow && isNextNtcGrpSameAsCurGrp) ||
+                (isPrevRowNTC &&
+                  !isPrevNtcGrpSameAsCurGrp &&
+                  nextRow &&
+                  isNextNtcGrpSameAsCurGrp))
+            ) {
+              newOffsetTime = row.OffsetStartTime;
+            }
+            return;
+          } else if (row.F_C_S_P === rowDataTypesEnum.NTC && newOffsetTime) {
+            curRow.OffsetStartTime = newOffsetTime;
+            curRow.StartTime = newOffsetTime;
+            curRow.Tel_Time = newOffsetTime;
+            newOffsetTime = null;
+          }
+          newSchedulingTableData.push(curRow);
+        });
+        newSchedulingTableData = updateOffsetStartTimeOfNTCs(
+          newSchedulingTableData,
+        );
+      } else {
+        newSchedulingTableData = [...schedulingTableData].filter(
+          (row) => !selectedRowsId.includes(row.rowId),
+        );
+      }
+      return {
+        newSchedulingTableData,
+        newSecondaryTableData: secondaryTableData,
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  function executeDropRow(selectedRowsToDrop) {
+    try {
+      let selectedRowsId = selectedRowsToDrop.map((row) => row.rowId);
+      /* REMOVE DROPPED ROW FROM SCHEDULING TABLE */
+      let newSchedulingTableData = [...schedulingTableData].filter(
+        (row) => !selectedRowsId.includes(row.rowId),
+      );
+      let newDropBucket, newSecondaryTableData;
+      let droppedRows = removeAdditionalInfoFromRows(selectedRowsToDrop);
+      /* APPEND DROPPED ROWS TO DROP BUCKET */
+      if (Array.isArray(dropBucket) && dropBucket.length > 0) {
+        newDropBucket = [...dropBucket, ...droppedRows];
+      } else newDropBucket = [getDummyRow(droppedRows[0]), ...droppedRows];
+      /* UPDATE SECONDARY TABLE DATA IF INSERT DROPPED SPOTS IS ACTIVE*/
+      if (
+        activeFeatures[featuresEnum.INSERT]?.isActive &&
+        activeFeatures[featuresEnum.INSERT].eventType ===
+          secondaryTableTypesEnum.DROPPED_SPOTS
+      )
+        newSecondaryTableData = [...newDropBucket];
+      else newSecondaryTableData = [...secondaryTableData];
+      return {
+        newSchedulingTableData,
+        newSecondaryTableData,
+        newDropBucket,
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  function executeReplaceProgram(
+    clickedProgram,
+    clickedProgramSchedule,
+    newProgramSchedule,
+  ) {
+    try {
+      const clickedProgramSegmentWiseContent = getSegmentWiseContent(
+        clickedProgramSchedule,
+      );
+      const newProgramWithSegmentContent = getProgramWithSegmentContent(
+        newProgramSchedule,
+        clickedProgramSegmentWiseContent,
+        clickedProgram,
+      );
+      let newSchedulingTableData = updateProgramInSchedulingTableData(
+        clickedProgram,
+        newProgramWithSegmentContent,
+        schedulingTableData,
+      );
+      return {
+        newSchedulingTableData,
+        newSecondaryTableData: secondaryTableData,
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  function executeFilterRow(tableType, selectedFilters) {
+    try {
+      let newSchedulingTableData = [...schedulingTableData];
+      let newSecondaryTableData = [...secondaryTableData];
+      let newDropBucket = [...dropBucket];
+      let newLastMinuteSpots = [...lastMinuteSpots];
+      tableType.forEach((curTableType) => {
+        if (curTableType === tableTypesEnum.SCHEDULING) {
+          newSchedulingTableData = getFilteredTableData(
+            newSchedulingTableData,
+            selectedFilters,
+          );
+          if (selectedFilters.length === 0) setSchTableSelectedFilters([]);
+        } else {
+          newSecondaryTableData = getFilteredTableData(
+            newSecondaryTableData,
+            selectedFilters,
+          );
+          if (
+            activeFeatures[featuresEnum.INSERT]?.eventType ===
+            secondaryTableTypesEnum.DROPPED_SPOTS
+          )
+            newDropBucket = [...newSecondaryTableData];
+          else if (
+            activeFeatures[featuresEnum.INSERT]?.eventType ===
+            secondaryTableTypesEnum.LAST_MINUTE_SPOTS
+          )
+            newLastMinuteSpots = [...newSecondaryTableData];
+          if (selectedFilters.length === 0) setSecTableSelectedFilters([]);
+        }
+      });
+      return {
+        newSchedulingTableData,
+        newSecondaryTableData,
+        newDropBucket,
+        newLastMinuteSpots,
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  function executeSort(sortingInfo) {
+    if (sortingInfo.tableType === tableTypesEnum.SCHEDULING) {
+      let newSchedulingTableData = [];
+      if (sortingInfo.sort === 'none')
+        newSchedulingTableData = [...ogSchTableData];
+      else
+        newSchedulingTableData = [
+          ogSchTableData[0],
+          ...sortArray(
+            ogSchTableData.slice(1),
+            sortingInfo.column,
+            sortingInfo.sort,
+          ),
+        ];
+      return { newSchedulingTableData };
+    } else {
+      let newSecondaryTableData = [];
+      if (sortingInfo.sort === 'none')
+        newSecondaryTableData = [...ogSecTableData];
+      else
+        newSecondaryTableData = [
+          ogSecTableData[0],
+          ...sortArray(
+            ogSecTableData.slice(1),
+            sortingInfo.column,
+            sortingInfo.sort,
+          ),
+        ];
+      if (
+        activeFeatures[featuresEnum.INSERT].eventType ===
+        secondaryTableTypesEnum.DROPPED_SPOTS
+      )
+        return { newSecondaryTableData, newDropBucket: newSecondaryTableData };
+      else if (
+        activeFeatures[featuresEnum.INSERT].eventType ===
+        secondaryTableTypesEnum.LAST_MINUTE_SPOTS
+      )
+        return {
+          newSecondaryTableData,
+          newLastMinuteSpots: newSecondaryTableData,
+        };
+      else return { newSecondaryTableData };
+    }
+  }
+
+  function executeHideCommercial(isHideCommercial, startTime) {
+    try {
+      let newSchedulingTableData = getFilteredTableData(
+        [...schedulingTableData],
+        [
+          ...schTableSelectedFilters,
+          {
+            columnKey: 'F_C_S_P',
+            filter: tableFilterOptionsEnum.HIDE_COMMERCIAL,
+            searchValue: isHideCommercial.toString(),
+          },
+        ],
+      );
+      const dummyRow = newSchedulingTableData.shift();
+      newSchedulingTableData = updateStartTimes(
+        newSchedulingTableData,
+        activeFeatures[featuresEnum.SHOW_PROGRAM_BASE_TIME],
+        isHideCommercial,
+        undefined,
+        startTime,
+        Number(channelSettings.FramePerSec),
+      );
+      return {
+        newSchedulingTableData: [dummyRow, ...newSchedulingTableData],
+        newSecondaryTableData: [...secondaryTableData],
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  function executeShowProgramBaseTime(isShowProgramBaseTime, startTime) {
+    try {
+      let newSchedulingTableData = [...schedulingTableData];
+      const dummyRow = newSchedulingTableData.shift();
+      newSchedulingTableData = updateStartTimes(
+        newSchedulingTableData,
+        isShowProgramBaseTime,
+        activeFeatures[featuresEnum.HIDE_COMMERCIALS],
+        undefined,
+        startTime,
+        Number(channelSettings.FramePerSec),
+      );
+      return {
+        newSchedulingTableData: [dummyRow, ...newSchedulingTableData],
+        newSecondaryTableData: [...secondaryTableData],
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  function executeShowNTC(isShowNTC) {
+    try {
+      let newSchedulingTableData = getFilteredTableData(
+        [...schedulingTableData],
+        [
+          ...schTableSelectedFilters,
+          {
+            columnKey: 'F_C_S_P',
+            filter: tableFilterOptionsEnum.SHOW_NTC,
+            searchValue: isShowNTC.toString(),
+          },
+        ],
+      );
+      return {
+        newSchedulingTableData,
+        newSecondaryTableData: [...secondaryTableData],
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  function executeInsertNTCByStartTime() {
+    try {
+      let newSchedulingTableData = [...schedulingTableData];
+      let newSecondaryTableData = [...secondaryTableData];
+      const insertTime = secondaryTableSelectedRows[0].Start_Time;
+      const endTime = addTimes(
+        insertTime,
+        secondaryTableSelectedRows[0].Duration,
+      );
+      let destIndex = newSchedulingTableData.findIndex((row, index) => {
+        if (index === 0) return false;
+        return (
+          row.F_C_S_P !== rowDataTypesEnum.CONTENT_TERMINATION &&
+          row.F_C_S_P !== rowDataTypesEnum.COMMERCIAL &&
+          row.F_C_S_P !== rowDataTypesEnum.NTC &&
+          insertTime >= row.Start_Time &&
+          endTime <= addTimes(row.Start_Time, row.Duration)
+        );
+      });
+      if (destIndex === -1) {
+        openNotification('danger', 'No valid insertion point found');
+        return {
+          newSchedulingTableData,
+          newSecondaryTableData,
+        };
+      } else {
+        destIndex = destIndex + 1;
+        let ntcParentRow = getNTCParentRow(destIndex, schedulingTableData);
+        let updatedSecTableSelectedRows = [...secondaryTableSelectedRows].map(
+          (row) => {
+            return updateOffsetStartTime(row, ntcParentRow);
+          },
+        );
+        const result = executeSecToSchTableNtcInsert(
+          newSchedulingTableData,
+          newSecondaryTableData,
+          destIndex,
+          updatedSecTableSelectedRows,
+          channel,
+          isAutoCalcNtcOffsetTime,
+        );
+        if (!result) return false;
+        newSchedulingTableData = result.newSchTableData;
+        newSecondaryTableData = result.newSecTableData;
+        return { newSchedulingTableData, newSecondaryTableData };
+        // const validNTCs = validateNTCs({
+        //   destIndex: insertIndex,
+        //   tableData: newSchedulingTableData,
+        //   selectedRows: updatedSecTableSelectedRows,
+        //   channel,
+        //   isAutoCalculateOffsetTime: isAutoCalcNtcOffsetTime,
+        // });
+        // if (!validNTCs) {
+        //   openNotification('danger', `NTCs are out of parent's duration`);
+        //   return false;
+        // }
+        // newSchedulingTableData.splice(insertIndex, 0, ...validNTCs);
+        // if (validNTCs.length < updatedSecTableSelectedRows.length) {
+        //   openNotification(
+        //     'danger',
+        //     `Few NTCs are not inserted due to out of parent's Duration`,
+        //   );
+        // }
+        // if (isPaidNTC) {
+        //   secondaryTableSelectedRows.forEach((selectedRow) => {
+        //     newSecondaryTableData = newSecondaryTableData.filter(
+        //       (row) => row.rowId !== selectedRow.rowId,
+        //     );
+        //   });
+        //   if (newSecondaryTableData.length === 1) newSecondaryTableData = [];
+        // }
+        // let secTableRowsToRemove = [];
+        // if (isAutoCalcNtcOffsetTime) {
+        //   // Get ntc parent row
+        //   let ntcParentRow = getNTCParentRow(destIndex, newSchedulingTableData);
+        //   const { newTableData, insertedNTCs } =
+        //     insertNTCsBasedOnOffsetTimeAutoCalculation(
+        //       ntcParentRow,
+        //       updatedSecTableSelectedRows,
+        //       newSchedulingTableData,
+        //       destIndex,
+        //     );
+        //   newSchedulingTableData = newTableData;
+        //   // If few NTCs are not inserted, give notification to user
+        //   if (insertedNTCs.length < updatedSecTableSelectedRows.length)
+        //     openNotification(
+        //       'danger',
+        //       'Some NTCs are not inserted due to insufficient duration.',
+        //     );
+        //   // If inserted NTCs are paid NTCs, remove them from secondary table
+        //   if (insertedNTCs[0].BookingDetailsID) {
+        //     secTableRowsToRemove = insertedNTCs;
+        //   }
+        // } else {
+        //   const validNTCs = validateNTCs({
+        //     destIndex,
+        //     tableData: newSchedulingTableData,
+        //     selectedRows: updatedSecTableSelectedRows,
+        //     channel,
+        //     isAutoCalculateOffsetTime: isAutoCalcNtcOffsetTime,
+        //   });
+        //   if (!validNTCs) return false;
+        //   newSchedulingTableData.splice(destIndex, 0, ...validNTCs);
+        //   // If few NTCs are not inserted, give notification to user
+        //   if (validNTCs.length < updatedSecTableSelectedRows.length)
+        //     openNotification(
+        //       'danger',
+        //       'Some NTCs are not inserted due to insufficient duration.',
+        //     );
+        //   if (validNTCs[0].BookingDetailID) secTableRowsToRemove = validNTCs;
+        // }
+        // // Remove inserted rows from secondary table
+        // newSecondaryTableData = removeRowsFromTableData(
+        //   secTableRowsToRemove,
+        //   newSecondaryTableData,
+        // );
+      }
+      // return {
+      //   newSchedulingTableData,
+      //   newSecondaryTableData,
+      // };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  const executePromoAutoShuffle = async (promoShuffleTemplate, time) => {
+    let newSchedulingTableData = schedulingTableData.map((item) => ({
+      ...item,
+    }));
+    let CT_Entries = [];
+    let S_Counts = [];
+    let S_Duration_Sums = [];
+    let S_Index_Map = new Map();
+    newSchedulingTableData.forEach((item, index) => {
+      if (item['F_C_S_P'] === rowDataTypesEnum.CONTENT_TERMINATION) {
+        CT_Entries.push(index);
+        S_Counts.push(0);
+        S_Duration_Sums.push(0);
+      }
+    });
+    newSchedulingTableData.forEach((item, index) => {
+      if (
+        item['F_C_S_P'] === rowDataTypesEnum.SEGMENT &&
+        CT_Entries.length > 0
+      ) {
+        for (let i = CT_Entries.length - 1; i >= 0; i--) {
+          if (index > CT_Entries[i]) {
+            S_Counts[i] += 1;
+            S_Duration_Sums[i] += timeToSeconds(item['Duration']);
+            S_Index_Map.set(index, i);
+            break;
+          }
+        }
+      }
+    });
+    CT_Entries.forEach((ctIndex, i) => {
+      let item = newSchedulingTableData[ctIndex];
+      item['DurationInSeconds'] =
+        timeToSeconds(item['FPC_TimeTo'] + ':00:00') -
+        timeToSeconds(item['FPC_Time'] + ':00:00');
+      item['S_Count'] = S_Counts[i];
+      item['Sum_of_S_Duration'] = S_Duration_Sums[i];
+    });
+    newSchedulingTableData.forEach((item, index) => {
+      if (
+        item['F_C_S_P'] === rowDataTypesEnum.SEGMENT &&
+        S_Index_Map.has(index)
+      ) {
+        let ctIndex = S_Index_Map.get(index);
+        let CT_Item = newSchedulingTableData[CT_Entries[ctIndex]];
+        if (CT_Item['S_Count'] > 0) {
+          item['Calculated_Value'] =
+            (CT_Item['DurationInSeconds'] - CT_Item['Sum_of_S_Duration']) /
+            CT_Item['S_Count'];
+        } else {
+          item['Calculated_Value'] = 0;
+        }
+      }
+    });
+    let lastSIndex = -1;
+    newSchedulingTableData.forEach((item, index) => {
+      if (item['F_C_S_P'] === rowDataTypesEnum.SEGMENT) {
+        lastSIndex = index;
+      } else if (
+        lastSIndex !== -1 &&
+        item['F_C_S_P'] !== rowDataTypesEnum.CONTENT_TERMINATION &&
+        item['F_C_S_P'] !== rowDataTypesEnum.NTC &&
+        item['F_C_S_P'] !== rowDataTypesEnum.SEGMENT
+      ) {
+        let durationInSeconds = timeToSeconds(item['Duration']);
+        newSchedulingTableData[lastSIndex]['Calculated_Value'] -=
+          durationInSeconds;
+      }
+    });
+    const promoList = await getPromosFromTemplateId(promoShuffleTemplate.value);
+    newSchedulingTableData = insertPromos(
+      newSchedulingTableData,
+      promoList,
+      time,
+    );
+    return { newSchedulingTableData };
+  };
+
+  const executeDeleteEvents = (deleteEventTypes) => {
+    let newSchedulingTableData = [];
+    let newDropBucket = [];
+    schedulingTableData.forEach((row) => {
+      if (deleteEventTypes.includes(row.F_C_S_P)) {
+        if (row.F_C_S_P === rowDataTypesEnum.COMMERCIAL)
+          newDropBucket.push(row);
+      } else newSchedulingTableData.push(row);
+    });
+    return { newSchedulingTableData, newDropBucket };
+  };
+
+  const executeImportNTCsForSelectedContent = async () => {
+    try {
+      const contentIndexes = getContentIndexes(
+        schedulingTableData,
+        leftClickedSchTableRow,
+      );
+      const contentSegments = getContentSegmentsForContent(
+        schedulingTableData,
+        contentIndexes.startIndex,
+      );
+      const contentSegmentRowIds = contentSegments.map(
+        (segment) => segment.rowId,
+      );
+      let newSchedulingTableData = [];
+      for (let index = 0; index < schedulingTableData.length; index++) {
+        const curRow = schedulingTableData[index];
+        newSchedulingTableData.push(curRow);
+        if (contentSegmentRowIds.includes(curRow.rowId)) {
+          let curNTCRow = schedulingTableData[index + 1];
+          while (curNTCRow && curNTCRow.F_C_S_P === rowDataTypesEnum.NTC) {
+            newSchedulingTableData.push(curNTCRow);
+            index++;
+            curNTCRow = schedulingTableData[index + 1];
+          }
+          const fetchedNTCs = await getNTCRowsForSegment(curRow, channel, date);
+          if (isAutoCalcNtcOffsetTime) {
+            newSchedulingTableData = newSchedulingTableData.map(
+              (row, index) => ({
+                ...row,
+                rowIndex: index,
+              }),
+            );
+            const { newTableData, insertedNTCs } =
+              insertNTCsBasedOnOffsetTimeAutoCalculation(
+                newSchedulingTableData.find(
+                  (row) => row.rowId === curRow.rowId,
+                ),
+                fetchedNTCs,
+                newSchedulingTableData,
+                newSchedulingTableData.length,
+              );
+            newSchedulingTableData = newTableData;
+          } else newSchedulingTableData.push(...fetchedNTCs);
+        }
+      }
+      return { newSchedulingTableData };
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const executeImportNTCsForAllContents = async () => {
+    try {
+      let newSchedulingTableData = [];
+      for (let index = 0; index < schedulingTableData.length; index++) {
+        const curRow = schedulingTableData[index];
+        newSchedulingTableData.push(curRow);
+        if (curRow.F_C_S_P === rowDataTypesEnum.SEGMENT) {
+          let curNTCRow = schedulingTableData[index + 1];
+          while (curNTCRow && curNTCRow.F_C_S_P === rowDataTypesEnum.NTC) {
+            newSchedulingTableData.push(curNTCRow);
+            index++;
+            curNTCRow = schedulingTableData[index + 1];
+          }
+          const fetchedNTCs = await getNTCRowsForSegment(curRow, channel, date);
+          if (isAutoCalcNtcOffsetTime) {
+            newSchedulingTableData = newSchedulingTableData.map(
+              (row, index) => ({
+                ...row,
+                rowIndex: index,
+              }),
+            );
+            const { newTableData, insertedNTCs } =
+              insertNTCsBasedOnOffsetTimeAutoCalculation(
+                newSchedulingTableData.find(
+                  (row) => row.rowId === curRow.rowId,
+                ),
+                fetchedNTCs,
+                newSchedulingTableData,
+                newSchedulingTableData.length,
+              );
+            newSchedulingTableData = newTableData;
+          } else newSchedulingTableData.push(...fetchedNTCs);
+        }
+      }
+      return { newSchedulingTableData };
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  // New DTMF Logic
+  const executeToggleDtmfPattern = () => {
+    let newSchedulingTableData = [];
+    if (isDtmfRowsPresent(schedulingTableData))
+      newSchedulingTableData = schedulingTableData.filter(
+        (row) =>
+          !(row.F_C_S_P === rowDataTypesEnum.NTC && row.NtcTypeName === 'DTM'),
+      );
+    else
+      for (let index = 0; index < schedulingTableData.length; index++) {
+        const curRow = schedulingTableData[index];
+        const nextRow = schedulingTableData[index + 1];
+        const isNextRowCT_S_Empty =
+          (nextRow &&
+            (nextRow.F_C_S_P === rowDataTypesEnum.SEGMENT ||
+              nextRow.F_C_S_P === rowDataTypesEnum.CONTENT_TERMINATION)) ||
+          !nextRow;
+        if (index === 0) newSchedulingTableData.push(curRow);
+        else {
+          if (
+            isNextRowCT_S_Empty &&
+            ((curRow.PromoTypeName &&
+              !curRow.PromoTypeName.toLowerCase().includes(
+                'parental rating disclaimer',
+              )) ||
+              curRow.PromoTypeCode !== '19')
+          ) {
+            newSchedulingTableData.push(curRow);
+            for (
+              let index = newSchedulingTableData.length - 1;
+              index > 0;
+              index--
+            ) {
+              const curRow = newSchedulingTableData[index];
+              if (
+                curRow.F_C_S_P === rowDataTypesEnum.PROMO ||
+                curRow.F_C_S_P === rowDataTypesEnum.SONG
+              ) {
+                newSchedulingTableData.splice(
+                  index + 1,
+                  0,
+                  {
+                    ...DTMF_ROWS.DTMF_IN,
+                    OffsetStartTime: curRow.Tel_Time,
+                    Duration: curRow.Duration,
+                  },
+                  {
+                    ...DTMF_ROWS.DTMF_OUT,
+                    OffsetStartTime: subtractTimes(
+                      addTimes(curRow.Tel_Time, curRow.Duration),
+                      '00:00:03:00',
+                    ),
+                  },
+                );
+                break;
+              } else if (
+                curRow.F_C_S_P === rowDataTypesEnum.CONTENT_TERMINATION ||
+                curRow.F_C_S_P === rowDataTypesEnum.SEGMENT
+              ) {
+                break;
+              }
+            }
+          } else newSchedulingTableData.push(curRow);
+        }
+      }
+    return { newSchedulingTableData };
+  };
+
+  // Old DTMF Logic
+  // const executeToggleDtmfPattern = () => {
+  //   let newSchedulingTableData = []
+  //   let curPriEvent;
+  //   if (isDtmfRowsPresent(schedulingTableData))
+  //     newSchedulingTableData = schedulingTableData.filter((row) => !(row.F_C_S_P === rowDataTypesEnum.NTC && row.NtcTypeName === 'DTM'))
+  //   else
+  //     for (let index = 0; index < schedulingTableData.length; index++) {
+  //       const curRow = schedulingTableData[index]
+  //       const nextRow = schedulingTableData[index + 1]
+  //       const isNextRowCT_S_Empty = (nextRow && (nextRow.F_C_S_P === rowDataTypesEnum.SEGMENT || nextRow.F_C_S_P === rowDataTypesEnum.CONTENT_TERMINATION)) || !nextRow;
+  //       if (index === 0) newSchedulingTableData.push(curRow);
+  //       else {
+  //         if (curRow.F_C_S_P === rowDataTypesEnum.SEGMENT || curRow.F_C_S_P === rowDataTypesEnum.PROMO || curRow.F_C_S_P === rowDataTypesEnum.SONG || curRow.F_C_S_P === rowDataTypesEnum.COMMERCIAL) {
+  //           curPriEvent = curRow
+  //         }
+  //         const dtmfInOffsetTime = curPriEvent ? subtractTimes(curPriEvent.Duration, '00:00:03:00') : '00:00:00:00'
+  //         const dtmfInDuration = curPriEvent ? getTotalDurOfPriEventsForSeg(schedulingTableData, index) : '00:00:00:00'
+  //         const dtmfOutOffsetTime = curPriEvent ? subtractTimes(curPriEvent.Duration, '00:00:00:09') : '00:00:00:00'
+  //         if (curRow.F_C_S_P === rowDataTypesEnum.SEGMENT && isNextRowCT_S_Empty) {
+  //           newSchedulingTableData.push(curRow,
+  //             { ...DTMF_ROWS.DTMF_IN, OffsetStartTime: dtmfInOffsetTime, TC_IN: curRow.TC_IN, Duration: dtmfInDuration },
+  //             { ...DTMF_ROWS.DTMF_OUT, OffsetStartTime: dtmfOutOffsetTime })
+  //           continue;
+  //         }
+  //         if (curRow.F_C_S_P === rowDataTypesEnum.SEGMENT && !isNextRowCT_S_Empty) {
+  //           newSchedulingTableData.push(curRow, { ...DTMF_ROWS.DTMF_IN, OffsetStartTime: dtmfInOffsetTime, TC_IN: curRow.TC_IN, Duration: dtmfInDuration })
+  //           continue;
+  //         }
+  //         if ((curRow.F_C_S_P !== rowDataTypesEnum.SEGMENT && curRow.F_C_S_P !== rowDataTypesEnum.CONTENT_TERMINATION) && isNextRowCT_S_Empty) {
+  //           newSchedulingTableData.push(curRow, { ...DTMF_ROWS.DTMF_OUT, OffsetStartTime: dtmfOutOffsetTime });
+  //           continue;
+  //         }
+  //         newSchedulingTableData.push(curRow);
+  //       }
+  //     }
+  //   return { newSchedulingTableData };
+  // }
+
+  const executeToggleScteOnPattern = () => {
+    let newSchedulingTableData = [];
+    if (isScteOnRowsPresent(schedulingTableData))
+      newSchedulingTableData = schedulingTableData.filter(
+        (row) =>
+          !(row.F_C_S_P === rowDataTypesEnum.NTC && row.NtcTypeName === 'SCT'),
+      );
+    else
+      for (let index = 0; index < schedulingTableData.length; index++) {
+        const curRow = schedulingTableData[index];
+        if (index === 0) newSchedulingTableData.push(curRow);
+        else {
+          const scteOnInOffsetTime = subtractTimes(
+            addTimes(curRow.Tel_Time, curRow.Duration),
+            '00:00:04:00',
+          );
+          if (curRow.F_C_S_P === rowDataTypesEnum.SEGMENT) {
+            newSchedulingTableData.push(curRow, {
+              ...SCTE_ON_ROW,
+              OffsetStartTime: scteOnInOffsetTime,
+              Duration: curRow.Duration,
+            });
+          } else newSchedulingTableData.push(curRow);
+        }
+      }
+    return { newSchedulingTableData };
+  };
+
+  const executeInsertNowNTCs = async () => {
+    try {
+      const contentIndexes = getContentIndexes(
+        schedulingTableData,
+        leftClickedSchTableRow,
+      );
+      const contentSegments = getContentSegmentsForContent(
+        schedulingTableData,
+        contentIndexes.startIndex,
+      );
+      const contentSegmentRowIds = contentSegments.map(
+        (segment) => segment.rowId,
+      );
+      let newSchedulingTableData = [];
+      for (let index = 0; index < schedulingTableData.length; index++) {
+        const curRow = schedulingTableData[index];
+        newSchedulingTableData.push(curRow);
+        if (contentSegmentRowIds.includes(curRow.rowId)) {
+          let curNTCRow = schedulingTableData[index + 1];
+          while (curNTCRow && curNTCRow.F_C_S_P === rowDataTypesEnum.NTC) {
+            newSchedulingTableData.push(curNTCRow);
+            index++;
+            curNTCRow = schedulingTableData[index + 1];
+          }
+          const fetchedNTCs = await getNowNTCsForSegment(
+            curRow,
+            channel,
+            date,
+            'Now',
+            curRow.Start_Time,
+          );
+          if (isAutoCalcNtcOffsetTime) {
+            newSchedulingTableData = newSchedulingTableData.map(
+              (row, index) => ({
+                ...row,
+                rowIndex: index,
+              }),
+            );
+            const { newTableData, insertedNTCs } =
+              insertNTCsBasedOnOffsetTimeAutoCalculation(
+                newSchedulingTableData.find(
+                  (row) => row.rowId === curRow.rowId,
+                ),
+                fetchedNTCs,
+                newSchedulingTableData,
+                newSchedulingTableData.length,
+              );
+            newSchedulingTableData = newTableData;
+          } else newSchedulingTableData.push(...fetchedNTCs);
+        }
+      }
+      return { newSchedulingTableData };
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const executeInsertNextNTCs = async () => {
+    try {
+      const contentIndexes = getContentIndexes(
+        schedulingTableData,
+        leftClickedSchTableRow,
+      );
+      const contentSegments = getContentSegmentsForContent(
+        schedulingTableData,
+        contentIndexes.startIndex,
+      );
+      const contentSegmentRowIds = contentSegments.map(
+        (segment) => segment.rowId,
+      );
+      let newSchedulingTableData = [];
+      for (let index = 0; index < schedulingTableData.length; index++) {
+        const curRow = schedulingTableData[index];
+        newSchedulingTableData.push(curRow);
+        if (contentSegmentRowIds.includes(curRow.rowId)) {
+          let curNTCRow = schedulingTableData[index + 1];
+          while (curNTCRow && curNTCRow.F_C_S_P === rowDataTypesEnum.NTC) {
+            newSchedulingTableData.push(curNTCRow);
+            index++;
+            curNTCRow = schedulingTableData[index + 1];
+          }
+          const fetchedNTCs = await getNowNTCsForSegment(
+            curRow,
+            channel,
+            date,
+            'Next',
+            curRow.Start_Time,
+          );
+          if (isAutoCalcNtcOffsetTime) {
+            newSchedulingTableData = newSchedulingTableData.map(
+              (row, index) => ({
+                ...row,
+                rowIndex: index,
+              }),
+            );
+            const { newTableData, insertedNTCs } =
+              insertNTCsBasedOnOffsetTimeAutoCalculation(
+                newSchedulingTableData.find(
+                  (row) => row.rowId === curRow.rowId,
+                ),
+                fetchedNTCs,
+                newSchedulingTableData,
+                newSchedulingTableData.length,
+              );
+            newSchedulingTableData = newTableData;
+          } else newSchedulingTableData.push(...fetchedNTCs);
+        }
+      }
+      return { newSchedulingTableData };
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const executeInsertLiveEvent = (liveRow) => {
+    let newSchedulingTableData = [...schedulingTableData];
+    newSchedulingTableData.splice(
+      leftClickedSchTableRow.rowIndex + 1,
+      0,
+      liveRow,
+    );
+    return { newSchedulingTableData };
+  };
+
+  const executeImportPromosForSelectedContent = async () => {
+    try {
+      const contentIndexes = getContentIndexes(
+        schedulingTableData,
+        leftClickedSchTableRow,
+      );
+      const selContentCode =
+        schedulingTableData[contentIndexes.startIndex].ContentCode;
+      let newSchedulingTableData = [];
+      for (let index = 0; index < schedulingTableData.length; index++) {
+        const curRow = schedulingTableData[index];
+        newSchedulingTableData.push(curRow);
+        if (
+          curRow.ContentCode === selContentCode &&
+          ((!isChannelAniPlus && curRow.F_C_S_P === rowDataTypesEnum.SEGMENT) ||
+            curRow.F_C_S_P === rowDataTypesEnum.CONTENT_TERMINATION)
+        ) {
+          let curNTCRow = schedulingTableData[index + 1];
+          while (curNTCRow && curNTCRow.F_C_S_P === rowDataTypesEnum.NTC) {
+            newSchedulingTableData.push(curNTCRow);
+            index++;
+            curNTCRow = schedulingTableData[index + 1];
+          }
+          const fetchedPromos = await getPromoRowsForSegment(
+            curRow,
+            channel,
+            date,
+          );
+          newSchedulingTableData.push(...fetchedPromos);
+        }
+      }
+      return { newSchedulingTableData };
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const executeImportPromosForAllContents = async () => {
+    try {
+      let newSchedulingTableData = [];
+      for (let index = 0; index < schedulingTableData.length; index++) {
+        const curRow = schedulingTableData[index];
+        newSchedulingTableData.push(curRow);
+        if (
+          (!isChannelAniPlus && curRow.F_C_S_P === rowDataTypesEnum.SEGMENT) ||
+          curRow.F_C_S_P === rowDataTypesEnum.CONTENT_TERMINATION
+        ) {
+          let curNTCRow = schedulingTableData[index + 1];
+          while (curNTCRow && curNTCRow.F_C_S_P === rowDataTypesEnum.NTC) {
+            newSchedulingTableData.push(curNTCRow);
+            index++;
+            curNTCRow = schedulingTableData[index + 1];
+          }
+          const fetchedPromos = await getPromoRowsForSegment(
+            curRow,
+            channel,
+            date,
+          );
+          newSchedulingTableData.push(...fetchedPromos);
+        }
+      }
+      return { newSchedulingTableData };
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  /* =================================================================================== */
+  /* HELPER FUNCTIONS USING STATES */
+  function resetTableStatesForInitialization() {
+    try {
+      setSchedulingTableOffset(0);
+      setCustomCellColor(null);
+      resetAllSelectedRows();
+      resetSecondaryTableStates();
+      resetUndoRedoStacks();
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  function resetAllSelectedRows() {
+    setSchedulingTableSelectedRows([]);
+    setLeftClickedSchTableRow(null);
+    setSecondaryTableSelectedRows([]);
+    setLeftClickedSecTableRow(null);
+  }
+
+  function resetSecondaryTableStates() {
+    setSecondaryTableName(null);
+    setSecondaryTableType(null);
+    setOgSecTableData([]);
+    setSecondaryTableData([]);
+    setSecTableSortingInfo(DEFAULT_COL_SORTING_INFO);
+    setSecondaryTableOffset(0);
+    setSecondaryTableManagedColumns({
+      originalColumns: [],
+      visibleColumns: [],
+      removedColumns: [],
+    });
+    setSecTableToolbarState(DEFAULT_SEC_TABLE_TOOLBAR_STATE);
+    setSecondaryTableSelectedRows([]);
+    setLeftClickedSecTableRow(null);
+    setRotationInfoTableSelectedRows([]);
+    secondaryTableRef.current = null;
+  }
+
+  function resetUndoRedoStacks() {
+    setUndoStack([]);
+    setRedoStack([]);
+  }
+
+  function updateUndoRedoStacksForNewOperation() {
+    setUndoStack((prevState) => [
+      ...prevState,
+      {
+        schedulingTableData: [...schedulingTableData],
+        secondaryTableData: [...secondaryTableData],
+        dropBucket: Array.isArray(dropBucket)
+          ? [...dropBucket]
+          : prevState.length > 0 && [prevState.length - 1].dropBucket
+          ? [prevState.length - 1].dropBucket
+          : null,
+        schTableSelectedFilters: [...schTableSelectedFilters],
+        secTableSelectedFilters: [...secTableSelectedFilters],
+        customCellColor: { ...customCellColor },
+      },
+    ]);
+    setRedoStack([]);
+  }
+
+  function maintainScrolledOffsetOfTables() {
+    try {
+      setSchedulingTableOffset(getTableScrolledOffset(schedulingTableRef));
+      setSecondaryTableOffset(getTableScrolledOffset(secondaryTableRef));
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  function resetPage() {
+    setDate(null);
+    setFeaturesList(null);
+    setActiveFeatures(null);
+    /* UNSAVED WORK STATES */
+    setLoadUnsavedWork(false);
+    setUnsavedWorkState(null);
+    setUpdateSchedulerStateInRedux(false);
+    /* SCHEDULING TABLE STATES */
+    setSchedulingTableName(null);
+    setOgSchTableData([]);
+    setSchedulingTableData([]);
+    setSchTableSortingInfo(DEFAULT_COL_SORTING_INFO);
+    setSchedulingTableOffset(0);
+    setSchedulingTableManagedColumns({
+      originalColumns: [],
+      visibleColumns: [],
+      removedColumns: [],
+    });
+    setSchedulingTableSelectedRows([]);
+    setLeftClickedSchTableRow(null);
+    setSchTableSelectedFilters([]);
+    /* SECONDARY TABLE STATES */
+    setSecondaryTableName(null);
+    setSecondaryTableType(null);
+    setOgSecTableData([]);
+    setSecondaryTableData([]);
+    setSecTableSortingInfo(DEFAULT_COL_SORTING_INFO);
+    setSecondaryTableOffset(0);
+    setSecondaryTableManagedColumns({
+      originalColumns: [],
+      visibleColumns: [],
+      removedColumns: [],
+    });
+    setSecTableToolbarState(DEFAULT_SEC_TABLE_TOOLBAR_STATE);
+    setSecondaryTableSelectedRows([]);
+    setLeftClickedSecTableRow(null);
+    setSecTableSelectedFilters([]);
+    /* DROP BUCKET STATE */
+    setDropBucket([]);
+    /* LAST MINUTE SPOTS STATE */
+    setLastMinuteSpots([]);
+    /* UNDO/REDO */
+    setUndoStack([]);
+    setRedoStack([]);
+    /* ROTATION INFO */
+    setRotationInfoTableSelectedRows([]);
+    /* UI STATES */
+    setStartTime('');
+    setShowLoader(false);
+    setCustomCellColor(null);
+    schedulingTableRef.current = null;
+    secondaryTableRef.current = null;
+  }
+
+  /* CONTEXT EXPORT */
+  return (
+    <SchedulerContext.Provider
+      value={{
+        page,
+        date,
+        featuresList,
+        activeFeatures,
+        loadUnsavedWork,
+        unsavedWorkState,
+        updateSchedulerStateInRedux,
+        schedulingTableName,
+        schedulingTableData,
+        schTableSortingInfo,
+        schedulingTableOffset,
+        schedulingTableManagedColumns,
+        schedulingTableSelectedRows,
+        leftClickedSchTableRow,
+        schTableSelectedFilters,
+        dropBucket,
+        lastMinuteSpots,
+        secondaryTableName,
+        secondaryTableType,
+        secondaryTableData,
+        secTableSortingInfo,
+        secondaryTableOffset,
+        secondaryTableManagedColumns,
+        secondaryTableSelectedRows,
+        leftClickedSecTableRow,
+        secTableSelectedFilters,
+        startTime,
+        undoStack,
+        redoStack,
+        schedulingTableRef,
+        secondaryTableRef,
+        secondaryAreaZindexRef,
+        secTableToolbarState,
+        rotationInfoTableSelectedRows,
+        showLoader,
+        customCellColor,
+        isScheduleAllowedToEdit,
+        isInsertLiveDialogOpen,
+        isAutoCalcNtcOffsetTime,
+        isNtcGroupingEnabled,
+        promoTypeOptions,
+        songTypeOptions,
+        ntcTypeOptions,
+        setPage,
+        setDate,
+        setFeaturesList,
+        setActiveFeatures,
+        setLoadUnsavedWork,
+        setUnsavedWorkState,
+        setUpdateSchedulerStateInRedux,
+        setSchedulingTableName,
+        setOgSchTableData,
+        setSchedulingTableData,
+        setSchTableSortingInfo,
+        setSchedulingTableOffset,
+        setSchedulingTableManagedColumns,
+        setSchedulingTableSelectedRows,
+        setLeftClickedSchTableRow,
+        setSchTableSelectedFilters,
+        setSecondaryTableName,
+        setSecondaryTableType,
+        setOgSecTableData,
+        setSecondaryTableData,
+        setSecTableSortingInfo,
+        setSecondaryTableOffset,
+        setSecondaryTableManagedColumns,
+        setSecondaryTableSelectedRows,
+        setLeftClickedSecTableRow,
+        setSecTableSelectedFilters,
+        setStartTime,
+        setDropBucket,
+        setLastMinuteSpots,
+        setUndoStack,
+        setRedoStack,
+        setSecTableToolbarState,
+        setRotationInfoTableSelectedRows,
+        setShowLoader,
+        setCustomCellColor,
+        setIsScheduleAllowedToEdit,
+        setIsInsertLiveDialogOpen,
+        setPromoTypeOptions,
+        setSongTypeOptions,
+        setNtcTypeOptions,
+        executeOperation,
+        resetAllSelectedRows,
+        resetSecondaryTableStates,
+        resetUndoRedoStacks,
+        maintainScrolledOffsetOfTables,
+        resetPage,
+      }}
+    >
+      {children}
+    </SchedulerContext.Provider>
+  );
+};
+
+export default SchedulerContextProvider;

@@ -1,0 +1,750 @@
+import { useState, useEffect, useMemo } from 'react';
+import { Badge, Dialog, Tooltip, Upload } from 'components/ui';
+import {
+  apiGetContentmaster,
+  apiGetcontentsuppliermap,
+  apiGetcontenttxversion,
+} from 'services/ProgrammingService';
+import { Button, Card } from 'components/ui';
+import { HiPlusCircle } from 'react-icons/hi';
+import HeaderExtra from 'views/Controls/HeaderExtra';
+import { Link } from 'react-router-dom';
+import DisplayTableContent from 'views/Controls/DisplayTableContent';
+import { useDispatch, useSelector } from 'react-redux';
+import { setDialogbox, setTXCode } from 'store/base/commonSlice';
+import ContentEditDialogbox from './PopEdit/ContentEditDialogbox';
+import SynopsisDialogbox from './PopEdit/SynopsisDialogbox';
+import SeasonMappingPOP from './PopEdit/SeasonMappingPOP';
+import EpisodeRestrictionsPop from './PopEdit/EpisodeRestrictionsPop';
+import MapStarcastPop from './PopEdit/MapStarcastPop';
+import InputwithVoice from 'components/ui/Input/InputwithVoice';
+import { setLOADERCHECK, setSTARCAST } from 'store/locale/localeSlice';
+import Rating from './PopEdit/Rating';
+import { hideStackedSideNav_secondary } from 'views/Scheduling/general';
+import Loader from 'views/Controls/Loader';
+import { setContent, setDialogboxName } from 'store/base/commonSlice';
+import { ButtonShow } from 'views/Controls/ButtonShow';
+import {
+
+  formatDateToDDMMMYYYY,
+  openNotification,
+} from 'views/Controls/GLOBALFUNACTION';
+import { IoIosCloudDownload, IoIosCloudUpload } from 'react-icons/io';
+import UploadingLoaderDialog from 'views/Controls/UploadingLoaderDialog';
+import FileSummaryDialog from './components/UploadContent/FileSummaryDialog';
+import appConfig from 'configs/app.config';
+import {
+  GREEN_700,
+  RED_700,
+} from 'views/Controls/Dashboard/constants/tw_colors';
+import StatisticCardwithfigure from 'components/common/StatisticCardwithfigure';
+import {
+  MdOutlineAddCard,
+  MdOutlineDesktopAccessDisabled,
+} from 'react-icons/md';
+import { VscVmActive } from 'react-icons/vsc';
+import { TbSpeakerphone } from 'react-icons/tb';
+import { COLOR_3, COLOR_4, COLOR_5, COLOR_8 } from 'constants/chart.constant';
+import { CLIENT } from 'views/Controls/clientListEnum';
+import ContentInfoDialog from '../FPCMaster/FPC_Edit/components/Toolbar/components/ContentInfoDialog';
+import StarCastEditDialog from './PopEdit/StarCastEditDialog';
+/* CONSTANTS */
+const STATUS_COLOR = {
+  1: 'bg-emerald-500',
+  0: 'bg-red-500',
+};
+
+const headerExtraContent = (
+  globalFilter,
+  setGlobalFilter,
+  setSelectedFile,
+  channel, path
+) => {
+  /* EVENT HANDLERS */
+  const handleBeforeUpload = async (files, fileList) => {
+    const allowedFileType = [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ];
+    let selectedFile;
+    if (files.length > 0) {
+      selectedFile = files[0];
+    } else {
+      openNotification('danger', 'Please select a file!');
+      return;
+    }
+    if (!allowedFileType.includes(selectedFile.type)) {
+      openNotification('danger', 'Please upload an XLSX file!');
+      return;
+    }
+    setSelectedFile(selectedFile);
+  };
+
+  const handleDownloadContentImport = () => {
+    try {
+      const link = document.createElement('a');
+      link.href = `${process.env.PUBLIC_URL}/Content_Template.xlsx`;
+      link.download = 'Content_Template.xlsx';
+      link.click();
+    } catch (error) {
+      console.error(error);
+      openNotification('danger', 'Something went wrong');
+    }
+  };
+
+  return (
+    <span className="flex items-center">
+      {/* <Tooltip title="Download Content">
+        <Upload
+          beforeUpload={handleDownloadContentImport}
+          uploadLimit={1}
+          accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+          showList={false}
+        >
+          <Button
+            variant="solid"
+            size="sm"
+            icon={<IoIosCloudDownload />}
+            className="mr-2"
+          />
+        </Upload>
+      </Tooltip> */}
+      <Tooltip title="Download Template">
+        <Button
+          variant="solid"
+          className="mr-1"
+          size="sm"
+          icon={<IoIosCloudDownload />}
+          onClick={handleDownloadContentImport}
+        />
+      </Tooltip>
+      <Tooltip title="Upload Content">
+        <Upload
+          beforeUpload={handleBeforeUpload}
+          uploadLimit={1}
+          accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+          showList={false}
+        >
+          <Button
+            variant="solid"
+            size="sm"
+            icon={<IoIosCloudUpload />}
+            className="mr-2"
+          />
+        </Upload>
+      </Tooltip>
+      <span className="mr-1   font-semibold">
+        <InputwithVoice
+          value={globalFilter ?? ''}
+          className="solid"
+          placeholder="Search all columns..."
+          size="sm"
+          onChange={(e) => {
+            //console.log('onChange', value)
+            if (/^[0-9a-zA-Z\s]*$/.test(e.target.value)) {
+              setGlobalFilter(e.target.value);
+            }
+          }}
+        />
+      </span>
+      <span className="mr-1 font-semibold">
+        <Link
+          to={
+            channel.label == CLIENT.USA_Forbes ? '/addtemplate' : (path == '/EventTeamPlaner' || path == 'EventTeamPlaner') ? '/addEventTeamPlaner' : '/addcontent'
+          }
+        >
+          <Button block variant="solid" size="sm" icon={<HiPlusCircle />}>
+            Add {channel.label == CLIENT.USA_Forbes ? 'Template' : 'Content'}
+          </Button>
+        </Link>
+      </span>
+    </span>
+  );
+};
+
+const Contentmaster = () => {
+  /* REDUX */
+  hideStackedSideNav_secondary();
+  const channel = useSelector((state) => state.locale.selectedChannel);
+  const currentHref = window.location.href; // Get the full URL
+  const hashPart = currentHref.split('#')[1]; // Get the part after the '#'
+  const path = hashPart ? hashPart.split('/')[1] : '';
+  const token = useSelector((state) => state.auth.session.token);
+  const { Dialogbox, DialogboxName } = useSelector(
+    (state) => state.base.common,
+  );
+  const dispatch = useDispatch();
+
+  /* STATES */
+  const [editData, seteditData] = useState(['']);
+  const [globalFilter, setGlobalFilter] = useState('');
+  const [sorting, setSorting] = useState([]);
+  const [TableShow, setTableShow] = useState(false);
+  const [showLoader, setshowLoader] = useState(false);
+  const [data, setdata] = useState(['']);
+  const [dataFilter, setdataFilter] = useState(['']);
+  const [countThisMonth, setcountThisMonth] = useState(['']);
+  const [isOpen, setIsOpen] = useState(false);
+  const [contentInfo, setContentInfo] = useState({});
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [fileArray, setFileArray] = useState(null);
+  const [isFileUploadingLoaderOpen, setIsFileUploadingLoaderOpen] =
+    useState(false);
+  const [isFileSummaryDialogOpen, setIsFileSummaryDialogOpen] = useState(false);
+  const [uploadPercent, setUploadPercent] = useState(0);
+
+  /* HOOKS */
+  const columns = useMemo(
+    () => [
+      {
+        header: channel.label == CLIENT.USA_Forbes ? 'Template' : 'Content',
+        accessorKey: 'ContentName',
+        cell: (props) => {
+          const row = props.row.original;
+          const handleImageClick = () => {
+            setContentInfo(row); // Set the image URL for the dialog
+            setIsOpen(true); // Open the dialog
+          };
+          return (
+            <Tooltip title={row.ContentName}>
+              <div className="flex items-center" onClick={handleImageClick}>
+                <Badge
+                  style={{ minWidth: '9px', marginRight: 10 }}
+                  className={STATUS_COLOR[row.IsActive]}
+                />
+                <img
+                  src={row.Content_Image}
+                  style={{
+                    height: '30px',
+                    width: '30px',
+                  }}
+                  className="hover:opacity-80 cursor-pointer"
+                // Handle click event to open dialog
+                />
+
+                <span
+                  className="ml-2 rtl:mr-2 capitalize"
+                  style={{
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    width: '90%',
+                    maxWidth: '90%',
+                  }}
+                >
+                  {row.ContentName}
+                </span>
+              </div>
+            </Tooltip>
+          );
+        },
+      },
+
+      {
+        header: 'Type',
+        accessorKey: 'ContentType.ContentTypeName',
+      },
+      {
+        header: 'Genre',
+        accessorKey: 'GenreMaster.GenreName',
+      },
+      {
+        header: 'Dur. (Min)',
+        accessorKey: 'SlotDuration',
+      },
+      {
+        header: 'Language',
+        accessorKey: 'Language.LanguageName',
+      },
+
+      {
+        header: 'Release',
+        accessorKey: 'FPCReleaseDate',
+        cell: (props) => {
+          const row = props.row.original;
+          const releaseDate = formatDateToDDMMMYYYY(new Date(row.FPCReleaseDate));
+          const addedOnDate = formatDateToDDMMMYYYY(new Date(row.AddedOn));
+
+          // Calculate the difference in days between today and AddedOn
+          const today = new Date();
+          const diffInTime = today - addedOnDate;
+          const diffInDays = diffInTime / (1000 * 60 * 60 * 24);
+
+          // Apply red color if AddedOn is within the last 7 days
+          const isRecent = diffInDays <= 7;
+
+          return (
+            <Tooltip title={isRecent ? 'Recently Added Event' : 'Previous Added Event'}>
+              <div className={`flex items-center `}>
+                <span className={`ml-2 rtl:mr-2 ${isRecent ? 'text-yellow-500 font-extrabold' : ''}`}>
+                  {/* {FORMATDATE_FOR_EVERY(releaseDate)} */}
+                  {releaseDate}
+                </span>
+              </div>
+            </Tooltip>
+          );
+        },
+      },
+
+    ],
+    [],
+  );
+
+  /* USE EFFECTS */
+  useEffect(() => {
+    hideStackedSideNav_secondary();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        if (selectedFile) {
+          setFileArray(await getFileResponse());
+          setUploadPercent(100);
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          setSelectedFile(null);
+          setIsFileUploadingLoaderOpen(false);
+          setIsFileSummaryDialogOpen(true);
+        }
+      } catch (error) {
+        console.error(error);
+        setSelectedFile(null);
+        openNotification('danger', 'Something went wrong while uploading file');
+      }
+    })();
+  }, [selectedFile]);
+
+  useEffect(() => {
+    if (path == '/EventTeamPlaner' || path == 'EventTeamPlaner') {
+      setTableShow(false);
+      GetContents(1);
+    } else {
+      GetContents(0);
+      setTableShow(true);
+    }
+  }, [channel, path]);
+
+  useEffect(() => {
+    let interval;
+    if (isFileUploadingLoaderOpen) {
+      interval = setInterval(() => {
+        if (uploadPercent >= 90) clearInterval(interval);
+        else if (uploadPercent < 100) setUploadPercent((prev) => prev + 1);
+      }, 1000);
+    } else setUploadPercent(0);
+    return () => clearInterval(interval);
+  }, [isFileUploadingLoaderOpen, uploadPercent]);
+
+  const currentDate = new Date();
+  const currentYear = currentDate.getFullYear();
+  const currentMonth = currentDate.getMonth();
+  /* HELPER FUNCTIONS */
+  const GetContents = (IsGroup, ContentCode) => {
+    (async () => {
+      setshowLoader(true);
+      let Parameters = {
+        LocationCode: channel.LocationCode,
+        ChannelCode: channel.ChannelCode,
+        IsGroup: IsGroup,
+        EventContentCode: ContentCode,
+      };
+      try {
+        const resp = await apiGetContentmaster(Parameters);
+        if (resp.status == 204) {
+          setshowLoader(false);
+          setdata([]);
+          setdataFilter([]);
+          return;
+        }
+        setdata(resp.data);
+        setdataFilter(resp.data);
+        const countThisMonth = resp.data.filter((content) => {
+          const addedOnDate = new Date(content.AddedOn);
+          return (
+            addedOnDate.getFullYear() === currentYear &&
+            addedOnDate.getMonth() === currentMonth
+          );
+        });
+        setcountThisMonth(countThisMonth);
+        setshowLoader(false);
+      } catch (error) {
+        console.log(error.response.status);
+        if (error.response.status == 0) {
+          setshowLoader(false);
+          setdataFilter([]);
+          setdata([]);
+          return;
+        }
+      }
+    })();
+    dispatch(setSTARCAST([]));
+    dispatch(setLOADERCHECK(false));
+  };
+
+  const openDialog = async (name, data) => {
+    if (name == 'Template Master' || name == 'Content Master' || name == 'Synopsis') {
+
+      try {
+        // Initialize formatted data
+        let formattedTXVersion = [];
+        let formattedSupplier = [];
+
+        // Fetch TXVersion
+        try {
+          const TXVersion = await apiGetcontenttxversion(data.ContentCode);
+          if (TXVersion.status === 200) {
+            formattedTXVersion = TXVersion.data.map((option) => ({
+              value: option.TXVersion.TXVersionCode,
+              label: option.TXVersion.TXVersionName,
+            }));
+          }
+        } catch (error) {
+          console.error("Error fetching TXVersion:", error);
+        }
+
+        // Fetch Supplier
+        try {
+          const Supplier = await apiGetcontentsuppliermap(data.ContentCode);
+          if (Supplier.status === 200) {
+            formattedSupplier = Supplier.data.map((option) => ({
+              value: option.SupplierMasterTable.SupplierCode,
+              label: option.SupplierMasterTable.SupplierName,
+            }));
+          }
+          else {
+            formattedSupplier = []
+          }
+        } catch (error) {
+          console.error("Error fetching Supplier:", error);
+        }
+        dispatch(
+          setTXCode({
+            Supplier: formattedSupplier, // Blank array if Supplier API fails
+            TXVersion: formattedTXVersion, // Blank array if TXVersion API fails
+          })
+        );
+
+        // Set content and dialog state
+        dispatch(setContent(data));
+
+        dispatch(setDialogboxName(name));
+        dispatch(setDialogbox(true));
+      } catch (error) {
+        // Handle unexpected errors
+        console.error("Unexpected error:", error);
+
+        // Ensure dialog state is updated even in case of errors
+        dispatch(setContent(data));
+        dispatch(setDialogboxName(name));
+        dispatch(setDialogbox(true));
+      }
+
+    };
+  }
+
+
+  const onDialogClose = (e) => {
+    dispatch(setTXCode());
+    dispatch(setSTARCAST([]));
+    dispatch(setDialogbox(false));
+  };
+
+  const getFileResponse = async () => {
+    try {
+      const bodyContent = new FormData();
+      setIsFileUploadingLoaderOpen(true);
+      const arrayBuffer = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsArrayBuffer(selectedFile);
+        reader.onload = function (event) {
+          resolve(event.target.result);
+        };
+        reader.onerror = function (error) {
+          reject(error);
+        };
+      });
+      const blob = new Blob([arrayBuffer], { type: selectedFile.type });
+      bodyContent.append('file', blob, selectedFile.name);
+      let response = await fetch(
+        appConfig.apiPrefix +
+        '/contentmaster/uploadContent/?LocationCode=' +
+        channel.LocationCode,
+        {
+          method: 'POST',
+          body: bodyContent,
+          headers: {
+            Accept: '*/*',
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      response = await response.json();
+      if (Array.isArray(response)) {
+        response = response.map((row) =>
+          row.Statuscode === 0
+            ? { ...row, bgColor: RED_700, fontColor: 'white' }
+            : { ...row, bgColor: GREEN_700, fontColor: 'white' },
+        );
+        return response;
+      } else {
+        throw new Error('Something went wrong while uploading file');
+      }
+    } catch (error) {
+      setIsFileUploadingLoaderOpen(false);
+      throw error;
+    }
+  };
+  const FilterTableData_On_Card = (CardName) => {
+    switch (CardName) {
+      case channel.label == CLIENT.USA_Forbes
+        ? 'Total Template'
+        : 'Total Content':
+        setdataFilter(data);
+        break;
+      case channel.label == CLIENT.USA_Forbes
+        ? 'Active Template'
+        : 'Active Content':
+        setdataFilter(data.filter((item) => item.IsActive == 1));
+        break;
+      case channel.label == CLIENT.USA_Forbes
+        ? 'InActive Template'
+        : 'InActive Content':
+        setdataFilter(data.filter((item) => item.IsActive == 0));
+        break;
+      case 'Current Month Added':
+        setdataFilter(countThisMonth);
+        break;
+      default:
+        break;
+    }
+  };
+
+  return (
+    <>
+
+      < ContentInfoDialog
+        isDialogOpen={isOpen}
+        setIsDialogOpen={setIsOpen}
+        contentInfo={contentInfo} />
+
+      <Card
+        header={<HeaderExtra />}
+        headerExtra={headerExtraContent(
+          globalFilter,
+          setGlobalFilter,
+          setSelectedFile,
+          channel, path
+        )}
+        className="flex flex-col h-full"
+        bodyClass="grow"
+        style={{ overflow: 'scroll' }}
+
+      >
+        <div
+          className={`grid grid-cols-1 gap-4 mb-4 mt-2 lg:grid-cols-4 xl:grid-cols-4`}
+        >
+          <StatisticCardwithfigure
+            CardHeight={180}
+            AnimateColorClass="order3"
+            Icon={<TbSpeakerphone style={{ fontSize: 35, color: COLOR_3 }} />}
+            CardName={
+              channel.label == CLIENT.USA_Forbes
+                ? 'Total Template'
+                : 'Total Content'
+            }
+            CardNote="Content is used for creating daily Playlist."
+            CardFigure={data.length}
+            COLOR="bg-emerald-500"
+            Function={FilterTableData_On_Card}
+            IsFunction={true}
+            cursor={true}
+          ></StatisticCardwithfigure>
+
+          <StatisticCardwithfigure
+            CardHeight={180}
+            AnimateColorClass="order2"
+            Icon={<VscVmActive style={{ fontSize: 35, color: COLOR_4 }} />}
+            CardName={
+              channel.label == CLIENT.USA_Forbes
+                ? 'Active Template'
+                : 'Active Content'
+            }
+            CardNote="Content is ready to Schedule in playlist."
+            CardFigure={data.filter((item) => item.IsActive == 1).length}
+            COLOR="bg-amber-500"
+            Function={FilterTableData_On_Card}
+            IsFunction={true}
+            cursor={true}
+          ></StatisticCardwithfigure>
+
+          <StatisticCardwithfigure
+            CardHeight={180}
+            AnimateColorClass="order1"
+            Icon={
+              <MdOutlineDesktopAccessDisabled
+                style={{ fontSize: 35, color: COLOR_5 }}
+              />
+            }
+            CardName={
+              channel.label == CLIENT.USA_Forbes
+                ? 'InActive Template'
+                : 'InActive Content'
+            }
+            CardNote="Content is inactive for playlist template"
+            CardFigure={data.filter((item) => item.IsActive == 0).length}
+            COLOR="bg-red-500"
+            Function={FilterTableData_On_Card}
+            IsFunction={true}
+            cursor={true}
+          ></StatisticCardwithfigure>
+
+          <StatisticCardwithfigure
+            CardHeight={180}
+            AnimateColorClass="order8"
+            Icon={<MdOutlineAddCard style={{ fontSize: 35, color: COLOR_8 }} />}
+            CardName="Current Month Added"
+            CardNote="New Content is added in current month."
+            CardFigure={countThisMonth.length}
+            COLOR="bg-yellow-500"
+            Function={FilterTableData_On_Card}
+            IsFunction={true}
+            cursor={true}
+          ></StatisticCardwithfigure>
+        </div>
+        {data.length == 0 && (
+          <p className="flex justify-center ">Data Not Found</p>
+        )}
+        {TableShow && data.length > 0 ? (
+          <DisplayTableContent
+            data={dataFilter}
+            columns={columns}
+            globalFilter={globalFilter}
+            setGlobalFilter={setGlobalFilter}
+            seteditData={seteditData}
+            ExportName={'ContentMaster'}
+            sorting={sorting}
+            setSorting={setSorting}
+          />
+        ) : (
+          <div className="grid grid-cols-4 gap-4">
+            {data.map((content, key) => (
+              <div className="" key={key}>
+                <Card
+                  className={`${typeof streamedPercent === 'number' && 'rounded-bl-none'
+                    }`}
+                  bodyClass={'p-3'}
+                >
+                  <div
+                    className="flex justify-between items-start mb-2"
+                    onClick={() => {
+                      if (path == '/EventTeamPlaner' || path == 'EventTeamPlaner') {
+                        GetContents(1, content.ContentCode)
+                      }
+                      else {
+                        GetContents(0, content.ContentCode);
+                      }
+                      setTableShow(true);
+                    }}
+                  >
+                    <div className="flex items-center cursor-pointer ">
+                      <p className="font-semibold text-teal-600 text-sm ">
+                        {content.Content_Image ? (
+                          <img
+                            src={content.Content_Image}
+                            style={{
+                              height: '30px',
+                              width: '30px',
+                              borderRadius: 900,
+                            }}
+                            className="hover:opacity-80 cursor-pointer mr-2"
+                          />
+                        ) : (
+                          <img
+                            src={'/img/3204121.jpg'}
+                            style={{
+                              height: '30px',
+                              width: '30px',
+                              borderRadius: 900,
+                            }}
+                            className="hover:opacity-80 cursor-pointer  mr-2" // Handle click event to open dialog
+                          />
+                        )}{' '}
+                      </p>
+                      <div>
+                        <p className="font-semibold text-teal-600 text-sm ">
+                          {content.ContentType?.ContentTypeName}
+                        </p>
+                        <Tooltip title={content.ContentName}>
+                          <p className="font-semibold text-sm text-slate-300">
+                            {content.ContentName?.length > 22
+                              ? `${content.ContentName?.substring(0, 22)}...`
+                              : content?.ContentName}
+                          </p>
+                        </Tooltip>
+                      </div>
+                    </div>
+                    <div className=" text-sm text-slate-300">
+                      <p className="mb-1">{content.Language?.LanguageName}</p>
+                    </div>
+                  </div>
+                  <ButtonShow
+                    row={{ original: content }}
+                    openDialog={openDialog}
+                  />
+                </Card>
+              </div>
+            ))}
+          </div>
+        )}
+        <Dialog
+          isOpen={Dialogbox}
+          width={DialogboxName == 'Rating' ? 500 : 1000}
+          onClose={onDialogClose}
+          onRequestClose={onDialogClose}
+        >
+          <div className="flex flex-col h-full justify-between">
+            <h5 className="mb-4">{DialogboxName}</h5>
+            {(() => {
+              switch (DialogboxName) {
+                case CLIENT.USA_Forbes == channel.label
+                  ? 'Template Master'
+                  : 'Content Master':
+                  return <ContentEditDialogbox GetContents={GetContents} path={path} />;
+                case 'Synopsis':
+                  return <SynopsisDialogbox GetContents={GetContents} path={path} />;
+                case 'EpisodeRestrictions':
+                  return <EpisodeRestrictionsPop />;
+                case 'SeasonMapping':
+                  return <SeasonMappingPOP />;
+                case 'StarCastEdit':
+                  return <StarCastEditDialog />;
+                case 'MapStarCast':
+                  return <MapStarcastPop />;
+                case 'Rating':
+                  return <Rating />;
+
+                default:
+                  return null;
+              }
+            })()}
+          </div>
+        </Dialog>
+      </Card>
+      <UploadingLoaderDialog
+        title="Uploading File"
+        isOpen={isFileUploadingLoaderOpen}
+        uploadPercent={uploadPercent}
+      />
+      {Array.isArray(fileArray) && (
+        <FileSummaryDialog
+          fileArray={fileArray}
+          setFileArray={setFileArray}
+          isOpen={isFileSummaryDialogOpen}
+          setIsOpen={setIsFileSummaryDialogOpen}
+        />
+      )}
+      <Loader showLoader={showLoader} />
+    </>
+  );
+};
+
+export default Contentmaster;

@@ -1,0 +1,13 @@
+import React from 'react'
+import { useSelector } from 'react-redux';
+
+const StarCastEditDialog = () => {
+    const { Content } = useSelector((state) => state.base.common);
+    console.log(Content);
+
+    return (
+        <div><h1>StarCastEdit</h1></div>
+    )
+}
+
+export default StarCastEditDialog

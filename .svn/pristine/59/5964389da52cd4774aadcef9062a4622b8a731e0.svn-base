@@ -1,0 +1,145 @@
+import { Button, Dialog, Input } from 'components/ui';
+import React, { useContext, useState } from 'react';
+import {
+  getFormattedTime,
+  openNotification,
+} from 'views/Controls/GLOBALFUNACTION';
+import {
+  EMPTIABLE_FIELDS,
+  TIME_FIELDS,
+} from 'views/Scheduling/Scheduler/constants';
+import SchedulerContext from 'views/Scheduling/Scheduler/context/SchedulerContext';
+
+function EditRowDialog({ isDialogOpen, setIsDialogOpen, row, editRowInfo }) {
+  /* CONTEXT */
+  const { setSchedulingTableData, maintainScrolledOffsetOfTables } =
+    useContext(SchedulerContext);
+
+  /* STATES */
+  const [editedRow, setEditedRow] = useState(row);
+  const [invalidColumns, setInvalidColumns] = useState([]);
+
+  /* EVENT HANDLERS */
+  const handleClose = () => {
+    setIsDialogOpen(false);
+  };
+
+  const handleInputChange = (event, column) => {
+    try {
+      if (TIME_FIELDS.includes(column)) {
+        setEditedRow({
+          ...editedRow,
+          [column]: getFormattedTime(event, editedRow[column]),
+        });
+      } else {
+        setEditedRow({
+          ...editedRow,
+          [column]: event.target.value,
+        });
+      }
+      setInvalidColumns([]);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleSubmit = () => {
+    try {
+      if (validateCloumns()) {
+        setSchedulingTableData((prev) => {
+          const newData = [...prev];
+          newData[row.rowIndex] = editedRow;
+          return newData;
+        });
+        maintainScrolledOffsetOfTables();
+        openNotification('success', 'Changes saved successfully');
+        handleClose();
+      }
+    } catch (error) {
+      openNotification('danger', 'Something went wrong while saving changes');
+      console.error(error);
+    }
+  };
+
+  /* HELPER FUNCTIONS */
+  const validateCloumns = () => {
+    let invalidColumns = [];
+    editRowInfo.editableColumns.forEach((column) => {
+      const columnAccessorKey = column.accessorKey;
+      if (
+        (!EMPTIABLE_FIELDS.includes(columnAccessorKey) &&
+          !editedRow[columnAccessorKey]) ||
+        (TIME_FIELDS.includes(columnAccessorKey) &&
+          editedRow[columnAccessorKey].length < 11)
+      ) {
+        invalidColumns.push(columnAccessorKey);
+      }
+    });
+    setInvalidColumns(invalidColumns);
+    if (invalidColumns.length === 0) return true;
+    return false;
+  };
+
+  return (
+    <>
+      {editRowInfo && (
+        <Dialog
+          isOpen={isDialogOpen}
+          onClose={handleClose}
+          onRequestClose={handleClose}
+          className="z-[1000]"
+        >
+          <h5 className="mb-4">Edit Event</h5>
+          <div className="max-h-96 overflow-y-auto flex flex-col gap-4">
+            {editRowInfo.editableColumns.map((column) => {
+              const columnAccessorKey = column.accessorKey;
+              return (
+                <div>
+                  <p className="text-white mb-1">
+                    {columnAccessorKey}{' '}
+                    {!EMPTIABLE_FIELDS.includes(columnAccessorKey) && (
+                      <span className="text-red-500">*</span>
+                    )}
+                  </p>
+                  <Input
+                    size="sm"
+                    value={editedRow[columnAccessorKey]}
+                    onChange={(event) =>
+                      handleInputChange(event, columnAccessorKey)
+                    }
+                    textArea={column.isTextArea}
+                  />
+                  {invalidColumns.includes(columnAccessorKey) && (
+                    <p className="text-red-500 ml-1">
+                      Invalid {columnAccessorKey}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+            {editRowInfo.visibleColumns.map((column) => {
+              const columnAccessorKey = column.accessorKey;
+              return (
+                <div>
+                  <p className="text-white mb-1">{columnAccessorKey}</p>
+                  <Input
+                    size="sm"
+                    value={editedRow[columnAccessorKey]}
+                    disabled={true}
+                  />
+                </div>
+              );
+            })}
+          </div>
+          <div className="text-right mt-6">
+            <Button variant="solid" onClick={handleSubmit}>
+              Submit
+            </Button>
+          </div>
+        </Dialog>
+      )}
+    </>
+  );
+}
+
+export default EditRowDialog;

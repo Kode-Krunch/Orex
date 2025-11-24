@@ -1,0 +1,1 @@
+{"version":3,"file":"static/css/1845.f8f32885.chunk.css","mappings":"AAAA,mCACE,UAAY,CACZ,qBACF","sources":["views/Billing/InvoiceSeries/index.css"],"sourcesContent":[".custom-dropdown .p-dropdown-label {\r\n  color: black;\r\n  padding-inline: 0.25rem;\r\n}\r\n"],"names":[],"sourceRoot":""}

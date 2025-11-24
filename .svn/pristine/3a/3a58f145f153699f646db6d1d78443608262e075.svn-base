@@ -1,0 +1,1447 @@
+import {
+  calculatePercentageValue,
+  FORMATDATE_FOR_EVERY,
+  formatDateToDDMMMYYYY,
+  getDateFromDateTime,
+  getFieldTotal,
+  getTableWithTotal,
+  numberToINRFormat,
+  numberToWordsINRFormat,
+} from 'views/Controls/GLOBALFUNACTION';
+import pdfMake from 'pdfmake/build/pdfmake';
+import * as pdfFonts from 'pdfmake/build/vfs_fonts';
+import { getTaxPercentage, getTelecastDate } from './helperFunctions';
+import { CLIENT } from 'views/Controls/clientListEnum';
+import { kpg } from './jso';
+import {
+  EMPTY_LINE,
+  PAGE_MARGINS,
+  PAGE_SIZE,
+  PAGE_WIDTH,
+  QR_CODE_SIZE,
+  STYLES,
+} from './constants';
+pdfMake.vfs = pdfFonts.default.vfs;
+
+/* HELPER DEFINITIONS */
+const getHeaderDefinition = (invoice, conditonCheckforChannel) => {
+  try {
+    return {
+      columns: [
+        {
+          width: (PAGE_WIDTH * 15) / 100,
+          text: '',
+        },
+        {
+          width: '*',
+          alignment: 'center',
+          margin: [0, 10, 0, 0],
+          text: [
+            {
+              text: `${conditonCheckforChannel
+                ? invoice.ChannelName
+                : invoice.ParentCompany
+                }\n`,
+              style: 'tableKeyLarge',
+            },
+            { ...EMPTY_LINE },
+            {
+              text: `${invoice.ParentCorpAddress1 + '-400 053'}\n`,
+              style: 'secondaryTextBold',
+            },
+            {
+              text: conditonCheckforChannel
+                ? '806, Aston, Sundervan Complex, Lokhandwala Road, Shastri Nagar, Andheri(West), Mumbai - 400 053\n'
+                : '',
+              style: 'secondaryTextBold',
+            },
+            { ...EMPTY_LINE },
+            { ...EMPTY_LINE },
+            {
+              text: conditonCheckforChannel
+                ? `CIN No : U92412MH2011PTC224530`
+                : '',
+              style: 'secondaryTextBold',
+            },
+          ],
+        },
+        {
+          width: (PAGE_WIDTH * 18) / 100,
+          height: (PAGE_WIDTH * 8) / 100,
+          image: invoice.Channel_Image,
+          alignment: 'center',
+          margin: [0, 10, 5, 0],
+        },
+      ],
+    };
+  } catch (error) {
+    throw error;
+  }
+};
+
+const getAddressDefinition = (address) => {
+  try {
+    const addressArr = address.split(',').map((part) => part.trim());
+    const addressDefinition = [];
+    for (let i = 0; i < addressArr.length; i += 3) {
+      const addressLine = addressArr.slice(i, i + 3).join(', ') + '\n';
+      addressDefinition.push({ text: addressLine, style: 'secondaryTextBold' });
+    }
+    return addressDefinition;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const getTaxesDefinition = (
+  cgst,
+  sgst,
+  igst,
+  cgstAmount,
+  sgstAmount,
+  igstAmount,
+) => {
+  try {
+    let taxesDefinition = [];
+    if (cgst) {
+      taxesDefinition.push([
+        {
+          text: `${cgst.TaxPercent}%`,
+          style: 'tableKey',
+          borderColor: ['white', 'white', 'white', 'white'],
+        },
+        {
+          text: 'Add:CGST',
+          style: 'tableKey',
+          borderColor: ['white', 'white', 'white', 'white'],
+        },
+        {
+          text: numberToINRFormat(cgstAmount),
+          style: 'tableKey',
+          alignment: 'right',
+          borderColor: ['white', 'white', 'white', 'white'],
+        },
+      ]);
+    }
+    if (sgst) {
+      taxesDefinition.push([
+        {
+          text: `${sgst.TaxPercent}%`,
+          style: 'tableKey',
+          borderColor: ['white', 'white', 'white', 'white'],
+        },
+        {
+          text: 'Add:SGST',
+          style: 'tableKey',
+          borderColor: ['white', 'white', 'white', 'white'],
+        },
+        {
+          text: numberToINRFormat(sgstAmount),
+          style: 'tableKey',
+          alignment: 'right',
+          borderColor: ['white', 'white', 'white', 'white'],
+        },
+      ]);
+    }
+    if (igst) {
+      taxesDefinition.push([
+        {
+          text: `${igst.TaxPercent}%`,
+          style: 'tableKey',
+          borderColor: ['white', 'white', 'white', 'white'],
+        },
+        { text: 'Add:IGST', style: 'tableKey' },
+        {
+          text: numberToINRFormat(igstAmount),
+          style: 'tableKey',
+          alignment: 'right',
+          borderColor: ['white', 'white', 'white', 'white'],
+        },
+      ]);
+    }
+    return taxesDefinition;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const getBillDefinition = (invoice, taxes, distinctTelecastReport, channel) => {
+  try {
+    /* DO ALL PRE-PROCESSING HERE */
+    // Calculate all amounts
+    const grossAmount = invoice.GrossAmount;
+    const agencyShare = invoice.AgencyShare;
+    const netAmount = grossAmount - agencyShare;
+    const cgst = getTaxPercentage(taxes, invoice, 'CGST');
+    const sgst = getTaxPercentage(taxes, invoice, 'SGST');
+    const igst = getTaxPercentage(taxes, invoice, 'IGST');
+    let cgstAmount,
+      sgstAmount,
+      igstAmount,
+      totalAmountIncTaxes = netAmount;
+    if (cgst) {
+      cgstAmount = calculatePercentageValue(cgst.TaxPercent, netAmount);
+      totalAmountIncTaxes = totalAmountIncTaxes + cgstAmount;
+    }
+    if (sgst) {
+      sgstAmount = calculatePercentageValue(sgst.TaxPercent, netAmount);
+      totalAmountIncTaxes = totalAmountIncTaxes + sgstAmount;
+    }
+    if (igst) {
+      igstAmount = calculatePercentageValue(igst.TaxPercent, netAmount);
+      totalAmountIncTaxes = totalAmountIncTaxes + igstAmount;
+    }
+    totalAmountIncTaxes = Math.round(totalAmountIncTaxes);
+    const conditonCheckforChannel =
+      channel.label === CLIENT.FOOD_INDIA || channel.label === CLIENT.FOOD_USA;
+    const tableBody = conditonCheckforChannel
+      ? [
+        [
+          { text: 'Agency Name :', style: 'tableKey' },
+          {
+            text: `${invoice.AgencyName} - ${invoice.agencyAddress1}`,
+            style: 'tableValue',
+          },
+        ],
+        [
+          { text: 'GST Number :', style: 'tableKey' },
+          { text: invoice.AgencyGSTN_ID, style: 'tableValue' },
+        ],
+        [
+          { text: 'State & State Code :', style: 'tableKey' },
+          {
+            text: `${invoice.AgencyStateName} - ${invoice.AgencyStateTinNo}`,
+            style: 'tableValue',
+          },
+        ],
+        [
+          { text: 'Advertiser :', style: 'tableKey' },
+          {
+            text: `${invoice.ClientName}  \n\n${invoice.ClientAddress} - ${invoice.ChannelStateName}`,
+            style: 'tableValue',
+          },
+        ],
+        [
+          { text: 'Brand Name :', style: 'tableKey' },
+          { text: invoice.BrandName, style: 'tableValue' },
+        ],
+        [
+          { text: 'Product Name :', style: 'tableKey' },
+          { text: invoice.ProductName, style: 'tableValue' },
+        ],
+        [
+          { text: '', style: 'tableKey' },
+          { text: '', style: 'tableValue' },
+        ],
+        [
+          { text: '', style: 'tableKey' },
+          { text: '', style: 'tableValue' },
+        ],
+      ]
+      : [
+        [
+          { text: 'State of Service Provider :', style: 'tableKey' },
+          { text: invoice.ChannelStateName, style: 'tableValue' },
+        ],
+        [
+          { text: 'State Code of Service Provider:', style: 'tableKey' },
+          { text: invoice.ChannelStateTinNo, style: 'tableValue' },
+        ],
+        [
+          { text: 'GSTIN of Service Provider :', style: 'tableKey' },
+          { text: invoice.ChannelGSTN_ID, style: 'tableValue' },
+        ],
+        [
+          { text: 'PAN of Service Provider :', style: 'tableKey' },
+          { text: '', style: 'tableValue' },
+        ],
+        [
+          { text: 'Address of Service Provider :', style: 'tableKey' },
+          { text: invoice.ParentRegdAddress1, style: 'tableValue' },
+        ],
+      ];
+
+    const tableBodyRight = conditonCheckforChannel
+      ? [
+        [
+          { text: 'Invoice Number :', style: 'tableKey' },
+          { text: invoice.INVOICENO, style: 'tableValue' },
+        ],
+        [
+          { text: 'Invoice Date :', style: 'tableKey' },
+          {
+            text: FORMATDATE_FOR_EVERY(invoice.InvoiceDate),
+            style: 'tableValue',
+          },
+        ],
+        [
+          { text: 'Channel :', style: 'tableKey' },
+          {
+            text: channel.ChannelName,
+            style: 'tableValue',
+          },
+        ],
+        [
+          { text: 'Nature of Business :', style: 'tableKey' },
+          {
+            text: `${'Broadcasting Services'}  \n\n${''}`,
+            style: 'tableValue',
+          },
+        ],
+        [
+          { text: 'Ro Ref Number :', style: 'tableKey' },
+          {
+            text: invoice.ReferenceNumber,
+            style: 'tableValue',
+          },
+        ],
+        [
+          { text: 'Sales Rep :', style: 'tableKey' },
+          {
+            text: `${invoice.PersonnelName}  \n\n${''}`,
+            style: 'tableValue',
+          },
+        ],
+        [
+          { text: 'Deal Ref No :', style: 'tableKey' },
+          {
+            text: invoice.BookingReferenceNumber,
+            style: 'tableValue',
+          },
+        ],
+        [
+          { text: 'Billing Period :', style: 'tableKey' },
+          {
+            text: getTelecastDate(invoice.FromDate, invoice.UptoDate),
+            style: 'tableValue',
+          },
+        ],
+      ]
+      : [
+        [
+          { text: 'Invoice Number :', style: 'tableKey' },
+          { text: invoice.INVOICENO, style: 'tableValue' },
+        ],
+        [
+          { text: 'Invoice Date :', style: 'tableKey' },
+          {
+            text: getDateFromDateTime(invoice.InvoiceDate),
+            style: 'tableValue',
+          },
+        ],
+        [
+          { text: 'Telecast Period :', style: 'tableKey' },
+          {
+            text: getTelecastDate(invoice.FromDate, invoice.UptoDate),
+            style: 'tableValue',
+          },
+        ],
+        [
+          { text: 'RO No. & Date :', style: 'tableKey' },
+          {
+            text: `${invoice.BookingCode} & ${formatDateToDDMMMYYYY(
+              invoice.BookingDate,
+            )}`,
+            style: 'tableValue',
+          },
+        ],
+        [
+          { text: 'Client RO Ref No. :', style: 'tableKey' },
+          {
+            text: invoice.BookingReferenceNumber,
+            style: 'tableValue',
+          },
+        ],
+        [
+          { text: 'Client', style: 'tableKey' },
+          { text: invoice.ClientName, style: 'tableValue' },
+        ],
+        [
+          { text: 'Product', style: 'tableKey' },
+          {
+            text: invoice.BrandName,
+            style: 'tableValue',
+          },
+        ],
+      ];
+
+    const instructions = conditonCheckforChannel
+      ? [
+        {
+          text: 'Instructions :',
+          style: 'secondaryTextBold',
+        },
+        { ...EMPTY_LINE },
+        { text: '\n', style: { lineHeight: 0.3 } },
+        {
+          columns: [
+            {
+              width: 'auto',
+              text: '1 We warrant that all broadcast information shown on this invoice was taken from program logs.',
+              style: 'secondaryText',
+              margin: [0, 0, 10, 0],
+            },
+          ],
+        },
+        { ...EMPTY_LINE },
+        {
+          text: `2 For INR Invoices, please make payment by crossed cheque / demand draft favouring ${invoice.ParentCompany}.`,
+          style: 'secondaryText',
+        },
+        { ...EMPTY_LINE },
+        {
+          text: '3 Please mention invoice number(s) on payment advice.',
+          style: 'secondaryText',
+        },
+        { ...EMPTY_LINE },
+        {
+          text: '4 PAN No : AACCT5209P ',
+          style: 'secondaryTextBold',
+        },
+        { ...EMPTY_LINE },
+        {
+          text: '5 GSTIN : 27AACCT5209P1ZX ',
+          style: 'secondaryTextBold',
+        },
+        { ...EMPTY_LINE },
+        {
+          text: '6 SAC Code : 998364',
+          style: 'secondaryTextBold',
+        },
+        { ...EMPTY_LINE },
+        {
+          text: '7 Queries to be addressed within 15 days from invoice date. No queries will be entertained there after.',
+          style: 'secondaryText',
+        },
+        { ...EMPTY_LINE },
+        {
+          text: '8 Overdue interest will be charged @ 18% p.a. for the period of delay.',
+          style: 'secondaryText',
+        },
+        { ...EMPTY_LINE },
+        {
+          text: '9 All disputes subject to MUMBAI jurisdiction.',
+          style: 'secondaryText',
+        },
+        { ...EMPTY_LINE },
+        {
+          text: '10 Payment to be made as per IBF norms. ',
+          style: 'secondaryText',
+        },
+        { ...EMPTY_LINE },
+        {
+          text: '11 For any queries please reach us on +91 993000 12 16',
+          style: 'secondaryText',
+        },
+
+        {
+          columnGap: 2,
+          columns: [
+            {
+              width: '60%',
+              margin: [0, 10, 0, 0],
+              stack: [
+                {
+                  text: 'Note : This is a computer generated invoice and does not require a signature.',
+                  style: 'secondaryText',
+                },
+                { ...EMPTY_LINE },
+                {
+                  text: 'Is RCM Applicable : NO',
+                  style: 'secondaryText',
+                },
+              ],
+            },
+            {
+              width: '40%',
+              margin: [0, 10, 0, 0],
+              stack: [
+                {
+                  text: `For ${invoice.ParentCompany}`,
+                  style: 'secondaryText',
+                },
+                {
+                  width: (PAGE_WIDTH * 20) / 100,
+                  height: (PAGE_WIDTH * 8) / 100,
+                  image: kpg,
+                  alignment: 'center',
+                  margin: [0, 10, 0, 10],
+                },
+
+                {
+                  text: 'Authorised Signatory',
+                  alignment: 'center',
+                  style: 'secondaryText',
+                },
+              ],
+            },
+          ],
+        },
+      ]
+      : [
+        {
+          text: 'Terms and Condition:',
+          style: 'secondaryText',
+        },
+        { ...EMPTY_LINE },
+        { text: '\n', style: { lineHeight: 0.3 } },
+        {
+          columns: [
+            {
+              width: 'auto',
+              text: 'i). Payment of the bill, if not paid in advance, may be made on or before DUE DATE',
+              style: 'secondaryText',
+              margin: [0, 0, 10, 0],
+            },
+          ],
+        },
+        { ...EMPTY_LINE },
+        {
+          text: 'ii). Interest at 14.5% per annum will be charged on all amounts which are not paid within the specified period in terms of Contract / Agreement.',
+          style: 'secondaryText',
+        },
+        { ...EMPTY_LINE },
+        {
+          text: 'iii). For further instruction please refer to the terms & condition laid down in the contract/agreement executed by the Advertisers/Agency.',
+          style: 'secondaryText',
+        },
+      ];
+
+    const definition = [
+      // Invoice Header
+      getHeaderDefinition(invoice, conditonCheckforChannel),
+      {
+        margin: [0, 15, 0, 0],
+        columns: [
+          {
+            width: (PAGE_WIDTH * 15) / 100,
+            text: '',
+            alignment: 'left',
+          },
+          {
+            width: '*',
+            alignment: 'center',
+            text: 'TAX INVOICE',
+            style: 'header',
+          },
+          {
+            width: (PAGE_WIDTH * 15) / 100,
+            text: '',
+            alignment: 'right',
+            style: 'secondaryTextBold',
+          },
+        ],
+      },
+      // First Row Table
+      {
+        columnGap: 5,
+        columns: [
+          {
+            width: conditonCheckforChannel ? '60%' : '*',
+            style: 'row1',
+            table: {
+              widths: ['*', conditonCheckforChannel ? '70%' : '*'],
+              body: tableBody,
+            },
+            layout: conditonCheckforChannel
+              ? {
+                hLineWidth: function (i, node) {
+                  // Top and bottom border only
+                  return i === 0 || i === node.table.body.length ? 1 : 0;
+                },
+                vLineWidth: function (i, node) {
+                  // Left and right border only
+                  return i === 0 || i === node.table.widths.length ? 1 : 0;
+                },
+                hLineColor: function (i, node) {
+                  return 'black';
+                },
+                vLineColor: function (i, node) {
+                  return 'black';
+                },
+              }
+              : undefined,
+          },
+
+          {
+            width: '*',
+            style: 'row1',
+            table: {
+              widths: ['40%', '*'],
+              body: tableBodyRight,
+            },
+            layout: conditonCheckforChannel
+              ? {
+                hLineWidth: function (i, node) {
+                  // Top and bottom border only
+                  return i === 0 || i === node.table.body.length ? 1 : 0;
+                },
+                vLineWidth: function (i, node) {
+                  // Left and right border only
+                  return i === 0 || i === node.table.widths.length ? 1 : 0;
+                },
+                hLineColor: function (i, node) {
+                  return 'black';
+                },
+                vLineColor: function (i, node) {
+                  return 'black';
+                },
+              }
+              : undefined,
+          },
+        ],
+      },
+      // Second Row Table
+      {
+        columnGap: 5,
+        columns: [
+          {
+            width: '*',
+            style: 'row2',
+            table: {
+              widths: ['35%', '*'],
+              body: conditonCheckforChannel
+                ? [[]]
+                : [
+                  [
+                    { text: 'Agency/Client:', style: 'tableKey' },
+                    { text: invoice.AgencyName, style: 'tableValue' },
+                  ],
+                  [
+                    { text: 'Address:', style: 'tableKey' },
+                    {
+                      text: invoice.agencyAddress1,
+                      style: 'tableValue',
+                    },
+                  ],
+                  [
+                    { text: 'City :', style: 'tableKey' },
+                    {
+                      text: `${invoice.AgencyStateName} - ${invoice.AgencyPin}`,
+                      style: 'tableValue',
+                    },
+                  ],
+                ],
+            },
+          },
+          {
+            width: '*',
+            style: 'row2',
+            table: {
+              widths: ['auto', '*'],
+              body: conditonCheckforChannel
+                ? [[]]
+                : [
+                  [
+                    { text: 'PAN of Client/Agency :', style: 'tableKey' },
+                    { text: '', style: 'tableValue' },
+                  ],
+                  [
+                    { text: 'State & State Code :', style: 'tableKey' },
+                    {
+                      text: `${invoice.AgencyStateName} - ${invoice.AgencyStateTinNo}`,
+                      style: 'tableValue',
+                    },
+                  ],
+                  [
+                    { text: 'Agency/Client GST :', style: 'tableKey' },
+                    { text: invoice.AgencyGSTN_ID, style: 'tableValue' },
+                  ],
+                ],
+            },
+          },
+        ],
+        margin: [0, 0, 0, 10],
+      },
+      distinctTelecastReport !== 'bill' &&
+        distinctTelecastReport !== 'View Bill'
+        ? getTelecastReportTableHeaderSum(distinctTelecastReport, channel)
+        : {},
+      // QR code, Client/Product details and Gross Total
+      {
+        columnGap: 5,
+        columns: [
+          {
+            width: QR_CODE_SIZE,
+            // TODO: Remove text and add QR code here
+            text: '',
+            // qr: 'https://google.com',
+            // fit: QR_CODE_SIZE,
+          },
+          {
+            width: '*',
+            stack: [
+              {
+                style: 'row3',
+                table: {
+                  widths: ['*', '*', '*'],
+                  body: [
+                    [
+                      {
+                        text: 'Gross Total',
+                        style: 'tableKey',
+                        colSpan: 2,
+                        borderColor: ['white', 'white', 'white', 'white'],
+                      },
+
+                      {},
+                      {
+                        text: numberToINRFormat(grossAmount),
+                        style: 'tableKey',
+                        alignment: 'right',
+                        borderColor: ['white', 'white', 'white', 'white'],
+                      },
+                    ],
+                    [
+                      {
+                        text: `Agency Discount - ${(agencyShare / grossAmount) * 100
+                          }%`,
+                        colSpan: 2,
+                        style: 'tableKey',
+                        borderColor: ['white', 'white', 'white', 'white'],
+                      },
+
+                      {},
+                      {
+                        text: numberToINRFormat(agencyShare),
+                        style: 'tableKey',
+                        alignment: 'right',
+                        borderColor: ['white', 'white', 'white', 'white'],
+                      },
+                    ],
+                    [
+                      {
+                        text: 'Net Amount',
+                        style: 'tableKey',
+                        colSpan: 2,
+                        borderColor: ['white', 'white', 'white', 'white'],
+                      },
+
+                      {},
+                      {
+                        text: numberToINRFormat(netAmount),
+                        style: 'tableKey',
+                        alignment: 'right',
+                        borderColor: ['white', 'white', 'white', 'white'],
+                      },
+                    ],
+                    ...getTaxesDefinition(
+                      cgst,
+                      sgst,
+                      igst,
+                      cgstAmount,
+                      sgstAmount,
+                      igstAmount,
+                    ),
+                    [
+                      {
+                        text: 'Total Amount (Inc. Taxes)',
+                        style: 'tableKey',
+                        colSpan: 2,
+                        borderColor: ['white', 'white', 'white', 'white'],
+                      },
+
+                      {},
+                      {
+                        text: numberToINRFormat(totalAmountIncTaxes),
+                        style: 'tableKey',
+                        alignment: 'right',
+                        borderColor: ['white', 'white', 'white', 'white'],
+                      },
+                    ],
+                    [
+                      {
+                        text: `Amount in words : ${numberToWordsINRFormat(
+                          totalAmountIncTaxes,
+                        )} Only`,
+                        style: 'secondaryTextBold',
+                        colSpan: 3,
+                        borderColor: ['white', 'white', 'white', 'white'],
+                      },
+
+                      {},
+                      {},
+                    ],
+                  ],
+                },
+              },
+            ],
+          },
+        ],
+      },
+      //Terms and Conditions
+      {
+        margin: [0, 10, 0, 0],
+        stack: instructions,
+      },
+      // GST declaration and Digital Signature
+      {
+        columnGap: 5,
+        columns: [
+          {
+            width: '70%',
+            margin: [0, 15, 0, 0],
+            stack: conditonCheckforChannel
+              ? [{}]
+              : [
+                {
+                  text: 'GST Declaration:',
+                  style: 'primaryTextBold',
+                },
+                { text: '\n', style: { lineHeight: 0.4 } },
+                {
+                  text: 'Certified that the particular given above are true and correct',
+                  style: 'primaryText',
+                },
+              ],
+          },
+          {
+            // TODO: Add Digital Signature in this block
+            // width: (PAGE_WIDTH * 15) / 100,
+          },
+        ],
+      },
+    ];
+
+    return definition;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const getTelecastReportTableDefinition = (telecastReport, channel) => {
+  const isFoodChannel = [CLIENT.FOOD_INDIA, CLIENT.FOOD_USA].includes(
+    channel.label,
+  );
+  const generateTableHeader = () => [
+    {
+      text: 'S.No',
+      style: 'telecastTableKey',
+      alignment: 'center',
+      borderColor: ['black', 'black', 'black', 'black'],
+    },
+    {
+      text: 'Commercial Caption',
+      style: 'telecastTableKey',
+      alignment: 'center',
+      borderColor: ['black', 'black', 'black', 'black'],
+    },
+    {
+      text: 'Program Name',
+      style: 'telecastTableKey',
+      alignment: 'center',
+      borderColor: ['black', 'black', 'black', 'black'],
+    },
+    {
+      text: 'Spot Type',
+      style: 'telecastTableKey',
+      alignment: 'center',
+      borderColor: ['black', 'black', 'black', 'black'],
+    },
+    {
+      text: 'Spot Category',
+      style: 'telecastTableKey',
+      alignment: 'center',
+      borderColor: ['black', 'black', 'black', 'black'],
+    },
+    {
+      text: 'Telecast Date',
+      style: 'telecastTableKey',
+      alignment: 'center',
+      borderColor: ['black', 'black', 'black', 'black'],
+    },
+    {
+      text: 'Telecast Time',
+      style: 'telecastTableKey',
+      alignment: 'center',
+      borderColor: ['black', 'black', 'black', 'black'],
+    },
+    {
+      text: isFoodChannel ? 'DUR (Sec)' : 'Amount',
+      style: 'telecastTableKey',
+      alignment: 'center',
+      borderColor: ['black', 'black', 'black', 'black'],
+    },
+  ];
+
+  const generateTableRow = (row, index, isFoodChannel) => {
+    const createCell = (
+      text = '',
+      style = 'telecastTableCell',
+      alignment = 'center',
+    ) => ({
+      text,
+      style,
+      alignment,
+    });
+    if (row.TelecastTime == null) {
+      return Array(8)
+        .fill(null)
+        .map(() => createCell());
+    }
+    return [
+      createCell(index + 1, 'tableValue'),
+      createCell(row.CommercialCaption),
+      createCell(row.Thirdpartyprogram),
+      createCell(row.SpotType),
+      createCell('RODP wise'),
+      createCell(formatDateToDDMMMYYYY(row.TelecastDate)),
+      createCell(row.TelecastTime),
+      createCell(
+        isFoodChannel ? row.DurInSec : numberToINRFormat(row.BillSpotAmount),
+      ),
+    ];
+  };
+
+  const generateTotalRow = (tableData) => [
+    {
+      text: '',
+      style: 'telecastTableCell',
+      borderColor: ['black', 'black', 'black', 'black'],
+    },
+    {
+      text: '',
+      style: 'tableKey',
+      borderColor: ['black', 'black', 'black', 'black'],
+    },
+    isFoodChannel
+      ? {
+        text: '* We certify that the spots mentioned in this T.C. have been telecasted on FOOD FOOD Channel.',
+        style: 'secondaryText',
+        colSpan: 4,
+        alignment: 'right',
+        borderColor: ['black', 'black', 'black', 'black'],
+      }
+      : {
+        text: 'Total',
+        style: 'tableKey',
+        alignment: 'right',
+        borderColor: ['black', 'black', 'black', 'black'],
+      },
+    {
+      text: '',
+      style: 'telecastTableCell',
+      borderColor: ['black', 'black', 'black', 'black'],
+    },
+    {
+      text: '',
+      style: 'telecastTableCell',
+      borderColor: ['black', 'black', 'black', 'black'],
+    },
+    {
+      text: '',
+      style: 'telecastTableCell',
+      borderColor: ['black', 'black', 'black', 'black'],
+    },
+    {
+      text: '',
+      style: 'telecastTableCell',
+      borderColor: ['black', 'black', 'black', 'black'],
+    },
+    {
+      text: isFoodChannel
+        ? numberToINRFormat(getFieldTotal(tableData, 'DurInSec')).split('.')[0]
+        : numberToINRFormat(getFieldTotal(tableData, 'BillSpotAmount')),
+      style: 'telecastTableCell',
+      borderColor: ['black', 'black', 'black', 'black'],
+    },
+  ];
+
+  try {
+    return {
+      table: {
+        headerRows: 1,
+        widths: [
+          (PAGE_WIDTH * 3) / 100,
+          (PAGE_WIDTH * 30) / 100,
+          (PAGE_WIDTH * 20) / 100,
+          (PAGE_WIDTH * 4) / 100,
+          (PAGE_WIDTH * 6) / 100,
+          (PAGE_WIDTH * 8) / 100,
+          (PAGE_WIDTH * 8) / 100,
+          (PAGE_WIDTH * 6) / 100,
+        ],
+        body: [
+          generateTableHeader(),
+          ...getTableWithTotal(telecastReport, [
+            'DurInSec',
+            'BillSpotAmount',
+
+          ]).map(generateTableRow),
+          generateTotalRow(telecastReport),
+        ],
+      },
+      layout: {
+        hLineColor: (i, node) =>
+          i === 0 || i === node.table.body.length ? 'black' : 'white',
+        vLineColor: () => 'black',
+      },
+    };
+  } catch (error) {
+    throw error;
+  }
+};
+
+const getTelecastReportTableHeaderSum = (distinctTelecastReport, channel) => {
+  const isFoodChannel = [CLIENT.FOOD_INDIA, CLIENT.FOOD_USA].includes(
+    channel.label,
+  );
+
+  const createHeaderRow = () => [
+    {
+      text: 'S.No',
+      style: 'telecastTableKey',
+      alignment: 'center',
+      borderColor: ['black', 'black', 'black', 'black'],
+    },
+    {
+      text: isFoodChannel ? 'Caption' : 'RODP Wise',
+      style: 'telecastTableKey',
+      alignment: 'center',
+      borderColor: ['black', 'black', 'black', 'black'],
+    },
+    {
+      text: 'Duration',
+      style: 'telecastTableKey',
+      alignment: 'center',
+      borderColor: ['black', 'black', 'black', 'black'],
+    },
+    {
+      text: 'Spot Type',
+      style: 'telecastTableKey',
+      alignment: 'center',
+      borderColor: ['black', 'black', 'black', 'black'],
+    },
+    {
+      text: 'No of Spots',
+      style: 'telecastTableKey',
+      alignment: 'center',
+      borderColor: ['black', 'black', 'black', 'black'],
+    },
+    {
+      text: 'Rate',
+      style: 'telecastTableKey',
+      alignment: 'center',
+      borderColor: ['black', 'black', 'black', 'black'],
+    },
+    {
+      text: 'Amount',
+      style: 'telecastTableKey',
+      alignment: 'center',
+      borderColor: ['black', 'black', 'black', 'black'],
+    },
+  ];
+
+  const createBodyRow = (row, index) =>
+    [
+
+      { text: index + 1, style: 'tableValue', alignment: 'center' },
+      {
+        text: isFoodChannel ? row.CommercialCaption : row.timebandname,
+        style: 'telecastTableCell',
+        alignment: 'center',
+      },
+      { text: row.DurInSec, style: 'telecastTableCell', alignment: 'center' },
+      { text: row.SpotType, style: 'telecastTableCell', alignment: 'center' },
+      { text: row.count, style: 'telecastTableCell', alignment: 'center' },
+      {
+        text: numberToINRFormat(row.BookingSpotRate),
+        style: 'tableValue',
+        alignment: 'center',
+      },
+      {
+        text: numberToINRFormat(row.BillSpotAmount),
+        style: 'tableValue',
+        alignment: 'center',
+      },
+    ]
+
+  const createTotalRow = (totalRow) => [
+    {
+      text: '',
+      style: 'tableValue',
+      borderColor: ['black', 'black', 'black', 'black'],
+    },
+    {
+      text: 'Total',
+      style: 'tableValue',
+      alignment: 'right',
+      borderColor: ['black', 'black', 'black', 'black'],
+    },
+    {
+      text: totalRow.DurInSec,
+      style: 'tableValue',
+      alignment: 'center',
+      borderColor: ['black', 'black', 'black', 'black'],
+    },
+    {
+      text: totalRow.SpotType,
+      style: 'tableValue',
+      alignment: 'center',
+      borderColor: ['black', 'black', 'black', 'black'],
+    },
+    {
+      text: totalRow.count,
+      style: 'tableValue',
+      alignment: 'center',
+      borderColor: ['black', 'black', 'black', 'black'],
+    },
+    {
+      text: numberToINRFormat(totalRow.BookingSpotRate),
+      style: 'tableValue',
+      alignment: 'center',
+      borderColor: ['black', 'black', 'black', 'black'],
+    },
+    {
+      text: numberToINRFormat(totalRow.BillSpotAmount),
+      style: 'tableKey',
+      alignment: 'center',
+      borderColor: ['black', 'black', 'black', 'black'],
+    },
+  ];
+
+  try {
+    const tableBody = [createHeaderRow()];
+
+    const rows = getTableWithTotal(distinctTelecastReport, [
+      'DurInSec',
+      'BillSpotAmount',
+      'BookingSpotRate',
+      'count'
+    ]);
+
+    rows.forEach((row, index) => {
+      tableBody.push(
+        index === distinctTelecastReport.length
+          ? createTotalRow(row)
+          : createBodyRow(row, index),
+      );
+    });
+
+    return {
+      table: {
+        headerRows: 1,
+        widths: [
+          (PAGE_WIDTH * 2) / 100,
+          (PAGE_WIDTH * 45) / 100,
+          (PAGE_WIDTH * 6) / 100,
+          (PAGE_WIDTH * 7) / 100,
+          (PAGE_WIDTH * 10) / 100,
+          (PAGE_WIDTH * 8) / 100,
+          (PAGE_WIDTH * 8) / 100,
+        ],
+        body: tableBody,
+      },
+      layout: {
+        hLineColor: (i, node) =>
+          i === 0 || i === node.table.body.length ? 'black' : 'white',
+        vLineColor: () => 'black',
+      },
+    };
+  } catch (error) {
+    console.error('Error generating telecast report table:', error);
+    throw error;
+  }
+};
+
+/* PDF GENERATOR FUNCTIONS */
+const generateBill = async (invoice, taxes, pdfType) => {
+  try {
+    const pdfDefination = {
+      pageSize: PAGE_SIZE,
+      pageMargins: PAGE_MARGINS,
+      content: getBillDefinition(invoice, taxes, pdfType, {}),
+      styles: STYLES,
+    };
+    return pdfMake.createPdf(pdfDefination);
+  } catch (error) {
+    throw error;
+  }
+};
+
+const generateBillWithTC = async (
+  invoice,
+  taxes,
+  telecastReport,
+  distinctTelecastReport,
+  channel,
+) => {
+  const isFoodChannel = [CLIENT.FOOD_INDIA, CLIENT.FOOD_USA].includes(
+    channel.label,
+  );
+
+  try {
+    const pdfDefinition = {
+      pageSize: PAGE_SIZE,
+      footer: (currentPage, pageCount) => ({
+        text: `Page ${currentPage} of ${pageCount}`,
+        alignment: 'right',
+        style: 'secondaryText',
+        margin: [0, 10, 10, 0],
+      }),
+      pageMargins: [10, 40, 10, 40],
+      content: [
+        ...getBillDefinition(invoice, taxes, distinctTelecastReport, channel),
+        {
+          pageBreak: 'before',
+          stack: [
+            {
+              columns: [
+                {
+                  width: '*',
+                  text: `${invoice.ChannelName}\nInvoice Number: ${invoice.INVOICENO}`,
+                  style: ['header', 'tableValue'],
+                  alignment: 'left',
+                },
+                {
+                  width: '*',
+                  alignment: 'center',
+                  text: 'Telecast Report',
+                  style: 'header',
+                  margin: [0, 10, 0, 0],
+                },
+                {
+                  width: '*',
+                  text: `Invoice Date: ${getDateFromDateTime(
+                    invoice.InvoiceDate,
+                  )}\nInvoice Period: ${getTelecastDate(
+                    invoice.FromDate,
+                    invoice.UptoDate,
+                  )}`,
+                  style: 'tableValue',
+                  alignment: 'right',
+                },
+              ],
+              margin: [0, 5, 0, 10],
+            },
+            getTelecastReportTableDefinition(telecastReport, channel),
+            {
+              columns: [
+                {
+                  width: '50%',
+                  margin: [0, 10, 0, 0],
+                  stack: [{ ...EMPTY_LINE }],
+                },
+                {
+                  width: '50%',
+                  margin: [0, 10, 0, 0],
+                  stack: isFoodChannel
+                    ? [
+                      {
+                        text: `For ${invoice.ParentCompany}`,
+                        style: 'primaryTextBold',
+                        alignment: 'right',
+                      },
+                      {
+                        image: kpg,
+                        width: (PAGE_WIDTH * 20) / 100,
+                        height: (PAGE_WIDTH * 8) / 100,
+                        alignment: 'right',
+                        margin: [0, 10, 0, 0],
+                      },
+                      {
+                        text: 'Authorised Signatory',
+                        style: 'secondaryText',
+                        alignment: 'right',
+                      },
+                    ]
+                    : [{ ...EMPTY_LINE }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      styles: STYLES,
+    };
+
+    return pdfMake.createPdf(pdfDefinition);
+  } catch (error) {
+    console.error('Error generating PDF:', error);
+    throw error;
+  }
+};
+
+const generateTelecastReport = async (invoice, telecastReport, channel) => {
+  const isFoodChannel = [CLIENT.FOOD_INDIA, CLIENT.FOOD_USA].includes(
+    channel.label,
+  );
+
+  const createTableBody = (isFoodChannel) =>
+    isFoodChannel
+      ? [
+        ['Client :', `${invoice.ClientName}`],
+        [
+          'Address :',
+          `${invoice.ClientAddress} - \n\n\n${invoice.ChannelStateName}`,
+        ],
+        ['Agency :', `${invoice.AgencyName}`],
+        ['Brand :', invoice.BrandName],
+      ]
+      : [
+        ['State of Service Provider :', invoice.ChannelStateName],
+        ['State Code of Service Provider:', invoice.ChannelStateTinNo],
+        ['GSTIN of Service Provider :', invoice.ChannelGSTN_ID],
+        ['PAN of Service Provider :', ''],
+        ['Address of Service Provider :', invoice.ParentRegdAddress1],
+      ];
+
+  const createTableBodyRight = (isFoodChannel) =>
+    isFoodChannel
+      ? [
+        ['Invoice Number :', invoice.INVOICENO],
+        ['Period From:', getTelecastDate(invoice.FromDate, invoice.UptoDate)],
+        ['Agency City :', invoice.PlaceName1],
+        ['Client Ref No :', invoice.BookingReferenceNumber],
+        ['Executive Name :', invoice.ContactPerson],
+        ['T.O. NO :', invoice.BookingCode],
+      ]
+      : [
+        ['Invoice Number :', invoice.INVOICENO],
+        ['Invoice Date :', getDateFromDateTime(invoice.InvoiceDate)],
+        [
+          'Telecast Period :',
+          getTelecastDate(invoice.FromDate, invoice.UptoDate),
+        ],
+        [
+          'RO No. & Date :',
+          `${invoice.BookingCode} & ${formatDateToDDMMMYYYY(
+            invoice.BookingDate,
+          )}`,
+        ],
+        ['Client RO Ref No. :', invoice.BookingReferenceNumber],
+        ['Client', invoice.ClientName],
+        ['Product', invoice.BrandName],
+      ];
+
+  try {
+    const pdfDefinition = {
+      pageSize: PAGE_SIZE,
+      pageMargins: [10, 30],
+      // header: (currentPage) => currentPage === 1 ? getHeaderDefinition(invoice,isFoodChannel) : null,
+      footer: (currentPage, pageCount) => [
+        {
+          text: `Page ${currentPage} of ${pageCount}`,
+          alignment: 'right',
+          margin: [0, 10, 10, 0],
+        },
+      ],
+      content: [
+        {
+          columns: [
+            { text: '', alignment: 'left', width: (PAGE_WIDTH * 15) / 100 },
+            {
+              text: [
+                {
+                  text: `TELECAST CERTIFICATE `,
+                  style: 'tableKeyLarge',
+                  alignment: 'center',
+                },
+                { ...EMPTY_LINE },
+                {
+                  text: ` ${invoice.ParentCompany}`,
+                  style: 'secondaryText',
+                  alignment: 'center',
+                },
+              ],
+              alignment: 'center',
+            },
+            {
+              width: (PAGE_WIDTH * 20) / 100,
+              height: (PAGE_WIDTH * 8) / 100,
+              image: invoice.Channel_Image,
+              alignment: 'center',
+              margin: [0, 0, 0, 0],
+            },
+          ],
+          margin: [0, 0, 0, 30],
+        },
+
+        {
+          columnGap: isFoodChannel ? 0 : 10,
+          columns: [
+            {
+              table: { body: createTableBody(isFoodChannel), width: '100%' },
+              layout: isFoodChannel
+                ? {
+                  hLineWidth: function (i, node) {
+                    // Top and bottom border only
+                    return i === 0 || i === node.table.body.length ? 1 : 0;
+                  },
+                  vLineWidth: function (i, node) {
+                    // Left and right border only
+                    return i === 0 || i === node.table.widths.length ? 1 : 0;
+                  },
+                  hLineColor: function (i, node) {
+                    return 'white';
+                  },
+                  vLineColor: function (i, node) {
+                    return 'white';
+                  },
+                }
+                : undefined,
+              width: isFoodChannel ? '60%' : '*',
+              style: 'tableKey',
+            },
+            {
+              table: { body: createTableBodyRight(isFoodChannel) },
+              layout: isFoodChannel
+                ? {
+                  hLineWidth: function (i, node) {
+                    // Top and bottom border only
+                    return i === 0 || i === node.table.body.length ? 1 : 0;
+                  },
+                  vLineWidth: function (i, node) {
+                    // Left and right border only
+                    return i === 0 || i === node.table.widths.length ? 1 : 0;
+                  },
+                  hLineColor: function (i, node) {
+                    return 'white';
+                  },
+                  vLineColor: function (i, node) {
+                    return 'white';
+                  },
+                }
+                : undefined,
+              width: '*',
+              style: 'tableKey',
+            },
+          ],
+        },
+        {
+          columns: [{ ...EMPTY_LINE }],
+        },
+        {
+          columns: [{ ...EMPTY_LINE }],
+        },
+        getTelecastReportTableDefinition(telecastReport, channel),
+
+        {
+          columns: [
+            { text: '' },
+            isFoodChannel
+              ? {
+                stack: [
+                  {
+                    text: `For ${invoice.ParentCompany}`,
+                    style: 'primaryTextBold',
+                    alignment: 'right',
+                  },
+                  { image: kpg, width: 100, alignment: 'right' },
+                  { text: 'Authorised Signatory', alignment: 'right' },
+                ],
+              }
+              : { text: '' },
+          ],
+        },
+      ],
+      styles: STYLES,
+    };
+
+    return pdfMake.createPdf(pdfDefinition);
+  } catch (error) {
+    throw error;
+  }
+};
+
+export { generateBill, generateBillWithTC, generateTelecastReport };

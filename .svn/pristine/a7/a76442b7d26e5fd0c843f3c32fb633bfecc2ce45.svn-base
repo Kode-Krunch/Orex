@@ -1,0 +1,250 @@
+import { Button, Card, Tooltip } from 'components/ui';
+import React, { useContext, useEffect, useRef, useState } from 'react';
+import { IoMdClose } from 'react-icons/io';
+import {
+  getAllColumnsOfTable,
+  getColumnSettingsFromAPI,
+  handleFeatureClose,
+} from '../../utils/utils';
+import {
+  featuresEnum,
+  pagesEnum,
+  rowDataTypesEnum,
+  tableTypesEnum,
+} from 'views/Scheduling/Scheduler/enum';
+import SchedulerContext from 'views/Scheduling/Scheduler/context/SchedulerContext';
+import { openNotification } from 'views/Controls/GLOBALFUNACTION';
+import RotationInfoTable from './RotationInfoTable';
+import BottomToolbar from './BottomToolbar';
+import { TbGridDots } from 'react-icons/tb';
+import classNames from 'classnames';
+import ManageColumns from '../Dropdowns/ManageColumns/ManageColumns';
+import { TABLE_NAMES } from 'views/Scheduling/Scheduler/constants';
+import { useSelector } from 'react-redux';
+import { closeDropDowns } from './utils';
+import Loader from 'views/Controls/Loader';
+
+function RotationInfo() {
+  /* REDUX */
+  const token = useSelector((state) => state.auth.session.token);
+
+  /* CONTEXT */
+  const {
+    schedulingTableData,
+    schedulingTableSelectedRows,
+    setLeftClickedSchTableRow,
+    setActiveFeatures,
+    isScheduleAllowedToEdit,
+    secondaryAreaZindexRef,
+    secondaryTableManagedColumns,
+    setSecondaryTableManagedColumns,
+    secTableToolbarState,
+    setSecTableToolbarState,
+    page,
+    setSecondaryTableName,
+  } = useContext(SchedulerContext);
+
+  /* STATES */
+  const [rotationInfoTableData, setRotationInfoTableData] = useState([]);
+  const [curSelectedEventRow, setCurSelectedEventRow] = useState(null);
+  const [showLoader, setShowLoader] = useState(true);
+
+  /* HOOKS */
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    try {
+      let selectedRow = null;
+      if (schedulingTableSelectedRows.length === 1) {
+        setCurSelectedEventRow(schedulingTableSelectedRows[0]);
+        setLeftClickedSchTableRow(schedulingTableSelectedRows[0]);
+        selectedRow = schedulingTableSelectedRows[0];
+      } else {
+        selectedRow = curSelectedEventRow;
+      }
+      if (selectedRow) {
+        let rotationRows = [];
+        if (selectedRow.F_C_S_P !== rowDataTypesEnum.NTC) {
+          rotationRows = schedulingTableData.filter(
+            (row) =>
+              row.F_C_S_P === selectedRow.F_C_S_P &&
+              row.Event_Name === selectedRow.Event_Name,
+          );
+        } else {
+          if ('BookingDetailID' in selectedRow) {
+            rotationRows = schedulingTableData.filter(
+              (row) =>
+                row.F_C_S_P === rowDataTypesEnum.NTC &&
+                row.Event_Name === selectedRow.Event_Name &&
+                'BookingDetailID' in row,
+            );
+          } else {
+            rotationRows = schedulingTableData.filter(
+              (row) =>
+                row.F_C_S_P === rowDataTypesEnum.NTC &&
+                row.Event_Name === selectedRow.Event_Name &&
+                !('BookingDetailID' in row),
+            );
+          }
+        }
+        setRotationInfoTableData(rotationRows);
+      }
+    } catch (error) {
+      openNotification(
+        'danger',
+        'Something went wrong while loading rotation info',
+      );
+    }
+  }, [schedulingTableData, schedulingTableSelectedRows]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        if (
+          rotationInfoTableData.length > 0 &&
+          secondaryTableManagedColumns.originalColumns.length === 0
+        ) {
+          setShowLoader(true);
+          await setManagedColumns(rotationInfoTableData);
+        }
+      } catch (error) {
+        openNotification(
+          'danger',
+          'Something went wrong while setting columns',
+        );
+        console.error(error);
+      } finally {
+        setShowLoader(false);
+      }
+    })();
+  }, [rotationInfoTableData, secondaryTableManagedColumns]);
+
+  useEffect(() => {
+    document.addEventListener('mousedown', (event) =>
+      closeDropDowns(event, dropdownRef, setSecTableToolbarState),
+    );
+    return () => {
+      document.removeEventListener('mousedown', (event) =>
+        closeDropDowns(event, dropdownRef, setSecTableToolbarState),
+      );
+    };
+  }, [dropdownRef]);
+
+  /* HELPER FUNCTIONS */
+  const setManagedColumns = async (tableData) => {
+    const tableName =
+      page === pagesEnum.PROMO
+        ? TABLE_NAMES.SECONDARY_TABLE_NAMES.PROMO_ROTATION_INFO
+        : page === pagesEnum.SONG
+          ? TABLE_NAMES.SECONDARY_TABLE_NAMES.SONG_ROTATION_INFO
+          : page === pagesEnum.COMMERCIAL
+            ? TABLE_NAMES.SECONDARY_TABLE_NAMES.COMMERCIAL_ROTATION_INFO
+            : page === pagesEnum.NTC
+              ? TABLE_NAMES.SECONDARY_TABLE_NAMES.NTC_ROTATION_INFO
+              : TABLE_NAMES.SECONDARY_TABLE_NAMES.FINAL_LOG_ROTATION_INFO;
+    setSecondaryTableName(tableName);
+    const ignoredColumns = ['actions', 'customCellColor', 'cellWarning'];
+    const { visibleColumns, removedColumns } = await getColumnSettingsFromAPI(
+      tableName,
+      tableData,
+      token,
+      undefined,
+      ignoredColumns,
+    );
+    setSecondaryTableManagedColumns({
+      originalColumns: getAllColumnsOfTable(
+        tableData,
+        undefined,
+        ignoredColumns,
+      ),
+      visibleColumns,
+      removedColumns,
+    });
+  };
+
+  return (
+    <div
+      className="h-full w-full flex flex-col bg-gray-800 p-3 pt-2 rounded-lg absolute top-0 left-0"
+      style={{
+        zIndex: secondaryAreaZindexRef.current[featuresEnum.ROTATION_INFO],
+      }}
+    >
+      <div className="flex justify-between items-center mb-2">
+        <div className="flex items-center gap-3">
+          <h5>Rotation Info</h5>
+          {rotationInfoTableData.length > 0 && (
+            <h6 className="rounded-md px-1.5 py-0.5 bg-gray-600 flex items-center justify-center">
+              {rotationInfoTableData.length}
+            </h6>
+          )}
+        </div>
+        <div className="flex gap-1.5">
+          {rotationInfoTableData.length > 0 && (
+            <Tooltip title="Manage Columns" wrapperClass="relative">
+              <Button
+                size="xs"
+                icon={<TbGridDots />}
+                className={classNames(
+                  secondaryTableManagedColumns.removedColumns.length > 0
+                    ? '!bg-teal-700 hover:!bg-teal-700'
+                    : 'hover:!bg-teal-800',
+                  'transition-all',
+                )}
+                onClick={() =>
+                  setSecTableToolbarState({
+                    ...secTableToolbarState,
+                    isManageColumnsDropdownVisible: true,
+                  })
+                }
+              />
+              {secTableToolbarState.isManageColumnsDropdownVisible && (
+                <ManageColumns
+                  tableType={tableTypesEnum.SECONDARY}
+                  dropdownRef={dropdownRef}
+                  position="right-1/2"
+                />
+              )}
+            </Tooltip>
+          )}
+          <Tooltip title="Close">
+            <Button
+              size="xs"
+              icon={<IoMdClose />}
+              onClick={() => {
+                handleFeatureClose(
+                  setActiveFeatures,
+                  featuresEnum.ROTATION_INFO,
+                );
+              }}
+            />
+          </Tooltip>
+        </div>
+      </div>
+      <div className="h-[92%] flex flex-col gap-3">
+        {rotationInfoTableData.length > 0 ? (
+          <>
+            <div className="grow overflow-y-scroll no-scrollbar">
+              <RotationInfoTable
+                columns={secondaryTableManagedColumns.visibleColumns}
+                tableData={rotationInfoTableData}
+              />
+            </div>
+            {isScheduleAllowedToEdit && (
+              <BottomToolbar rotationInfoTableData={rotationInfoTableData} />
+            )}
+          </>
+        ) : (
+          <Card
+            className="h-full w-full"
+            bodyClass="h-full w-full flex justify-center items-center p-2"
+          >
+            Please select an event
+          </Card>
+        )}
+      </div>
+      <Loader showLoader={showLoader} />
+    </div>
+  );
+}
+
+export default RotationInfo;

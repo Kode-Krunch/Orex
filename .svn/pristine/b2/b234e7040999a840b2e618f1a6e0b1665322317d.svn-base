@@ -1,0 +1,263 @@
+import React, { useEffect, useState } from 'react';
+import {
+  Input,
+  Button,
+  Checkbox,
+  FormItem,
+  FormContainer,
+  Alert,
+} from 'components/ui';
+import { PasswordInput, ActionLink } from 'components/shared';
+import useTimeOutMessage from 'utils/hooks/useTimeOutMessage';
+import { Field, Form, Formik } from 'formik';
+import * as Yup from 'yup';
+import useAuth from 'utils/hooks/useAuth';
+import { useDispatch, useSelector } from 'react-redux';
+import { setModule, } from 'store/auth/sessionSlice';
+import { apiGetOTP } from 'services/CommonService';
+import { openNotification } from 'views/Controls/GLOBALFUNACTION';
+import Loader from 'views/Controls/Loader';
+const SignInForm = (props) => {
+  const { disableSubmit = false, className } = props;
+  const MessageAttempt = useSelector(
+    (state) => state.auth.session.MessageAttempt,
+  );
+  const dispatch = useDispatch();
+  const [message, setMessage] = useTimeOutMessage();
+
+  const { signIn } = useAuth();
+  const onSignIn = async (values, setSubmitting) => {
+    const { userName, password, OTP, OrganizationShortcode } = values;
+    setSubmitting(true);
+
+    try {
+      const result = await signIn({
+        userName,
+        password,
+        OTP,
+        OrganizationShortcode,
+      });
+      if (result.status === 'failed') {
+        setMessage(result.data.detail);
+      }
+    } catch (error) {
+      console.error('Error during sign in:', error);
+    }
+
+    setSubmitting(false);
+  };
+
+  useEffect(() => {
+    dispatch(setModule([]));
+  }, [dispatch]);
+
+  const [OptForm, setOptForm] = useState(false);
+  const [counter, setCounter] = useState(60);
+  const [settimer, setSetTimer] = useState(false);
+
+  const GetoptFun = async (userName) => {
+    try {
+      const res = await apiGetOTP(userName);
+      if (res.status === 204) {
+        openNotification('warning', 'Kindly Enter Valid Username');
+        return;
+      }
+      if (res.data) {
+        setSetTimer(true);
+        startTimer();
+      }
+    } catch (error) {
+      if (error.response?.status === 500) {
+        openNotification('danger', 'Server Error.');
+      }
+    }
+  };
+
+  const startTimer = () => {
+    setCounter(60); // Set the initial timer value to 60 seconds
+  };
+
+  useEffect(() => {
+    const countdown = setInterval(() => {
+      setCounter((prev) => {
+        if (prev > 1) {
+          return prev - 1; // Decrement the counter value
+        } else {
+          clearInterval(countdown); // Stop the timer
+          setSetTimer(false); // Reset the timer state
+          return 0;
+        }
+      });
+    }, 1000);
+
+    return () => clearInterval(countdown); // Cleanup function
+  }, [counter]);
+
+  return (
+    <div className={className}>
+
+      <Loader />
+      {message && (
+        <Alert className="mb-4" type="danger" showIcon>
+          {message}
+        </Alert>
+      )}
+      {MessageAttempt && (
+        <Alert type="danger" showIcon>
+          {MessageAttempt}
+        </Alert>
+      )}
+      {/* {acValue} */}
+      <Formik
+        initialValues={{
+          userName: '',
+          password: '',
+          OTP: '',
+          rememberMe: true,
+        }}
+        validationSchema={Yup.object().shape({
+          userName: Yup.string().required('Please enter your user name'),
+
+          password: Yup.string().when('OptForm', {
+            is: false,
+            then: Yup.string().required('Please enter your password'),
+          }),
+          OTP: Yup.string().when('OptForm', {
+            is: true,
+            then: Yup.string().required('Please enter your OTP'),
+          }),
+          rememberMe: Yup.bool(),
+        })}
+        onSubmit={(values, { setSubmitting }) => {
+          if (!disableSubmit) {
+            onSignIn(values, setSubmitting);
+          } else {
+            setSubmitting(false);
+          }
+        }}
+      >
+        {({ values, touched, errors, isSubmitting }) => (
+          <Form>
+            <FormContainer>
+              <div className="grid grid-cols-1 gap-4">
+                <FormItem
+                  label="Username :"
+                  invalid={errors.userName && touched.userName}
+                  errorMessage={errors.userName}
+                >
+                  <Field
+                    size="sm"
+                    type="text"
+                    autoComplete="off"
+                    name="userName"
+                    placeholder="User Name"
+                    component={Input}
+                    style={{ background: 'white', color: 'black' }}
+                  />
+                </FormItem>
+
+                {OptForm ? (
+                  <FormItem
+                    label="OTP :"
+                    invalid={errors.OTP && touched.OTP}
+                    errorMessage={errors.OTP}
+                    className="mt-2"
+                  >
+                    <Field
+                      size="sm"
+                      autoComplete="off"
+                      name="OTP"
+                      placeholder="Enter OTP"
+                      component={Input}
+                      style={{ background: 'white', color: 'black' }}
+                    />
+                  </FormItem>
+                ) : (
+                  <FormItem
+                    label="Password :"
+                    invalid={errors.password && touched.password}
+                    errorMessage={errors.password}
+                    className="mt-2"
+                  >
+                    <Field
+                      size="sm"
+                      autoComplete="off"
+                      name="password"
+                      placeholder="Password"
+                      component={PasswordInput}
+                      style={{ background: 'white', color: 'black' }}
+                    />
+                  </FormItem>
+                )}
+                <div className="flex justify-between">
+                  {OptForm ? (
+                    <p
+                      style={{ color: '#00E4CB', cursor: 'pointer' }}
+                      onClick={() => setOptForm(!OptForm)}
+                    >
+                      Sign In Using Password
+                    </p>
+                  ) : (
+                    <p
+                      style={{ color: '#00E4CB', cursor: 'pointer' }}
+                      onClick={() => setOptForm(!OptForm)}
+                    >
+                      Sign In Using OTP
+                    </p>
+                  )}
+                  {OptForm && !settimer ? (
+                    <p
+                      style={{ color: '#00E4CB', cursor: 'pointer' }}
+                      onClick={() => GetoptFun(values.userName)}
+                    >
+                      Get OTP
+                    </p>
+                  ) : null}
+                </div>
+                {settimer && (
+                  <p>
+                    OTP sent to the registered email address. &nbsp;&nbsp;{' '}
+                    {counter} sec
+                  </p>
+                )}
+                <div className="flex justify-between">
+                  <Field
+                    size="sm"
+                    className="mb-0"
+                    name="rememberMe"
+                    component={Checkbox}
+                    style={{ color: '#00E4CB' }}
+                  >
+                    <span style={{ color: '#00E4CB' }}>Remember Me</span>
+                  </Field>
+
+                  <ActionLink to="/sign-up" style={{ color: '#00E4CB' }}>
+                    Sign up
+                  </ActionLink>
+                </div>
+                <div className="flex justify-between mb-6">
+                  <ActionLink
+                    to="/forgot-password"
+                    style={{ color: '#00E4CB' }}
+                  >
+                    Forgot Password
+                  </ActionLink>
+                </div>
+                <Button
+                  block
+                  loading={isSubmitting}
+                  style={{ backgroundColor: '#00E4CB' }}
+                  type="submit"
+                >
+                  {isSubmitting ? 'Signing in...' : 'Sign In'}
+                </Button>
+              </div>
+            </FormContainer>
+          </Form>
+        )}
+      </Formik>
+    </div>
+  );
+};
+
+export default SignInForm;

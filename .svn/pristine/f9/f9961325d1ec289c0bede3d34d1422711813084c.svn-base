@@ -1,0 +1,164 @@
+import { Button, Dialog, Input } from 'components/ui';
+import React, { useState } from 'react';
+import { useSelector } from 'react-redux';
+import { apiCallstoreprocedure } from 'services/CommonService';
+import { openNotification } from 'views/Controls/GLOBALFUNACTION';
+import string from 'string';
+
+function EditSegDialog({
+  isOpen,
+  setIsOpen,
+  episodeDetails,
+  setShowLoader,
+  handleSearch,
+}) {
+  /* REDUX */
+  const channel = useSelector((state) => state.locale.selectedChannel);
+
+  /* STATES */
+  const [caption, setCaption] = useState(episodeDetails.EpisodeCaption);
+  const [synopsis, setSynopsis] = useState(episodeDetails.LongSynopsis);
+
+  /* EVENT HANDLERS */
+  const onDialogClose = () => setIsOpen(false);
+
+  const handleSave = async () => {
+    try {
+      setShowLoader(true);
+      const response = await apiCallstoreprocedure(
+        'USP_UpdateSynopsisandEpCaption',
+        {
+          p_par_LocationCode: channel.LocationCode,
+          p_par_ChannelCode: channel.ChannelCode,
+          p_par_ContentCode: episodeDetails.ContentMaster.ContentCode,
+          p_par_SeasonNo: episodeDetails.SeasonNo,
+          p_par_EpisodeNo: episodeDetails.EpisodeNo,
+          p_par_LongSynopsis: synopsis,
+          p_par_EpisodeCaption: caption,
+        },
+      );
+      if (response.status === 200) {
+        openNotification('success', 'Synopsis updated successfully');
+        handleSearch();
+      } else
+        openNotification(
+          'danger',
+          'Something went wrong while updating synopsis',
+        );
+    } catch (error) {
+      console.error(error);
+      openNotification(
+        'danger',
+        'Something went wrong while updating synopsis',
+      );
+    } finally {
+      setShowLoader(false);
+      onDialogClose();
+    }
+  };
+
+  /* CONSTANTS */
+  const collapsedCaption = string(caption).collapseWhitespace().s;
+
+  return (
+    <Dialog
+      isOpen={isOpen}
+      onClose={onDialogClose}
+      onRequestClose={onDialogClose}
+    >
+      <h5 className="mb-4">Update Synopsis</h5>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-6">
+        <div className="flex flex-col gap-1 col-span-2">
+          <p for="client" className="text-white">
+            Episode Caption <span className="text-red-500">*</span>
+          </p>
+          <Input
+            size="sm"
+            placeholder="Select"
+            value={caption}
+            onChange={(event) => setCaption(event.target.value)}
+            onBlur={() => setCaption(collapsedCaption)}
+          />
+          {
+            <p className="text-red-500">
+              {!collapsedCaption
+                ? 'Required'
+                : collapsedCaption.length < 4
+                  ? 'Too Short'
+                  : ''}
+            </p>
+          }
+        </div>
+        <div className="flex flex-col gap-1">
+          <p for="client" className="text-white">
+            Org/Rep
+          </p>
+          <Input
+            size="sm"
+            placeholder="Select"
+            value={episodeDetails.FPCOrgRep.OriginalRepeatName}
+            disabled={true}
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <p for="client" className="text-white">
+            Season
+          </p>
+          <Input
+            size="sm"
+            placeholder="Select"
+            value={episodeDetails.SeasonNo}
+            disabled={true}
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <p for="client" className="text-white">
+            Episode
+          </p>
+          <Input
+            size="sm"
+            placeholder="Select"
+            value={episodeDetails.EpisodeNo}
+            disabled={true}
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <p for="client" className="text-white">
+            Segment
+          </p>
+          <Input
+            size="sm"
+            placeholder="Select"
+            value={episodeDetails.MaximumSegments}
+            disabled={true}
+          />
+        </div>
+        <div className="flex flex-col gap-1 col-span-2">
+          <p for="client" className="text-white">
+            Synopsis
+          </p>
+          <Input
+            size="sm"
+            placeholder="Enter synopsis"
+            value={synopsis}
+            textArea={true}
+            className="min-h-5"
+            onChange={(event) => setSynopsis(event.target.value)}
+          />
+        </div>
+      </div>
+      <div className="text-right mt-6">
+        <Button
+          variant="solid"
+          onClick={handleSave}
+          size="sm"
+          disabled={!collapsedCaption || collapsedCaption.length < 4}
+        >
+          Update
+        </Button>
+      </div>
+    </Dialog>
+  );
+}
+
+export default EditSegDialog;

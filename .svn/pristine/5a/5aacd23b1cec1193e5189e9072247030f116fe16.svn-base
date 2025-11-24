@@ -1,0 +1,209 @@
+import React, { useEffect, useState } from 'react';
+import { AdaptableCard } from 'components/shared';
+import { FormItem, Select, Switcher } from 'components/ui';
+import { Field, useFormikContext } from 'formik';
+import {
+  apiGetDepartmentmaster,
+  apiGetDesignationmaster,
+  apiGetEmployeemasterdrop,
+} from 'services/MasterService';
+import { apiGetagencymasterDrop } from 'services/CreditcontrolService'
+const Grade = [
+  { value: 'A', label: 'A' },
+  { value: 'B', label: 'B' },
+  { value: 'C', label: 'C' },
+  { value: 'D', label: 'D' },
+];
+
+const DepartmentManagement = (props) => {
+  const { values, touched, errors } = props;
+  const EmpDemo = [{ value: '', label: 'Data Not Found' }];
+  const [Department, setDepartment] = useState([]);
+  const [Designation, setDesignation] = useState([]);
+  const [Reporting, setReporting] = useState([]);
+  const [Agency, setAgency] = useState([])
+  useEffect(() => {
+    (async (values) => {
+      const Department = await apiGetDepartmentmaster(values);
+      const formattedOptions = Department.data.map((option) => ({
+        value: option.DepartmentCode,
+        label: option.DepartmentName,
+      }));
+      setDepartment(formattedOptions);
+    })();
+    (async (values) => {
+      const Designation = await apiGetDesignationmaster(values);
+      const formattedOptions = Designation.data.map((option) => ({
+        value: option.DesignationCode,
+        label: option.DesignationName,
+      }));
+      setDesignation(formattedOptions);
+    })();
+    (async (values) => {
+      const Reporting = await apiGetEmployeemasterdrop(values);
+      //console.log(Reporting)
+      const formattedOptions = Reporting.data.map((option) => ({
+        value: option.EmployeeCode,
+        label: option.Emp_FirstName,
+      }));
+      setReporting(formattedOptions);
+    })();
+    (async (values) => {
+      const Agency = await apiGetagencymasterDrop(values);
+      //console.log(Reporting)
+      const formattedOptions = Agency.data.map((option) => ({
+        value: option.AgencyCode,
+        label: option.AgencyName,
+      }))
+      setAgency(formattedOptions)
+    })();
+  }, []);
+  const { setFieldValue } = useFormikContext();
+  return (
+    <AdaptableCard className="mb-4" divider isLastChild>
+      <h5>Department Management</h5>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="col-span-1">
+          {/* {values.DepartmentCode} */}
+          <FormItem
+            asterisk
+            label="Department"
+            invalid={errors.DepartmentCode && touched.DepartmentCode}
+            errorMessage={errors.DepartmentCode}
+          >
+            {/* {values.DepartmentCode} */}
+            <Field size="sm" name="DepartmentCode">
+              {({ field, form }) => (
+                <Select
+                  field={field}
+                  form={form}
+                  options={Department.length > 2 ? Department : EmpDemo}
+                  value={
+                    Department.length > 2
+                      ? Department.filter(
+                        (option) => option.value === values.DepartmentCode,
+                      )
+                      : EmpDemo.filter(
+                        (option) => option.value === values.ReportingTo,
+                      )
+                  }
+                  onChange={(option) =>
+                    form.setFieldValue(field.name, option?.value)
+                  }
+                />
+              )}
+            </Field>
+          </FormItem>
+        </div>
+        <div className="col-span-1">
+          <FormItem
+            asterisk
+            label="Designation"
+            invalid={errors.DesignationCode && touched.DesignationCode}
+            errorMessage={errors.DesignationCode}
+          >
+            <Field
+              name="DesignationCode"
+              placeholder="Select"
+              component={Select}
+              options={Designation}
+              value={Designation.filter(
+                (option) => option.value === values.DesignationCode,
+              )}
+              onChange={(e) => {
+                const newValue = e.value;
+                setFieldValue('DesignationCode', newValue);
+              }}
+              size="sm"
+            />
+          </FormItem>
+        </div>
+
+        <div className="col-span-1">
+          <FormItem
+            asterisk
+            label="Grade"
+            invalid={errors.Emp_Grade && touched.Emp_Grade}
+            errorMessage={errors.Emp_Grade}
+          >
+            <Field
+              name="Emp_Grade"
+              placeholder="Select"
+              component={Select}
+              options={Grade}
+              value={Grade.filter(
+                (option) => option.value === values.Emp_Grade,
+              )}
+              onChange={(e) => {
+                const newValue = e.value;
+                setFieldValue('Emp_Grade', newValue);
+              }}
+              size="sm"
+            />
+          </FormItem>
+        </div>
+        <div className="col-span-1">
+          <FormItem
+            asterisk
+            label="Reporting"
+            invalid={errors.ReportingTo && touched.ReportingTo}
+            errorMessage={errors.ReportingTo}
+          >
+            <Field
+              name="ReportingTo"
+              placeholder="Select"
+              component={Select}
+              options={Reporting}
+              value={Reporting.filter(
+                (option) => option.value === values.ReportingTo,
+              )}
+              onChange={(e) => {
+                const newValue = e.value;
+                setFieldValue('ReportingTo', newValue);
+              }}
+              size="sm"
+            />
+          </FormItem>
+        </div>
+        <div className="col-span-1">
+          <FormItem
+            asterisk
+            label="Agency"
+            invalid={errors.Agency && touched.Agency}
+            errorMessage={errors.Agency}
+          >
+            <Field
+              name="Agency"
+              placeholder="Select"
+              component={Select}
+              options={Agency}
+              value={Agency.filter(
+                (option) => option.value === values.Agency,
+              )}
+              onChange={(e) => {
+                const newValue = e.value;
+                setFieldValue('Agency', newValue);
+              }}
+              size="sm"
+            />
+          </FormItem>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="col-span-1">
+            <FormItem
+              label="Status"
+              invalid={errors.IsActive && touched.IsActive}
+              errorMessage={errors.IsActive}
+            >
+              <div>
+                <Field size="sm" name="IsActive" component={Switcher} />
+              </div>
+            </FormItem>
+          </div>
+        </div>
+      </div>
+    </AdaptableCard>
+  );
+};
+
+export default DepartmentManagement;

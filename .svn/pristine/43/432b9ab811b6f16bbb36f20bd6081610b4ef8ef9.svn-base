@@ -1,0 +1,494 @@
+import { lazy, Suspense, useContext, useEffect, useRef, useState } from 'react';
+import { DragDropContext } from '@hello-pangea/dnd';
+import { hideStackedSideNav } from 'views/Scheduling/general';
+import SchedulerContext from '../../context/SchedulerContext';
+import { openNotification } from 'views/Controls/GLOBALFUNACTION';
+import {
+  isScheduleAllowedToEditFn,
+  isAnyRHSFeatureActive,
+  getDeletableRows,
+} from './utils/utils';
+import { useDispatch, useSelector } from 'react-redux';
+import { convertDateToYMD } from 'components/validators';
+import {
+  droppableIdsEnum,
+  featuresEnum,
+  operationTypesEnum,
+  pagesEnum,
+  secondaryTableTypesEnum,
+  tableTypesEnum,
+} from '../../enum';
+import {
+  setResizableAreaRContainerWidth,
+  setResizableAreaTContainerHeight,
+  setUnsavedWork,
+} from 'store/auth/scheduling';
+import { handleDeleteRows, TABLE_NAMES } from '../../constants';
+import Loader from 'views/Controls/Loader';
+import { apiCallstoreprocedure } from 'services/CommonService';
+import { format } from 'date-fns';
+
+/* CODE SPLITTING */
+const Toolbar = lazy(() => import('./components/Toolbar/Toolbar'));
+const Hours = lazy(() => import('./components/Hours'));
+const FpcTime = lazy(() => import('./components/FpcTime'));
+const DraggableTable = lazy(() =>
+  import('./components/DraggableTable/DraggableTable'),
+);
+const InsertPromo = lazy(() => import('./components/InsertPromo/InsertPromo'));
+const InsertSong = lazy(() => import('./components/InsertSong/InsertSong'));
+const InsertDroppedSpot = lazy(() =>
+  import('./components/InsertDroppedSpot/InsertDroppedSpot'),
+);
+const InsertLastMinuteSpot = lazy(() =>
+  import('./components/InsertLastMinuteSpot/InsertLastMinuteSpot'),
+);
+const InsertNTC = lazy(() => import('./components/InsertNTC/InsertNTC'));
+const InsertDroppedNTC = lazy(() =>
+  import('./components/InsertDroppedNTC/InsertDroppedNTC'),
+);
+const InsertLastMinuteNTC = lazy(() =>
+  import('./components/InsertLastMinuteNTC/InsertLastMinuteNTC'),
+);
+const InsertProgram = lazy(() =>
+  import('./components/InsertProgram/InsertProgram'),
+);
+const Summary = lazy(() => import('./components/Summary/Summary'));
+const RotationInfo = lazy(() =>
+  import('./components/RotationInfo/RotationInfo'),
+);
+const RuleCheck = lazy(() => import('./components/RuleCheck/RuleCheck'));
+const ChangeProgram = lazy(() =>
+  import('./components/ChangeProgram/ChangeProgram'),
+);
+const HourwiseInventory = lazy(() =>
+  import('./components/HourwiseInventory/HourwiseInventory'),
+);
+const Duration = lazy(() => import('./components/Duration/Duration'));
+const BottomSummary = lazy(() =>
+  import('./components/BottomSummary/BottomSummary'),
+);
+const DeleteMultipleRowsDialog = lazy(() =>
+  import(
+    './components/DraggableTable/Cell/components/DeleteMultipleRowsDialog'
+  ),
+);
+const DragIcon = lazy(() => import('./components/DragIcon'));
+
+function SchedulingArea() {
+  /* REDUX */
+  const channel = useSelector((state) => state.locale.selectedChannel);
+  const token = useSelector((state) => state.auth.session.token);
+  const LoginId = useSelector((state) => state.auth.session.LoginId);
+  const unsavedWork = useSelector((state) => state.auth.scheduling.unsavedWork);
+  const resizableAreaRContainerWidth = useSelector(
+    (state) => state.auth.scheduling.resizableAreaRContainerWidth,
+  );
+  const resizableAreaTContainerHeight = useSelector(
+    (state) => state.auth.scheduling.resizableAreaTContainerHeight,
+  );
+  const dispatch = useDispatch();
+
+  /* CONTEXT */
+  const {
+    page,
+    date,
+    activeFeatures,
+    loadUnsavedWork,
+    unsavedWorkState,
+    updateSchedulerStateInRedux,
+    schedulingTableData,
+    schedulingTableOffset,
+    schedulingTableManagedColumns,
+    schedulingTableSelectedRows,
+    setSchedulingTableSelectedRows,
+    schedulingTableRef,
+    setShowLoader,
+    setStartTime,
+    executeOperation,
+    isScheduleAllowedToEdit,
+    setIsScheduleAllowedToEdit,
+  } = useContext(SchedulerContext);
+
+  /* STATES */
+  const [isDeleteMultipleRowsDialogOpen, setIsDeleteMultipleRowsDialogOpen] =
+    useState(false);
+
+  /* HOOKS - REFS */
+  const resizableAreaParentContainerRef = useRef(null);
+  const resizableAreaRContainerRef = useRef(null);
+  const resizableAreaTContainerRef = useRef(null);
+  const resizableAreaRContainerWidthRef = useRef(resizableAreaRContainerWidth);
+  const resizableAreaTContainerHeightRef = useRef(
+    resizableAreaTContainerHeight,
+  );
+
+  /* USE EFFECTS */
+  useEffect(() => {
+    try {
+      hideStackedSideNav();
+      document.querySelector('.page-container').classList.add('!py-2');
+    } catch (error) {
+      console.error(error);
+    }
+    return () => {
+      document.querySelector('.page-container').classList.remove('!py-2');
+      handleSchedulingPageClose();
+    };
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!page || !channel || !date || isScheduleAllowedToEdit === null)
+          return;
+        setShowLoader(true);
+        if (loadUnsavedWork && unsavedWorkState) {
+          await executeOperation({
+            operation: operationTypesEnum.INITIALIZE_SCHEDULER,
+            isFirstLoad: true,
+            isLoadUnsavedWork: true,
+          });
+        } else {
+          await executeOperation({
+            operation: operationTypesEnum.INITIALIZE_SCHEDULER,
+            isFirstLoad: true,
+          });
+        }
+        setShowLoader(false);
+      } catch (error) {
+        openNotification(
+          'danger',
+          'Something went wrong while fetching schedule',
+        );
+        setShowLoader(false);
+        console.error(error);
+      }
+    })();
+  }, [page, date, unsavedWorkState, channel, isScheduleAllowedToEdit]);
+
+  useEffect(() => {
+    (async () => {
+      if (!date || !channel || !token) return;
+      setIsScheduleAllowedToEdit(
+        await isScheduleAllowedToEditFn(date, channel, token),
+      );
+    })();
+  }, [date, channel, token]);
+
+  useEffect(() => {
+    try {
+      if (schedulingTableData.length > 0) {
+        setStartTime(schedulingTableData[1].Tel_Time);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }, [schedulingTableData]);
+
+  useEffect(() => {
+    try {
+      // STORE UNSAVED WORK IN REDUX
+      if (page && activeFeatures && updateSchedulerStateInRedux) {
+        dispatch(
+          setUnsavedWork({
+            ...unsavedWork,
+            [page]: {
+              ...unsavedWork[page],
+              [convertDateToYMD(date)]: {
+                schedulingTableData,
+                activeFeatures,
+                timeStamp: new Date(),
+              },
+            },
+          }),
+        );
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }, [
+    page,
+    date,
+    schedulingTableData,
+    activeFeatures,
+    updateSchedulerStateInRedux,
+  ]);
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleDeleteKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleDeleteKeyDown);
+    };
+  }, [schedulingTableSelectedRows]);
+
+  /* EVENT HANDLERS */
+  const handleMouseDown = (direction, e) => {
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const parentContainerRect =
+      resizableAreaParentContainerRef.current.getBoundingClientRect();
+    const initialRContainerWidth = resizableAreaRContainerWidthRef.current;
+    const initialTContainerHeight = resizableAreaTContainerHeightRef.current;
+    // add mouse move and moue up event handlers
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+
+    function onMouseMove(event) {
+      if (direction === 'horizontal') {
+        const draggedPixels = startX - event.clientX;
+        let newWidth =
+          (((initialRContainerWidth * parentContainerRect.width) / 100 +
+            draggedPixels) *
+            100) /
+          parentContainerRect.width;
+        newWidth = Math.min(50, Math.max(20, newWidth));
+        resizableAreaRContainerWidthRef.current = newWidth;
+        resizableAreaRContainerRef.current.style.width = `${newWidth}%`;
+      } else if (direction === 'vertical') {
+        const draggedPixels = event.clientY - startY;
+        let newHeight =
+          (((initialTContainerHeight * parentContainerRect.height) / 100 +
+            draggedPixels) *
+            100) /
+          parentContainerRect.height;
+        newHeight = Math.min(82, Math.max(50, newHeight));
+        resizableAreaTContainerHeightRef.current = newHeight;
+        resizableAreaTContainerRef.current.style.height = `${newHeight}%`;
+      }
+    }
+
+    function onMouseUp() {
+      // set final width and height to redux
+      dispatch(
+        setResizableAreaRContainerWidth(
+          resizableAreaRContainerWidthRef.current,
+        ),
+      );
+      dispatch(
+        setResizableAreaTContainerHeight(
+          resizableAreaTContainerHeightRef.current,
+        ),
+      );
+      // Remove event handlers created on mouse down event
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    }
+  };
+
+  const handleDeleteKeyDown = (event) => {
+    if (event.key === 'Delete' && schedulingTableSelectedRows.length > 0) {
+      handleDeleteRows({
+        rows: getDeletableRows(schedulingTableSelectedRows),
+        executeOperation,
+        setIsDeleteMultipleRowsDialogOpen,
+      });
+    }
+  };
+
+  const handleSchedulingPageClose = async () => {
+    try {
+      await apiCallstoreprocedure('USP_Sch_SchedulingSameDay', {
+        "Channel": channel.ChannelCode,
+        "Location": channel.LocationCode,
+        "TelecastDate": format(date, 'yyyy-MM-dd'),
+        "IsOpen": 0,
+        "OpenBy": LoginId,
+        "Page": page
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  return (
+    <Suspense fallback={<Loader showLoader={true} />}>
+      <div className="h-full flex flex-col">
+        {activeFeatures && (
+          <>
+            <Toolbar />
+            <div
+              className="grow h-0 select-none w-full flex flex-col"
+              ref={resizableAreaParentContainerRef}
+            >
+              <div
+                className="flex gap-2 my-2"
+                style={{ height: `${resizableAreaTContainerHeight}%` }}
+                ref={resizableAreaTContainerRef}
+              >
+                {activeFeatures[featuresEnum.HOURS] && (
+                  <div className="h-full min-w-[5%] max-w-max transition-all">
+                    <Hours />
+                  </div>
+                )}
+                {activeFeatures[featuresEnum.FPC_TIME] && (
+                  <div className="h-full min-w-[5%] max-w-max transition-all">
+                    <FpcTime />
+                  </div>
+                )}
+                <DragDropContext
+                  onDragEnd={(result) =>
+                    executeOperation({
+                      operation: operationTypesEnum.DRAG_ROW,
+                      dragInfo: result,
+                    })
+                  }
+                >
+                  <div
+                    className={`h-full bg-gray-800 p-3 pt-2 rounded-lg flex flex-col transition-all ${isAnyRHSFeatureActive(activeFeatures, page)
+                      ? 'flex-1'
+                      : 'w-full'
+                      }`}
+                    style={{
+                      width: isAnyRHSFeatureActive(activeFeatures, page)
+                        ? `flex-1`
+                        : '100%',
+                    }}
+                  >
+                    <DraggableTable
+                      tableName={TABLE_NAMES.SCHEDULING_TABLE_NAMES[page]}
+                      tableType={tableTypesEnum.SCHEDULING}
+                      tableData={schedulingTableData}
+                      columns={schedulingTableManagedColumns.visibleColumns}
+                      droppableId={droppableIdsEnum.SCHEDULING}
+                      selectedRows={schedulingTableSelectedRows}
+                      setSelectedRows={setSchedulingTableSelectedRows}
+                      scrolledOffset={schedulingTableOffset}
+                      tableRef={schedulingTableRef}
+                    />
+                  </div>
+                  {isAnyRHSFeatureActive(activeFeatures, page) && (
+                    <div
+                      className="resizer flex items-center h-full bg-gray-800 cursor-ew-resize hover:bg-gray-600 rounded-md px-1"
+                      title="Drag to resize"
+                      data-direction="horizontal"
+                      onMouseDown={(e) => handleMouseDown('horizontal', e)}
+                    >
+                      <DragIcon orientation="vertical" />
+                    </div>
+                  )}
+                  {isAnyRHSFeatureActive(activeFeatures, page) && (
+                    <div
+                      className="h-full relative"
+                      style={{ width: `${resizableAreaRContainerWidth}%` }}
+                      ref={resizableAreaRContainerRef}
+                    >
+                      {page === pagesEnum.PROMO &&
+                        activeFeatures[featuresEnum.INSERT] && <InsertPromo />}
+                      {page === pagesEnum.SONG &&
+                        activeFeatures[featuresEnum.INSERT] && <InsertSong />}
+                      {page === pagesEnum.COMMERCIAL &&
+                        activeFeatures[featuresEnum.INSERT]?.isActive && (
+                          <>
+                            {activeFeatures[featuresEnum.INSERT]?.eventType ===
+                              secondaryTableTypesEnum.DROPPED_SPOTS ? (
+                              <InsertDroppedSpot />
+                            ) : (
+                              activeFeatures[featuresEnum.INSERT]?.eventType ===
+                              secondaryTableTypesEnum.LAST_MINUTE_SPOTS && (
+                                <InsertLastMinuteSpot />
+                              )
+                            )}
+                          </>
+                        )}
+                      {page === pagesEnum.NTC &&
+                        activeFeatures[featuresEnum.INSERT]?.isActive && (
+                          <>
+                            {activeFeatures[featuresEnum.INSERT]?.eventType ===
+                              secondaryTableTypesEnum.NTC ? (
+                              <InsertNTC />
+                            ) : activeFeatures[featuresEnum.INSERT]
+                              ?.eventType ===
+                              secondaryTableTypesEnum.DROPPED_NTC ? (
+                              <InsertDroppedNTC />
+                            ) : (
+                              activeFeatures[featuresEnum.INSERT]?.eventType ===
+                              secondaryTableTypesEnum.LAST_MINUTE_NTC && (
+                                <InsertLastMinuteNTC />
+                              )
+                            )}
+                          </>
+                        )}
+                      {page === pagesEnum.FINAL_LOG &&
+                        activeFeatures[featuresEnum.INSERT]?.isActive && (
+                          <>
+                            {activeFeatures[featuresEnum.INSERT]?.eventType ===
+                              secondaryTableTypesEnum.PROMO ? (
+                              <InsertPromo />
+                            ) : activeFeatures[featuresEnum.INSERT]
+                              ?.eventType === secondaryTableTypesEnum.SONG ? (
+                              <InsertSong />
+                            ) : activeFeatures[featuresEnum.INSERT]
+                              ?.eventType ===
+                              secondaryTableTypesEnum.DROPPED_SPOTS ? (
+                              <InsertDroppedSpot />
+                            ) : activeFeatures[featuresEnum.INSERT]
+                              ?.eventType ===
+                              secondaryTableTypesEnum.LAST_MINUTE_SPOTS ? (
+                              <InsertLastMinuteSpot />
+                            ) : activeFeatures[featuresEnum.INSERT]
+                              ?.eventType === secondaryTableTypesEnum.NTC ? (
+                              <InsertNTC />
+                            ) : activeFeatures[featuresEnum.INSERT]
+                              ?.eventType ===
+                              secondaryTableTypesEnum.DROPPED_NTC ? (
+                              <InsertDroppedNTC />
+                            ) : activeFeatures[featuresEnum.INSERT]
+                              ?.eventType ===
+                              secondaryTableTypesEnum.LAST_MINUTE_NTC ? (
+                              <InsertLastMinuteNTC />
+                            ) : (
+                              <></>
+                            )}
+                          </>
+                        )}
+                      {activeFeatures[featuresEnum.SUMMARY] && <Summary />}
+                      {activeFeatures[featuresEnum.ROTATION_INFO] && (
+                        <RotationInfo />
+                      )}
+                      {activeFeatures[featuresEnum.RULE_CHECK] &&
+                        activeFeatures[featuresEnum.RULE_CHECK]?.isActive && (
+                          <RuleCheck />
+                        )}
+                      {activeFeatures[featuresEnum.CHANGE_PROGRAM] && (
+                        <ChangeProgram />
+                      )}
+                      {activeFeatures[featuresEnum.MANAGE_SEGMENT] && (
+                        <InsertProgram />
+                      )}
+                      {activeFeatures[featuresEnum.HOURWISE_INVENTORY] && (
+                        <HourwiseInventory />
+                      )}
+                      {activeFeatures[featuresEnum.DURATION] && <Duration />}
+                    </div>
+                  )}
+                </DragDropContext>
+              </div>
+              <div
+                className="resizer flex items-center justify-center w-full bg-gray-800 cursor-ns-resize hover:bg-gray-600 rounded-md py-1"
+                title="Drag to resize"
+                data-direction="vertical"
+                onMouseDown={(e) => handleMouseDown('vertical', e)}
+              >
+                <DragIcon />
+              </div>
+              <div className="flex-1 mt-2 grow">
+                <BottomSummary />
+              </div>
+            </div>
+            {isDeleteMultipleRowsDialogOpen && (
+              <DeleteMultipleRowsDialog
+                isDialogOpen={isDeleteMultipleRowsDialogOpen}
+                setIsDialogOpen={setIsDeleteMultipleRowsDialogOpen}
+                selectedRows={getDeletableRows(schedulingTableSelectedRows)}
+                setSelectedRows={setSchedulingTableSelectedRows}
+              />
+            )}
+          </>
+        )}
+      </div>
+    </Suspense>
+  );
+}
+
+export default SchedulingArea;

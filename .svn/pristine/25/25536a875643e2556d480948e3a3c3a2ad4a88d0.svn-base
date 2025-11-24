@@ -1,0 +1,715 @@
+import { Button, DatePicker, InputGroup, Tooltip } from 'components/ui';
+import React, { useEffect, useRef, useState } from 'react';
+import { CgMaximizeAlt, CgMinimize } from 'react-icons/cg';
+import { IoArrowBack } from 'react-icons/io5';
+import { TbClockHour4, TbGridDots, TbTableImport } from 'react-icons/tb';
+import { FaClockRotateLeft } from 'react-icons/fa6';
+import { FaFileUpload, FaRegSave } from 'react-icons/fa';
+import { BsCalendarDate } from 'react-icons/bs';
+import {
+  HiOutlineClipboardCheck,
+  HiOutlineTrash,
+  HiPlusCircle,
+} from 'react-icons/hi';
+import { FiDownload, FiUpload } from 'react-icons/fi';
+import { RiVerifiedBadgeFill } from 'react-icons/ri';
+import { LuCalendarDays } from 'react-icons/lu';
+import { IoIosArrowBack, IoIosArrowForward } from 'react-icons/io';
+import { featuresEnum } from '../../../enums';
+import { getClassNames } from 'views/Scheduling/Scheduler/components/SchedulingArea/components/SecondaryTableToolbar/utils';
+import { openNotification } from 'views/Controls/GLOBALFUNACTION';
+import { Link, useNavigate } from 'react-router-dom';
+import SaveAsFpcDateDialog from './components/SaveAsFpcDateDialog';
+import SaveAsFpcDaysDialog from './components/SaveAsFpcDaysDialog';
+import { ExportXls } from 'views/Controls/ExportXls';
+import { FPCImportTemplate } from 'views/Controls/ImportTemplate';
+import WarningDialog from 'views/Controls/WarningDialog';
+import FPCVerifyDialog from './components/FPCVerifyDialog';
+import { PiCalendarBlankBold } from 'react-icons/pi';
+import { apiGetDailyFPCStatus } from 'services/SchedulingService';
+import { Finalog } from 'components/validators';
+import { apiCallstoreprocedure } from 'services/CommonService';
+import ManageColumns from '../ManageColumns/ManageColumns';
+import { apiCallstoreprocedure_WithOutParam } from 'services/DealServices';
+import { isFeatureAllowedForChannel } from '../../utils/renderingUtils';
+import { format } from 'date-fns';
+import Loader from 'views/Controls/Loader';
+import UploadFileValidateAndSubmitDialog from 'views/Programming/WeeklyFPC/components/UploadFileValidateAndSubmitDialog';
+import { CLIENT } from 'views/Controls/clientListEnum';
+
+function Toolbar({
+  activeFeatures,
+  setActiveFeatures,
+  vTelecastDate,
+  setvTelecastDate,
+  formattedDate,
+  handleVerifyClick,
+  handleSaveClick,
+  isFPCAllowedToEdit,
+  isFPCAllowedToSave,
+  startDate,
+  endDate,
+  handleDateChange,
+  handleSaveASFPC,
+  selectedWeekdays,
+  setSelectedWeekdays,
+  isSaveAsFpcDateDialogOpen,
+  setIsSaveAsFpcDateDialogOpen,
+  isSaveAsFpcDaysDialogOpen,
+  setIsSaveAsFpcDaysDialogOpen,
+  dialogIsOpen,
+  setdialogIsOpen,
+  fpcimportdata,
+  setFpcimportdata,
+  beforeUpload,
+  onDialogOKAI,
+  FpcErrorheaders,
+  maxUpload,
+  data10,
+  setdata10,
+  channel,
+  SelectedDate,
+  DailyFPCdialogVisible,
+  setDailyFPCDialogVisible,
+  data,
+  setdata,
+  emptySegmentData,
+  setemptySegmentData,
+  apexBarChar,
+  setbtnMode,
+  setDialogContentS,
+  sampleRow,
+  tableName,
+  priTableManagedColumns,
+  setPriTableManagedColumns,
+  maintainScrolledOffsetOfTablesFn,
+  setGenerateFpc,
+}) {
+  /* STATES */
+  const [date, setdate] = useState(null);
+  const [uploadDialog, setUploadDialog] = useState(false);
+  const [datewiseFpcStatus, setDatewiseFpcStatus] = useState(null);
+  const [showLoader, setShowLoader] = useState(false);
+  //const [generateFpc, setGenerateFpc] = useState(null);
+  const [isConfirmClearFPCDialogOpen, setIsConfirmClearFPCDialogOpen] =
+    useState(false);
+
+  /* HOOKS */
+  const nav = useNavigate();
+  const manageColumnsDropdownRef = useRef(null);
+
+  /* USE EFFECTS */
+  useEffect(() => {
+    document.addEventListener('mousedown', closeDropDowns);
+    return () => {
+      document.removeEventListener('mousedown', closeDropDowns);
+    };
+  }, [manageColumnsDropdownRef]);
+
+  /* EVENT HANDLERS */
+  const handleMaximize = () => {
+    try {
+      let isMaximize = !activeFeatures[featuresEnum.MAXIMIZE];
+      if (isMaximize) {
+        if (document.documentElement.requestFullscreen)
+          document.documentElement.requestFullscreen();
+        else if (document.documentElement.mozRequestFullScreen)
+          document.documentElement.mozRequestFullScreen();
+        else if (document.documentElement.webkitRequestFullscreen)
+          document.documentElement.webkitRequestFullscreen();
+        else if (document.documentElement.msRequestFullscreen)
+          document.documentElement.msRequestFullscreen();
+      } else {
+        if (document.exitFullscreen) document.exitFullscreen();
+        else if (document.mozCancelFullScreen) document.mozCancelFullScreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        else if (document.msExitFullscreen) document.msExitFullscreen();
+      }
+      setActiveFeatures({
+        ...activeFeatures,
+        [featuresEnum.MAXIMIZE]: isMaximize,
+      });
+    } catch (error) {
+      openNotification('danger', 'Something went wrong');
+      console.error(error);
+    }
+  };
+
+  const handleExportExcel = () => {
+    try {
+      const visibleColumns = [
+        'StartTime',
+        'EndTime',
+        'ContentName',
+        'SlotDuration',
+        'status',
+        'HouseID',
+        'SeasonNo',
+        'EpisodeNo',
+      ];
+      ExportXls(data10, 'FPC-' + SelectedDate, visibleColumns);
+    } catch (error) {
+      console.error(error);
+      openNotification('danger', 'Something went wrong');
+    }
+  };
+
+  const handleDonwloadFPCImport = () => {
+    try {
+      //ExportXls([FPCImportTemplate], 'FPC_Import_Template');
+      const link = document.createElement('a');
+      link.href = `${process.env.PUBLIC_URL}/FPC_Import_Template.xlsm`;
+      link.download = 'FPC_Import_Template.xlsm';
+      link.click();
+    } catch (error) {
+      console.error(error);
+      openNotification('danger', 'Something went wrong');
+    }
+  };
+
+  const getDailyFPCStatusAsCalendarEvents = async () => {
+    try {
+      const response = await apiGetDailyFPCStatus(
+        {
+          LocationCode: channel.LocationCode,
+          ChannelCode: channel.ChannelCode,
+          Screen: 'FINAL',
+        },
+        date,
+      );
+      if (response.status === 200) {
+        if (response.data.length === 0) {
+          openNotification('info', 'Daily FPC Status not found');
+        }
+        return Finalog(response.data);
+      } else if (response.status === 204) {
+        openNotification('info', `Daily FPC Status not found`);
+      } else {
+        openNotification(
+          'danger',
+          `Failed to fetch Daily FPC Status. Server responded with status code ${response.status}`,
+        );
+      }
+      return null;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  /* USE EFFECTS */
+  useEffect(() => {
+    (async () => {
+      try {
+        if (channel && date) {
+          setDatewiseFpcStatus(await getDailyFPCStatusAsCalendarEvents());
+          let data = {};
+          data.par_LocationCode = channel.LocationCode;
+          data.par_ChannelCode = channel.ChannelCode;
+          data.par_FPCDate = date;
+          data.par_Flag = 'PLAYLIST';
+          apiCallstoreprocedure('USP_Calender_Dashboard', data)
+            .then((response) => {
+              if (response.status == 200) {
+                return response.data;
+              }
+              if (response.status == 204) {
+              }
+            })
+            .catch((error) => {
+              if (error.response.status) {
+              }
+            });
+        }
+      } catch (error) {
+        setDatewiseFpcStatus(null);
+        openNotification(
+          'danger',
+          `Something went wrong. Failed to fetch Daily FPC Status`,
+        );
+        console.error(error);
+      }
+    })();
+  }, [date, channel]);
+
+  useEffect(() => {
+    if (datewiseFpcStatus !== null) {
+      if (!channel) {
+        openNotification('danger', 'Kindly Select Channel');
+        return;
+      }
+      const isDailyFPCPresent = datewiseFpcStatus.some(
+        (row) => row.start === date,
+      );
+
+      if (isDailyFPCPresent) {
+        nav('/finalLog', { state: { date: new Date(date) } });
+      } else {
+        openNotification('info', 'Daily FPC not available for selected date');
+      }
+    }
+  }, [datewiseFpcStatus]);
+
+  const openDialog = () => {
+    setdialogIsOpen(true);
+    setFpcimportdata([]);
+  };
+
+  const onDialogClose = (e) => {
+    setdialogIsOpen(false);
+  };
+
+  const closeDropDowns = (event) => {
+    if (
+      manageColumnsDropdownRef.current &&
+      !manageColumnsDropdownRef.current.contains(event.target)
+    )
+      setActiveFeatures((prevState) => {
+        return {
+          ...prevState,
+          [featuresEnum.MANAGE_COLUMNS]: {
+            ...prevState[featuresEnum.MANAGE_COLUMNS],
+            isDropdownVisible: false,
+          },
+        };
+      });
+  };
+
+  const handleFeatureClick = (feature) => {
+    maintainScrolledOffsetOfTablesFn();
+    if (feature === featuresEnum.MANAGE_COLUMNS)
+      setActiveFeatures({
+        ...activeFeatures,
+        [feature]: {
+          ...activeFeatures[feature],
+          isDropdownVisible: true,
+        },
+      });
+    else if (feature === featuresEnum.HOURS)
+      setActiveFeatures({
+        ...activeFeatures,
+        [feature]: !activeFeatures[feature],
+        [featuresEnum.FPC_TIME]: false,
+      });
+    else if (feature === featuresEnum.FPC_TIME)
+      setActiveFeatures({
+        ...activeFeatures,
+        [feature]: !activeFeatures[feature],
+        [featuresEnum.HOURS]: false,
+      });
+    else if (feature === featuresEnum.INSERT)
+      setActiveFeatures({
+        ...activeFeatures,
+        [featuresEnum.ROTATION_INFO]: false,
+        [featuresEnum.INSERT]: !activeFeatures[featuresEnum.INSERT],
+      });
+  };
+
+  return (
+    <div className="bg-gray-700 bg-opacity-50 flex justify-between items-center py-0.5 px-1.5 rounded-lg border border-gray-600">
+      <div className="flex grow justify-between items-center pr-2.5 mr-2.5 border-r border-r-gray-600">
+        <div className="flex items-center gap-0.5">
+          <div className="relative">
+            <Tooltip title="Manage Columns">
+              <Button
+                className={getClassNames(
+                  activeFeatures[featuresEnum.MANAGE_COLUMNS] &&
+                  activeFeatures[featuresEnum.MANAGE_COLUMNS].isActive,
+                )}
+                variant="plain"
+                size="sm"
+                icon={<TbGridDots className="text-xl" />}
+                onClick={() => handleFeatureClick(featuresEnum.MANAGE_COLUMNS)}
+              />
+            </Tooltip>
+            {activeFeatures[featuresEnum.MANAGE_COLUMNS] &&
+              activeFeatures[featuresEnum.MANAGE_COLUMNS].isDropdownVisible && (
+                <ManageColumns
+                  dropdownRef={manageColumnsDropdownRef}
+                  tableName={tableName}
+                  managedColumns={priTableManagedColumns}
+                  setManagedColumns={setPriTableManagedColumns}
+                  setActiveFeatures={setActiveFeatures}
+                  maintainScrolledOffsetOfTablesFn={
+                    maintainScrolledOffsetOfTablesFn
+                  }
+                />
+              )}
+          </div>
+          <Tooltip
+            title={
+              activeFeatures[featuresEnum.MAXIMIZE] ? 'Minimize' : 'Maximize'
+            }
+          >
+            <Button
+              variant="plain"
+              size="sm"
+              icon={
+                activeFeatures[featuresEnum.MAXIMIZE] ? (
+                  <CgMinimize className="text-xl" />
+                ) : (
+                  <CgMaximizeAlt className="text-xl" />
+                )
+              }
+              className={getClassNames(activeFeatures[featuresEnum.MAXIMIZE])}
+              onClick={handleMaximize}
+            />
+          </Tooltip>
+          {/* <Tooltip title="Filter">
+          <Button
+            variant="plain"
+            size="sm"
+            icon={<IoFilterSharp className="text-xl" />}
+          />
+        </Tooltip>
+        <Tooltip title="Rotation Info">
+          <Button
+            variant="plain"
+            size="sm"
+            icon={<TbBoxMultiple2 className="text-xl" />}
+          />
+        </Tooltip> */}
+          <Tooltip title="Hours">
+            <Button
+              variant="plain"
+              size="sm"
+              icon={<TbClockHour4 className="text-xl" />}
+              className={getClassNames(activeFeatures[featuresEnum.HOURS])}
+              onClick={() => handleFeatureClick(featuresEnum.HOURS)}
+            />
+          </Tooltip>
+          {!isFeatureAllowedForChannel({ channel }) && (
+            <Tooltip title="FPC Time">
+              <Button
+                variant="plain"
+                size="sm"
+                icon={<FaClockRotateLeft className="text-base" />}
+                className={getClassNames(activeFeatures[featuresEnum.FPC_TIME])}
+                onClick={() => handleFeatureClick(featuresEnum.FPC_TIME)}
+              />
+            </Tooltip>
+          )}
+          {!isFeatureAllowedForChannel({ channel }) && (
+            <Tooltip title="Save As FPC Date">
+              <Button
+                variant="plain"
+                size="sm"
+                icon={<BsCalendarDate className="text-xl -mt-0.5" />}
+                onClick={() => setIsSaveAsFpcDateDialogOpen(true)}
+              />
+              <SaveAsFpcDateDialog
+                isDialogOpen={isSaveAsFpcDateDialogOpen}
+                setIsDialogOpen={setIsSaveAsFpcDateDialogOpen}
+                startDate={startDate}
+                endDate={endDate}
+                handleDateChange={handleDateChange}
+                handleSaveASFPC={handleSaveASFPC}
+              />
+            </Tooltip>
+          )}
+          <Tooltip title="Save As FPC Days">
+            <Button
+              variant="plain"
+              size="sm"
+              icon={<LuCalendarDays className="text-xl -mt-0.5" />}
+              onClick={() => setIsSaveAsFpcDaysDialogOpen(true)}
+            />
+            <SaveAsFpcDaysDialog
+              isDialogOpen={isSaveAsFpcDaysDialogOpen}
+              setIsDialogOpen={setIsSaveAsFpcDaysDialogOpen}
+              startDate={startDate}
+              endDate={endDate}
+              handleDateChange={handleDateChange}
+              handleSaveASFPC={handleSaveASFPC}
+              selectedWeekdays={selectedWeekdays}
+              setSelectedWeekdays={setSelectedWeekdays}
+            />
+          </Tooltip>
+          <Tooltip title="Export Excel">
+            <Button
+              variant="plain"
+              size="sm"
+              icon={<TbTableImport className="text-xl" />}
+              onClick={handleExportExcel}
+            />
+          </Tooltip>
+          {!isFeatureAllowedForChannel({ channel }) && isFPCAllowedToEdit && (
+            <Tooltip title="FPC Verify">
+              <Button
+                variant="plain"
+                size="sm"
+                icon={<HiOutlineClipboardCheck className="text-xl" />}
+                onClick={() => setDailyFPCDialogVisible(true)}
+              />
+              <FPCVerifyDialog
+                DailyFPCdialogVisible={DailyFPCdialogVisible}
+                setDailyFPCDialogVisible={setDailyFPCDialogVisible}
+                data={data}
+                setdata={setdata}
+                channel={channel}
+                SelectedDate={SelectedDate}
+                emptySegmentData={emptySegmentData}
+                setemptySegmentData={setemptySegmentData}
+                apexBarChar={apexBarChar}
+              />
+            </Tooltip>
+          )}
+          <Tooltip title="Download Template">
+            <Button
+              variant="plain"
+              size="sm"
+              icon={<FiDownload className="text-xl" />}
+              onClick={handleDonwloadFPCImport}
+            />
+          </Tooltip>
+          <Tooltip title="Upload FPC">
+            <Button
+              variant="plain"
+              size="sm"
+              icon={<FiUpload className="text-xl" />}
+              onClick={() => setUploadDialog(true)}
+            />
+            <Loader showLoader={showLoader} />
+            <UploadFileValidateAndSubmitDialog
+              setShowLoader={setShowLoader}
+              isDialogOpen={uploadDialog}
+              setIsDialogOpen={setUploadDialog}
+              submissionSP={'USP_PG_WeeklyFPCSave'}
+              valdationSP={'USP_PG_WeeklyFPC_Validation'}
+              successMessage={'FPC Created successfully'}
+              fileUploadapi={channel.label == CLIENT.ASIANET ? 'fpcmaster/uploadFileNewFormat' : (channel.label == CLIENT.USA_NEWS || channel.label == CLIENT.USA_GEC) ? 'fpcmaster/uploadFileStandardFormat' : 'fpcmaster/uploadintenclient'}
+              name={'FPC'}
+              tableName={'FPCImport'}
+            />
+            {/* <ImportDialog
+              isDialogOpen={dialogIsOpen}
+              onDialogClose={onDialogClose}
+              fpcimportdata={fpcimportdata}
+              beforeUpload={beforeUpload}
+              onDialogOKAI={onDialogOKAI}
+              FpcErrorheaders={FpcErrorheaders}
+              maxUpload={maxUpload}
+            /> */}
+          </Tooltip>
+          {isFeatureAllowedForChannel({ channel }) && (
+            <Tooltip title="Open Playlist Final">
+              <Button
+                variant="plain"
+                size="sm"
+                icon={<PiCalendarBlankBold className="text-xl" />}
+                onClick={() => setdate(SelectedDate)}
+              />
+            </Tooltip>
+          )}
+          {isFPCAllowedToEdit && (
+            <>
+              <Tooltip title="Generate Auto FPC">
+                <Button
+                  variant="plain"
+                  size="sm"
+                  icon={<PiCalendarBlankBold className="text-xl" />}
+                  onClick={() => setGenerateFpc(SelectedDate)}
+                />
+              </Tooltip>
+              <Tooltip title="Clear FPC">
+                <Button
+                  variant="plain"
+                  size="sm"
+                  icon={<HiOutlineTrash className="text-xl" />}
+                  onClick={() => setIsConfirmClearFPCDialogOpen(true)}
+                />
+                <WarningDialog
+                  isDialogOpen={isConfirmClearFPCDialogOpen}
+                  title="Clear FPC?"
+                  description={`All the contents will be removed from FPC. Are you sure you want to clear the FPC?`}
+                  submitButtonTitle="Clear"
+                  handleDialogSubmit={() => {
+                    setdata10([]);
+                    setIsConfirmClearFPCDialogOpen(false);
+                  }}
+                  handleDialogClose={() =>
+                    setIsConfirmClearFPCDialogOpen(false)
+                  }
+                />
+              </Tooltip>
+            </>
+          )}
+        </div>
+
+        {isFPCAllowedToEdit && (
+          <Tooltip title="Insert Content">
+            <Button
+              icon={<HiPlusCircle className="text-base" />}
+              className="!py-0 !pl-2 !pr-2.5 !h-8"
+              size="sm"
+              variant="solid"
+              color="teal-700"
+              shape="circle"
+              onClick={() => handleFeatureClick(featuresEnum.INSERT)}
+            >
+              Insert
+            </Button>
+          </Tooltip>
+        )}
+      </div>
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5">
+          <DatePicker
+            placeholder="Select"
+            value={
+              vTelecastDate instanceof Date
+                ? vTelecastDate
+                : vTelecastDate
+                  ? new Date(vTelecastDate)
+                  : null
+            }
+            inputFormat="DD/MM/YYYY"
+            size="sm"
+            clearable={false}
+            className="my-1"
+            onChange={async (date) => {
+              const checkPrevDayFPCStatus =
+                await apiCallstoreprocedure_WithOutParam(
+                  'usp_CheckPrevDayFPCStatus',
+                  {
+                    par_LocationCode: channel.LocationCode,
+                    par_ChannelCode: channel.ChannelCode,
+                    par_TelecastDate: format(date, 'yyyy-MM-dd'),
+                    par_Screen: 'FPC',
+                  },
+                );
+              if (checkPrevDayFPCStatus.data[0].Status == 0) {
+                openNotification(
+                  'warning',
+                  'Previous Day FPC is not completed',
+                );
+              } else {
+                setvTelecastDate(date);
+              }
+            }}
+          />
+          <InputGroup>
+            <Tooltip title="Prev Date">
+              <Button
+                icon={<IoIosArrowBack />}
+                size="sm"
+                shape="none"
+                className="!rounded-l-lg"
+                onClick={async () => {
+                  const checkPrevDayFPCStatus =
+                    await apiCallstoreprocedure_WithOutParam(
+                      'usp_CheckPrevDayFPCStatus',
+                      {
+                        par_LocationCode: channel.LocationCode,
+                        par_ChannelCode: channel.ChannelCode,
+                        par_TelecastDate: format(vTelecastDate, 'yyyy-MM-dd'),
+                        par_Screen: 'FPC',
+                      },
+                    );
+                  if (checkPrevDayFPCStatus.data[0].Status == 0) {
+                    openNotification(
+                      'warning',
+                      'Previous Day FPC is not completed',
+                    );
+                  } else {
+                    setvTelecastDate((oldState) => {
+                      let currentDate;
+                      if (oldState instanceof Date) {
+                        currentDate = oldState;
+                      } else {
+                        currentDate = new Date(oldState);
+                      }
+                      let newDate = new Date(currentDate);
+                      return new Date(newDate.setDate(newDate.getDate() - 1));
+                    });
+                  }
+                }}
+              />
+            </Tooltip>
+            <Tooltip title="Next Date">
+              <Button
+                icon={<IoIosArrowForward />}
+                size="sm"
+                shape="none"
+                className="!rounded-r-lg"
+                onClick={async () => {
+                  const date = new Date(
+                    new Date().setDate(new Date(vTelecastDate).getDate() + 1),
+                  );
+                  const checkPrevDayFPCStatus =
+                    await apiCallstoreprocedure_WithOutParam(
+                      'usp_CheckPrevDayFPCStatus',
+                      {
+                        par_LocationCode: channel.LocationCode,
+                        par_ChannelCode: channel.ChannelCode,
+                        par_TelecastDate: format(date, 'yyyy-MM-dd'),
+                        par_Screen: 'FPC',
+                      },
+                    );
+                  if (checkPrevDayFPCStatus.data[0].Status == 0) {
+                    openNotification(
+                      'warning',
+                      'Previous Day FPC is not completed',
+                    );
+                  } else {
+                    setvTelecastDate((oldState) => {
+                      let currentDate;
+                      if (oldState instanceof Date) {
+                        currentDate = oldState;
+                      } else {
+                        currentDate = new Date(oldState);
+                      }
+                      let newDate = new Date(currentDate);
+                      return new Date(newDate.setDate(newDate.getDate() + 1));
+                    });
+                  }
+                }}
+              />
+            </Tooltip>
+          </InputGroup>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Link to="/fpcmasterNew">
+            <Button
+              icon={<IoArrowBack className="text-base" />}
+              className="!py-0 !px-2 !h-8.5"
+              size="sm"
+              variant="twoTone"
+            >
+              Back
+            </Button>
+          </Link>
+
+          {!isFeatureAllowedForChannel({ channel }) && (
+            <Button
+              icon={<RiVerifiedBadgeFill className="text-base" />}
+              className="!py-0 !px-2 !h-8.5"
+              size="sm"
+              variant="solid"
+              color="teal-600"
+              onClick={handleVerifyClick}
+              disabled={!isFPCAllowedToEdit}
+              type="submit"
+            >
+              Verify
+            </Button>
+          )}
+
+          <Button
+            icon={<FaRegSave className="text-base" />}
+            className="!py-0 !px-2 !h-8.5"
+            size="sm"
+            variant="solid"
+            color="teal-600"
+            onClick={handleSaveClick}
+            disabled={!isFPCAllowedToSave}
+            type="submit"
+          >
+            Save
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default Toolbar;

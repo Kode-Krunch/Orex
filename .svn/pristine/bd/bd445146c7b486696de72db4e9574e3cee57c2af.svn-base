@@ -1,0 +1,177 @@
+import { useSelector, useDispatch } from 'react-redux';
+import { setUser, initialState } from 'store/auth/userSlice';
+import { apiSignIn, apiSignOut, apiSignUp } from 'services/AuthService';
+import {
+  onSignInSuccess,
+  onSignOutSuccess,
+  setChannelSetting,
+  setChannelSettingMain,
+  setLastLoginOn,
+  setLoginId,
+  setMessageAttempt,
+  setUserImage,
+  setUsername,
+} from 'store/auth/sessionSlice';
+import appConfig from 'configs/app.config';
+import { PERSIST_STORE_NAME, REDIRECT_URL_KEY } from 'constants/app.constant';
+import { useNavigate } from 'react-router-dom';
+import useQuery from './useQuery';
+import { ChannelSetting } from 'services/MasterService';
+import { openNotification } from 'views/Controls/GLOBALFUNACTION';
+import { setselectedChannel } from 'store/locale/localeSlice';
+
+function useAuth() {
+  const dispatch = useDispatch();
+
+  const navigate = useNavigate();
+
+  const query = useQuery();
+
+  const { token, signedIn } = useSelector((state) => state.auth.session);
+  const LoginId = useSelector((state) => state.auth.session.LoginId);
+  const signIn = async (values) => {
+    dispatch(onSignInSuccess('access_token'));
+    try {
+      const resp = await apiSignIn(values);
+
+      if (resp.data) {
+        const {
+          access_token,
+          LoginName,
+          LoginCode,
+          PasswordExpiry,
+          ChannelCode,
+          LocationCode,
+          Emp_Image,
+          AgencyCode,
+          LastLoginOn,
+        } = resp.data;
+
+        dispatch(onSignInSuccess(access_token));
+        dispatch(
+          setUser({
+            avatar: 'Anonymous',
+            userName: values.userName,
+            authority: 'user',
+            email: 'Anonymous',
+            AgencyCode: AgencyCode
+            PasswordExpiry: PasswordExpiry,
+            ChannelCode: ChannelCode,
+            LocationCode: LocationCode,
+          }),
+        );
+        dispatch(setLoginId(LoginCode));
+        dispatch(setUsername(values.userName));
+        dispatch(setUserImage(Emp_Image));
+        dispatch(setLastLoginOn(LastLoginOn));
+
+        const resChlSetting = await ChannelSetting(LoginCode, access_token);
+
+        // if (Number(PasswordExpiry) == 0) {
+
+        if (resChlSetting.data) {
+          // console.log('resChlSetting', resChlSetting);
+          dispatch(setChannelSetting(resChlSetting.data));
+          dispatch(setChannelSettingMain(resChlSetting.data));
+        }
+
+        const redirectUrl = query.get(REDIRECT_URL_KEY);
+        dispatch(setMessageAttempt(''));
+
+        navigate(redirectUrl ? redirectUrl : appConfig.authenticatedEntryPath);
+        return {
+          status: 'success',
+          message: '',
+        };
+        // }
+      }
+    } catch (errors) {
+      if (errors.response.status == 500) {
+        openNotification('warning', `Server Error.`);
+      }
+      if (errors.response.status == 404) {
+        openNotification('warning', errors.response.data.detail);
+        if (errors.response.data.detail[1] == 5) {
+          dispatch(
+            setMessageAttempt(
+              'Username Locked Due to 5 Incorrect Attempts please reset password.',
+            ),
+          );
+        }
+        return;
+      }
+      return {
+        status: 'failed',
+        data: '',
+      };
+    }
+  };
+
+  const signUp = async (values) => {
+    try {
+      const resp = await apiSignUp(values);
+      if (resp.data) {
+        // const { access_token } = resp.data
+        // dispatch(onSignInSuccess(access_token))
+        const redirectUrl = query.get(REDIRECT_URL_KEY);
+
+        navigate(
+          redirectUrl ? redirectUrl : appConfig.unAuthenticatedEntryPath,
+        );
+        openNotification(
+          'success',
+          ` Success! Now, just a tad more patience as we await approval.`,
+        );
+        return {
+          status: 'success',
+          message: '',
+        };
+      }
+    } catch (errors) {
+      console.log(errors.response.status == 400);
+      if (errors.response.status == 500) {
+        openNotification('warning', `Server Error.`);
+      }
+      if (errors.response.status == 400) {
+        openNotification('warning', `${errors.response.data.detail}`);
+      }
+      return {
+        status: 'failed',
+        // message: errors?.response?.data?.message || errors.toString(),
+        message: '',
+      };
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      // console.log('Sign out response:', LoginId);
+      const resp = await apiSignOut(LoginId);
+      // console.log('Sign out response:', resp);
+    } catch (e) {
+      // console.error('Error during sign out:', e);
+    }
+    finally {
+      console.error('finally finally');
+    }
+
+
+    dispatch(onSignOutSuccess());
+    dispatch(setUser(initialState));
+    navigate(appConfig.unAuthenticatedEntryPath);
+    dispatch(setselectedChannel([]));
+  };
+
+  const signOut = async () => {
+    // await apiSignOut()
+    handleSignOut();
+  };
+  return {
+    authenticated: token && signedIn,
+    signIn,
+    signUp,
+    signOut,
+  };
+}
+
+export default useAuth;

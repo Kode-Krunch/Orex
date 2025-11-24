@@ -1,0 +1,1451 @@
+import {
+  Button,
+  Input,
+  FormContainer,
+  Select,
+  FormItem,
+  Card,
+  Alert,
+  Dialog,
+  FormItemcompact,
+  Switcher,
+} from 'components/ui';
+import { Field, Form, Formik } from 'formik';
+import * as Yup from 'yup';
+import {
+  apiGetContentmaster,
+  apiGetfpcorgrepmaster,
+  PostContentSeg,
+  apiGetTXVersionmasterDrop,
+  PutContentSeg,
+  apiGetvideoformattypdrop,
+  apiGetAspectratiomaster,
+  apisendnotification,
+} from 'services/ProgrammingService';
+import { useSelector } from 'react-redux';
+import React, { useState, useEffect } from 'react';
+import { Navigate, useNavigate } from 'react-router-dom';
+import { headerExtraContent } from 'views/Controls/HeaderBox';
+import {
+  SetMAXSegment,
+  SetSegcaption1,
+  SetSegcaption2,
+} from 'store/auth/userSlice';
+import { useDispatch } from 'react-redux';
+import SegDetails from './SegDetails';
+import { StickyFooter } from 'components/shared';
+import {
+  apiGetcepsmapping,
+  apiUSP_GenerateVideoID,
+} from 'services/MasterService';
+import {
+  formatOnHHMMSSFFBlur,
+  handleChangeWithFrame,
+
+  openNotification,
+  parseDuration,
+
+} from 'views/Controls/GLOBALFUNACTION';
+import useTimeOutMessage from 'utils/hooks/useTimeOutMessage';
+import { apiGetTapetypedropdown } from 'services/SchedulingService';
+import SearchInputForContent from 'views/Controls/SearchInputForContent';
+import Loader from 'views/Controls/Loader';
+import { isNumbers } from 'components/validators';
+import HeaderExtra from 'views/Controls/HeaderExtra';
+import { apiCallstoreprocedure } from 'services/CommonService';
+import { CLIENT } from 'views/Controls/clientListEnum';
+
+const validationSchema = Yup.object().shape({
+  ContentCode: Yup.string().required('ContentName Required'),
+  TapeTypeCode: Yup.string().required('Tape Type Required'),
+  HouseID: Yup.string().max(20, 'Too Long!'),
+  SeasonNo: Yup.string().required('Season No Required'),
+  EpisodeNo: Yup.string().required('Episode No Required'),
+  OriginalRepeatCode: Yup.string().required('OriginalRepeatCode Required'),
+  MaximumSegments: Yup.string()
+    .max(4, 'Too Long!')
+    .required('MaximumSegments Required'),
+  Resolution: Yup.string().required('Resolution Required'),
+  VideoType: Yup.string().required('VideoType Required'),
+  EpisodeDuration: Yup.string().required('EpisodeDuration Required'),
+  EpisodeCaption: Yup.string().max(200, 'Too Long!'),
+});
+
+const ContentDemo = [{ value: '1', label: 'Data Not Found' }];
+const separateAlphabetsAndNumbers = (str) => {
+  const alphabets = str.match(/[a-zA-Z]+/g)?.join('') || ''; // Extract letters
+  const numbers = str.match(/\d+/g)?.join('') || ''; // Extract numbers
+  return { alphabets, numbers };
+};
+
+const ContentsegEdit = ({ setIsOpen }) => {
+  const [dialogIsOpen, setIsOpenDialog] = useState(false);
+  const [UserAcceptToDelete, setUserAcceptToDelete] = useState(false);
+  const currentHref = window.location.href; // Get the full URL
+  const hashPart = currentHref.split('#')[1];
+  const dispatch = useDispatch();
+  const [dataiwanttoshow, setdataiwanttoshow] = useState([]);
+  const token = useSelector((state) => state.auth.session.token);
+  const Username = useSelector((state) => state.auth.session.Username);
+  const { MAXSegment } = useSelector((state) => state.auth.user);
+  const { Content } = useSelector((state) => state.base.common);
+  const { ContentSeg } = useSelector((state) => state.base.common);
+  const navigate = useNavigate();
+  const [SeasonNo, setSeasonNo] = useState([]);
+  const [EpisodeNo, setEpisodeNo] = useState([]);
+  const [ContentTypeValue, setContentTypeValue] = useState();
+  const [ContentName, setContentName] = useState([]);
+  const [showLoader, setshowLoader] = useState(false);
+  const [VideoType, setVideoType] = useState([]);
+  const [Origianl, setOrigianl] = useState([]);
+  const [TapeType, setTapetype] = useState([]);
+  const [globalFilter, setGlobalFilter] = useState('');
+  const [TxTypeName, setTXVersion] = useState([]);
+  const [EOM, setEOM] = useState('');
+  const [SOM, setSOM] = useState('00:00:00:00');
+  const [SegmentDuration, setSegmentDuration] = useState('00:00:00:00');
+  const [checked, setChecked] = useState(true);
+  const [message, setMessage] = useTimeOutMessage();
+  const [log, setlog] = useState('');
+  const [data, setData] = useState([]);
+  const [options3, setoptions3] = useState([]);
+  const [Resolution, setResolution] = useState([]);
+  const [HouseIdStoreInVariable, setHouseIdStoreInVariable] = useState([]);
+  useEffect(() => {
+    (async (values) => {
+      setshowLoader(true);
+      const AspectRatio = await apiGetAspectratiomaster(values);
+      const formattedOptions = AspectRatio.data.map((option) => ({
+        value: option.AspectRatioCode,
+        label: option.AspectRatio,
+      }));
+      setResolution(formattedOptions);
+      setshowLoader(false);
+    })();
+  }, []);
+
+  const ChannelSetting = useSelector(
+    (state) => state.auth.session.ChannelSetting,
+  );
+  const Channel = useSelector((state) => state.locale.selectedChannel);
+  const houseid = async (Id, setFieldValue) => {
+    if (Object.keys(Channel).length > 0) {
+      if (ChannelSetting[0]?.IsTapeCounterFlag === 1) {
+        (async (values) => {
+          try {
+            setshowLoader(true);
+            const resp = await apiUSP_GenerateVideoID(
+              Channel.LocationCode,
+              Channel.ChannelCode,
+              'Content Segment',
+              Id,
+              0,
+            );
+            if (
+              Channel.label === CLIENT.FOOD_INDIA ||
+              Channel.label === CLIENT.FOOD_USA
+            ) {
+              setFieldValue('House', '');
+            } else {
+              setFieldValue('House', resp.data[0].CommVideoID);
+            }
+            setHouseIdStoreInVariable(resp.data[0].CommVideoID);
+            setshowLoader(false);
+          } catch (error) {
+            if (error.response.status == 500) {
+              setFieldValue('House', '');
+
+              setHouseIdStoreInVariable();
+
+              setMessage('HouseId Is Not Configured With This Content Type');
+            }
+            setshowLoader(false);
+          }
+        })();
+      }
+    } else {
+      setMessage('Kindly Select Global Channel');
+    }
+  };
+  useEffect(() => {
+    setData([]);
+    // SegDetailsdata();
+  }, []);
+
+  const seasonNOLIST = async (values) => {
+    setSeasonNo([]);
+    dispatch(SetMAXSegment(''));
+    try {
+      setshowLoader(true);
+      const resp = await apiGetcepsmapping(values, token);
+      if (resp.status === 200) {
+        let res = [];
+        if (
+          Channel.label === CLIENT.FOOD_INDIA ||
+          Channel.label === CLIENT.FOOD_USA
+        ) {
+          for (let i = 1; i <= resp?.data[0].SeasonNo; i++) {
+            res = [
+              ...res,
+              {
+                label: i.toString(),
+                value: i,
+              },
+            ];
+          }
+
+          setSeasonNo(res);
+        } else {
+          const highestSeasonObj = resp.data.reduce((prev, current) => {
+            return current.SeasonNo > prev.SeasonNo ? current : prev;
+          }, resp.data[0]); // Make sure to use resp.data[0], not unrelated data
+
+          const highestSeason = highestSeasonObj.SeasonNo;
+
+          let res = [];
+          for (let i = 1; i <= highestSeason; i++) {
+            res.push({
+              label: i.toString(),
+              value: i,
+            });
+          }
+
+          console.log(res);
+          setSeasonNo(res);
+
+          return;
+        }
+      } else if (resp.status === 'Server Error.') {
+        return;
+      }
+      setshowLoader(false);
+    } catch (errors) {
+      setshowLoader(false);
+      return {};
+    }
+    finally {
+      setshowLoader(false);
+    }
+  };
+  const timecodeToFrames = (timecode, fps = 24) => {
+    const [hours, minutes, seconds, frames] = timecode.split(':').map(Number);
+    return (hours * 3600 + minutes * 60 + seconds) * fps + frames;
+  };
+
+
+  function framesToTimecode(totalFrames, fps = 24) {
+    const hours = Math.floor(totalFrames / (3600 * fps));
+    totalFrames %= 3600 * fps;
+
+    const minutes = Math.floor(totalFrames / (60 * fps));
+    totalFrames %= 60 * fps;
+
+    const seconds = Math.floor(totalFrames / fps);
+    const frames = totalFrames % fps;
+
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}:${String(frames).padStart(2, '0')}`;
+  }
+  // Utility: Convert total frames back to timecode "HH:MM:SS:FF"
+
+  // Add two timecodes with proper frame rollover
+  const createSegment = (sMAXSegment, dru, EpisodeCaption, House, EpisodeNo, SeasonNo) => {
+
+    if (dru.length === 11 && SOM) {
+      dispatch(SetMAXSegment(sMAXSegment));
+      const fps = Number(ChannelSetting[0]?.FramePerSec || 24);
+
+      const totalFrames = timecodeToFrames(dru, fps);
+      const startFrame = timecodeToFrames(SOM, fps);
+
+      const baseSegmentFrames = Math.floor(totalFrames / sMAXSegment);
+      const remainderFrames = totalFrames % sMAXSegment;
+
+      let resSegments = [];
+      let resOptions = [];
+
+      let segmentStartFrame = startFrame;
+
+      for (let i = 1; i <= sMAXSegment; i++) {
+        // Assign all remainder frames to last segment to fix frame loss
+        const segmentLengthFrames = baseSegmentFrames + (i === sMAXSegment ? remainderFrames : 0);
+        const segmentEndFrame = segmentStartFrame + segmentLengthFrames; // inclusive EOM
+
+        const SOMStr = framesToTimecode(segmentStartFrame, fps);
+        const EOMStr = framesToTimecode(segmentEndFrame, fps);
+
+        // Duration = EOM - SOM + 1 frame (inclusive)
+        const durationFrames = segmentEndFrame - segmentStartFrame;
+        const durationStr = framesToTimecode(durationFrames, fps);
+
+        const paddedEpisodeNo = EpisodeNo?.toString().padStart(3, '0');
+        const paddedSegmentNo = i.toString().padStart(2, '0');
+
+        const ClipID =
+          Channel.label === CLIENT.FOOD_INDIA || Channel.label === CLIENT.FOOD_USA
+            ? separateAlphabetsAndNumbers(HouseIdStoreInVariable).alphabets +
+            SeasonNo +
+            paddedEpisodeNo +
+            paddedSegmentNo
+            : House
+
+        resSegments.push({
+          SegmentNo: i.toString(),
+          SOM: SOMStr,
+          EOM: EOMStr,
+          SegmentCaption: `${EpisodeCaption}_${i}_Of_${sMAXSegment}`,
+          SegmentDuration: durationStr,
+          ClipID,
+          Remark: '',
+          checked,
+        });
+
+        resOptions.push({ label: i.toString(), value: i.toString() });
+
+        segmentStartFrame = segmentEndFrame; // next segment starts after current EOM
+      }
+
+      // Validate total duration ≤ Slot Duration
+      const totalSegmentFrames = resSegments.reduce(
+        (sum, seg) => sum + timecodeToFrames(seg.SegmentDuration, fps),
+        0
+      );
+      const slotDurationFrames = (selectedItem?.SlotDuration || 0) * 60 * fps;
+
+      if (totalSegmentFrames > slotDurationFrames) {
+        openNotification('warning', 'Episode Duration should not exceed Content Slot Duration');
+        return;
+      }
+
+      setData(resSegments);
+      setoptions3(resOptions);
+
+      dru = framesToTimecode(totalSegmentFrames, fps);
+    } else {
+      openNotification('warning', 'Invalid duration or missing SOM');
+    }
+  };
+
+
+
+
+  const AddContent = async (values, token, resetForm) => {
+    // Destructure values and reusable properties
+    const {
+      ContentCode,
+      OriginalRepeatCode,
+      SeasonNo,
+      EpisodeNo,
+      TapeID,
+      EpisodeCaption,
+      EpisodeDuration,
+      isSpecialEpisode,
+      Remarks,
+      ContentTypeCode,
+      Resolution,
+      TapeTypeCode,
+      VideoType,
+      TxMasterCode,
+      House,
+      IsActive,
+    } = values;
+
+    const { LocationCode, ChannelCode } = Channel; // Channel properties
+    const isAddFPC = hashPart.startsWith('/addfpc') || hashPart.startsWith('/DailyFPCApp');
+
+    // Prepare merged data
+    const mergedData = {
+      request: {
+        ContentCode: Number(ContentCode),
+        OriginalRepeatCode: Number(OriginalRepeatCode),
+        SeasonNo: Number(SeasonNo),
+        EpisodeNo: Number(EpisodeNo),
+        PartNumber: 1,
+        SubContentCode: 1,
+        TapeID: `${TapeID}`,
+        MaximumSegments: Number(MAXSegment),
+        EpisodeCaption,
+        EpisodeDuration,
+        isSpecialEpisode,
+        Remarks,
+        ContentTypeCode,
+        VideoTypeCode: 1,
+        AspectRatioCode: Number(Resolution),
+        TapeTypeCode: Number(TapeTypeCode),
+        VideoSizeCode: 1,
+        VideoFormatTypeCode: Number(VideoType),
+        TXVersionCode: Number(TxMasterCode),
+        ShortSynopsis: "string", // Placeholder
+        LongSynopsis: "string",  // Placeholder
+        HouseID: House,
+        IsReadyToBroadCast: IsActive ? 1 : 0,
+        IsActive: IsActive ? 1 : 0,
+      },
+      details: data.map((item) => ({
+        ContentCode,
+        OriginalRepeatCode,
+        SeasonNo: Number(SeasonNo),
+        EpisodeNo: Number(EpisodeNo),
+        PartNumber: 1,
+        SegmentNo: Number(item.SegmentNo),
+        SubContentCode: 1,
+        SegmentCaption: item.SegmentCaption,
+        TCIN: item.SOM,
+        TCOUT: item.EOM,
+        SegmentDuration: item.SegmentDuration,
+        SegmentRemark: item.Remark,
+        IsQCChecked: 0,
+        IsInjested: 0,
+        IsDubbed: 0,
+        IsSubTitled: 0,
+        TXVersionCode: Number(TxMasterCode),
+        VideoID: item.ClipID,
+        IsBackToBack: item.checked ? 1 : 0,
+        IsActive: item.IsActive ? 1 : 0,
+      })),
+      scenedetails: dataiwanttoshow.map((item) => ({
+        ContentCode,
+        SeasonNo: Number(SeasonNo),
+        EpisodeNo: Number(EpisodeNo),
+        SegmentNo: Number(item.SegmentNo),
+        SceneTypeCode: Number(item.SceneTypeCode.value),
+        SceneOffsetStart: item.SceneOffsetStart,
+        SceneOffsetEnd: item.SceneOffsetEnd,
+        IsActive: item.IsActive ? 1 : 0,
+      })),
+      genvideoId: {
+        LocationCode,
+        ChannelCode,
+        FormName: "Content Segment",
+        EventTypeCode: Number(ContentTypeCode),
+        Mode: 1,
+      },
+    };
+
+    try {
+      setshowLoader(true); // Show loader
+
+      const resp = await PostContentSeg(mergedData, token);
+
+      if (resp.status === 204) {
+        openNotification("danger", "Data Already Exists. !!!");
+        handleClose(isAddFPC);
+        return;
+      }
+
+      if (resp.status === 200) {
+        openNotification("success", "Data Added Successfully");
+        handleClose(isAddFPC, "/ContentSegment");
+        resetForm(); // Reset form after successful submission 
+        await apisendnotification({
+          NotificationId: (Math.random() + 1).toString(36).substring(7),
+          user_ids: [10],
+          message: selectedItem.label + ' Content Segment Added.',
+          image: '',
+          type: '1',
+          location: 'Content Segment Added.',
+          locationLabel: Username,
+          Status: '1',
+          isGroup: 1,
+          Ispriority: 1,
+          readed: 0,
+        });
+
+        return;
+      }
+    } catch (errors) {
+      const status = errors.response?.status;
+      if (status === 500) {
+        openNotification("danger", "Something went wrong.");
+      } else {
+        openNotification("danger", "An unexpected error occurred.");
+      }
+    } finally {
+      setshowLoader(false); // Reset loader in all cases
+    }
+  };
+
+  // Helper function to handle closing modal and navigation
+  const handleClose = (isAddFPC, navigatePath = null) => {
+    setTimeout(() => setIsOpen(false), 500);
+    if (navigatePath) {
+      navigate(navigatePath);
+    }
+  };
+
+
+  const EditContent = async (values, token, resetForm) => {
+    // Destructure common values
+    const {
+      ContentCode,
+      OriginalRepeatCode,
+      SeasonNo,
+      EpisodeNo,
+      TapeID,
+      MaximumSegments,
+      EpisodeCaption,
+      EpisodeDuration,
+      isSpecialEpisode,
+      Remarks,
+      ContentTypeCode,
+      Resolution,
+      TapeTypeCode,
+      VideoType,
+      TxMasterCode,
+      House,
+      IsActive,
+    } = values;
+
+    // Prepare mergedData
+    const mergedData = {
+      request: {
+        ContentCode: Number(ContentCode),
+        OriginalRepeatCode: Number(OriginalRepeatCode),
+        SeasonNo: Number(SeasonNo),
+        EpisodeNo: Number(EpisodeNo),
+        PartNumber: 1,
+        SubContentCode: 1,
+        TapeID: `${TapeID}`,
+        MaximumSegments,
+        EpisodeCaption,
+        EpisodeDuration,
+        isSpecialEpisode,
+        Remarks,
+        ContentTypeCode,
+        VideoTypeCode: 1,
+        AspectRatioCode: Number(Resolution),
+        TapeTypeCode: Number(TapeTypeCode),
+        VideoSizeCode: 1,
+        VideoFormatTypeCode: Number(VideoType),
+        TXVersionCode: Number(TxMasterCode),
+        ShortSynopsis: "string", // Placeholder
+        LongSynopsis: "string",  // Placeholder
+        HouseID: House,
+        IsReadyToBroadCast: IsActive ? 1 : 0,
+        IsActive: IsActive ? 1 : 0,
+      },
+      details: data.map((item) => ({
+        ContentCode,
+        OriginalRepeatCode,
+        SeasonNo: Number(SeasonNo),
+        EpisodeNo: Number(EpisodeNo),
+        PartNumber: 1,
+        SegmentNo: Number(item.SegmentNo),
+        SubContentCode: 1,
+        SegmentCaption: item.SegmentCaption,
+        TCIN: item.SOM,
+        TCOUT: item.EOM,
+        SegmentDuration: item.SegmentDuration,
+        SegmentRemark: item.Remark,
+        IsQCChecked: 0,
+        IsInjested: 0,
+        IsDubbed: 0,
+        IsSubTitled: 0,
+        TXVersionCode: Number(TxMasterCode),
+        VideoID: item.ClipID,
+        IsBackToBack: item.checked ? 1 : 0,
+        IsActive: item.IsActive ? 1 : 0,
+      })),
+      scenedetails: dataiwanttoshow.map((item) => ({
+        ContentCode,
+        SeasonNo: Number(SeasonNo),
+        EpisodeNo: Number(EpisodeNo),
+        SegmentNo: Number(item.SegmentNo),
+        SceneTypeCode: Number(item.SceneTypeCode.value),
+        SceneOffsetStart: item.SceneOffsetStart,
+        SceneOffsetEnd: item.SceneOffsetEnd,
+        IsActive: item.IsActive ? 1 : 0,
+      })),
+    };
+
+    try {
+      setshowLoader(true); // Start loader
+      const resp = await PutContentSeg(mergedData, token, Content.SegmentCode);
+
+      // Handle different response statuses
+      if (resp.status === 204) {
+        openNotification("danger", "Data Already Exist !!!");
+        return;
+      }
+
+      if (resp.status === 200) {
+
+        openNotification("success", "Data Updated Successfully.");
+        console.log(selectedItem.label)
+        await apisendnotification({
+          NotificationId: (Math.random() + 1).toString(36).substring(7),
+          user_ids: [10],
+          message: selectedItem.label + ' Content Segment Modified.',
+          image: '',
+          type: '1',
+          location: 'Content Segment Modified.',
+          locationLabel: Username,
+          Status: '1',
+          isGroup: 1,
+          Ispriority: 1,
+          readed: 0,
+        });
+
+        resetForm();
+        navigate('/ContentSegment')
+        setTimeout(() => {
+          if (setIsOpen && typeof setIsOpen === 'function') {
+            setIsOpen(false);
+          }
+        }, 500);
+        return;
+      }
+    } catch (error) {
+      console.log(error);
+
+      const status = error?.response?.status;
+      if (status === 500) {
+        openNotification("danger", "Something went wrong.");
+      } else {
+        openNotification("danger", "An unexpected error occurred.");
+      }
+    } finally {
+
+      setshowLoader(false); // Ensure loader is reset
+    }
+  };
+
+
+  const { Segcaption, Segcaption1, Segcaption2 } = useSelector(
+    (state) => state.auth.user,
+  );
+
+  useEffect(() => {
+    GetContents(0);
+  }, []);
+
+  const GetContents = (IsGroup, ContentCode) => {
+    (async () => {
+      let Parameters = {
+        LocationCode: Channel.LocationCode,
+        ChannelCode: Channel.ChannelCode,
+        IsGroup: IsGroup,
+        EventContentCode: ContentCode,
+      };
+      try {
+        setshowLoader(true);
+        const resp = await apiGetContentmaster(Parameters);
+        if (resp.status == 204) {
+          setContentName([]);
+          setshowLoader(false);
+          return;
+        }
+
+        resetData();
+        const formattedOptions2 = resp.data.map((option) => ({
+          value: option.ContentCode,
+          label: option.ContentName,
+          AspectRatio: option.AspectRatio,
+          ContentType: option.ContentType,
+          Content_Image: option.Content_Image,
+          ContentClassification: option.ContentClassification,
+          SlotDuration: option.SlotDuration,
+          FPCReleaseDate: option.FPCReleaseDate,
+          View: option.View,
+        }));
+
+        if (Content.length !== 0) {
+          setSelectedItem(
+            formattedOptions2.find(
+              (item) =>
+                Content.ContentMaster?.ContentCode === item.value ||
+                Content.ContentCode === item.value,
+            ),
+          );
+        }
+        console.log('ContentSeg', ContentSeg.ContentCode);
+        if (ContentSeg.length !== 0) {
+          setSelectedItem(
+            formattedOptions2.find(
+              (item) => ContentSeg.ContentCode === item.value,
+            ),
+          );
+        }
+        setshowLoader(false);
+        setContentName(formattedOptions2);
+      } catch (error) {
+        if (error.response.status == 500) {
+          setContentName([]);
+          return;
+        }
+        setshowLoader(false);
+      }
+    })();
+  };
+  useEffect(() => {
+    setshowLoader(true);
+    (async (values) => {
+      const Video = await apiGetvideoformattypdrop(values);
+      const formattedOptions = Video.data.map((option) => ({
+        value: option.VideoFormatTypeCode,
+        label: option.VideoFormatTypeName,
+      }));
+      setVideoType(formattedOptions);
+    })();
+    (async (values) => {
+      const Origianl = await apiGetfpcorgrepmaster(values);
+      //console.log(Origianl)
+      const formattedOptions = Origianl.data.map((option) => ({
+        value: option.OriginalRepeatCode,
+        label: option.OriginalRepeatName,
+      }));
+      setOrigianl(formattedOptions);
+    })();
+    (async (values) => {
+      const TapeType = await apiGetTapetypedropdown(values);
+      const formattedOptions = TapeType.data.map((option) => ({
+        value: option.TapeTypeCode,
+        label: option.TapeTypeName,
+      }));
+      setTapetype(formattedOptions);
+    })();
+    (async (values) => {
+      const TXVersion = await apiGetTXVersionmasterDrop(values);
+      const formattedOptions = TXVersion.data.map((option) => ({
+        value: option.TXVersionCode,
+        label: option.TXVersionName,
+      }));
+      setTXVersion(formattedOptions);
+    })();
+    setshowLoader(false);
+  }, [Segcaption, Segcaption1, Segcaption2]);
+  console.log(Content);
+  const [selectedItem, setSelectedItem] = useState({});
+  useEffect(() => {
+    if (selectedItem?.value) {
+      seasonNOLIST(selectedItem?.value);
+    }
+  }, [selectedItem?.value]);
+
+  // console.log(Object.keys(selectedItem).length);
+  const [inputValue, setInputValue] = useState('');
+  const resetData = () => {
+    try {
+      setInputValue('');
+      setSelectedItem({});
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  return (
+    <Card
+      header={
+        hashPart.startsWith('/addfpc') ||
+          hashPart.startsWith('/DailyFPCApp') ? null : (
+          <HeaderExtra />
+        )
+      }
+    >
+      <div>
+        {message && (
+          <Alert className="mb-4" type={log} showIcon>
+            {message}
+          </Alert>
+        )}
+        <Formik
+          initialValues={{
+            ContentTypeCode: Content.ContentType?.ContentTypeCode || '',
+            ClassificationCode: '',
+            ContentName:
+              Content.ContentMaster?.ContentName || Content.ContentName || '',
+            ContentCode:
+              Content.ContentMaster?.ContentCode || Content.ContentCode || '',
+            OriginalRepeatCode: Content.FPCOrgRep?.OriginalRepeatCode || 1,
+            OriginalRepeatName: Content.FPCOrgRep?.OriginalRepeatName || 0,
+            SeasonNo: Content.SeasonNo || '',
+            EpisodeNo: '' + Content.EpisodeNo + '' || '',
+            TapeTypeCode: Content.TapeTypeMaster?.TapeTypeCode || '',
+            SubContentCode: Content.SubContentMaster?.SubContentCode || '',
+            TapeID: Content.TapeID || '',
+            MaximumSegments: Content.MaximumSegments || '',
+            EpisodeCaption: Content.EpisodeCaption || '',
+            EpisodeDuration: Content.EpisodeDuration || '',
+            EpisodeDurationinMin: Content.EpisodeDurationinMin || '',
+            Remarks: Content.Remarks || '',
+            VideoType: Content.VideoFormatType?.VideoFormatTypeCode || 1,
+            Resolution: Content.AspectRatioMaster?.AspectRatioCode || '',
+            // TapeTypeCode: Content.TapeTypeCode || '',
+            VideoSizeCode: Content.VideoSizeCode || '',
+            TxMasterCode: Content.TXVersionMaster?.TXVersionCode || '',
+            LongSynopsis: 'NA' || '',
+            IsActive: Content.IsActive === 1 ? true : false || true,
+            House: Content.HouseID || '',
+            isSpecialEpisode: Content.isSpecialEpisode === 1 ? true : false || false,
+          }}
+
+          validationSchema={validationSchema}
+          onSubmit={(values, { resetForm, setSubmitting }) => {
+            setTimeout(() => {
+              if (!Content.SegmentCode) {
+                new Promise((resolve, reject) => {
+                  AddContent(values, token, resetForm)
+                    .then((response,) => {
+                      resolve(response);
+                    })
+                    .catch((errors) => {
+                      reject(errors);
+                    });
+                });
+              } else {
+                new Promise((resolve, reject) => {
+                  setSubmitting(false);
+                  console.log(values);
+                  EditContent(values, token, resetForm)
+                    .then((response) => {
+                      resolve(response);
+                    })
+                    .catch((errors) => {
+                      reject(errors);
+                    });
+                });
+              }
+            }, 400);
+          }}
+        >
+          {({ values, touched, errors, setFieldValue }) => {
+            return (
+              <Form>
+                <FormContainer>
+                  <Loader showLoader={showLoader} />
+                  <Card
+                    headerExtra={headerExtraContent(
+                      globalFilter,
+                      setGlobalFilter,
+                      Navigate,
+                    )}
+                  >
+                    <div
+                      className={
+                        Object.keys(selectedItem).length !== 0
+                          ? 'grid grid-cols-3 md:grid-cols-3 gap-4'
+                          : 'grid-cols-1 md:grid-cols-1'
+                      }
+                    >
+                      <div>
+                        <SearchInputForContent
+                          className={'block'}
+                          SelectedItem={selectedItem}
+                          setSelectedItem={setSelectedItem}
+                          data={ContentName}
+                          placeholder="Search Content..."
+                          setInputValue={setInputValue}
+                          InputValue={inputValue}
+                          ResetData={resetData}
+                          setFieldValue={setFieldValue}
+                          houseid={houseid}
+                          setContentTypeValue={setContentTypeValue}
+                          setEpisodeNo={setEpisodeNo}
+                        ></SearchInputForContent>
+
+                        {Object.keys(selectedItem).length !== 0 && (
+                          <div className="col-span-4">
+                            <FormItem
+                              label="Remark"
+                              invalid={errors.Remarks && touched.Remarks}
+                              errorMessage={errors.Remarks}
+                            >
+                              <Field
+                                size="sm"
+                                autoComplete="off"
+                                name="Remarks"
+                                placeholder="Remarks"
+                                component={Input}
+                              />
+                            </FormItem>
+                          </div>
+                        )}
+                      </div>
+                      {Object.keys(selectedItem).length !== 0 && (
+                        <Card className="col-span-2">
+                          <div className="grid grid-cols-12 gap-2">
+                            <div className="col-span-3">
+                              <FormItem
+                                asterisk
+                                label="Original/Repeat"
+                                invalid={
+                                  errors.OriginalRepeatCode &&
+                                  touched.OriginalRepeatCode
+                                }
+                                errorMessage={errors.OriginalRepeatCode}
+                              >
+                                <Field
+                                  size="sm"
+                                  name="OriginalRepeatCode"
+                                  style={{
+                                    width: '250px',
+                                  }}
+                                >
+                                  {({ field, form }) => (
+                                    <Select
+                                      style={{
+                                        width: '250px',
+                                      }}
+                                      field={field}
+                                      form={form}
+                                      options={Origianl}
+                                      isDisabled={
+                                        Content.FPCOrgRep?.OriginalRepeatName
+                                      }
+                                      value={
+                                        Origianl.length > 0
+                                          ? Origianl.filter(
+                                            (option) =>
+                                              option.value ===
+                                              values.OriginalRepeatCode,
+                                          )
+                                          : ContentDemo.filter(
+                                            (option) =>
+                                              option.value ===
+                                              values.ReportingTo,
+                                          )
+                                      }
+                                      onChange={(option) => {
+                                        form.setFieldValue(
+                                          field.name,
+                                          option?.value,
+                                        );
+                                      }}
+                                    />
+                                  )}
+                                </Field>
+                              </FormItem>
+                            </div>
+                            {(values.ClassificationCode != 2 ||
+                              values.ContentTypeCode != 8) && (
+                                <div className="col-span-2">
+                                  <FormItem
+                                    asterisk
+                                    label="Season"
+                                    invalid={errors.SeasonNo && touched.SeasonNo}
+                                    errorMessage={errors.SeasonNo}
+                                  >
+                                    {ContentTypeValue || Content.SeasonNo ? (
+                                      <Field
+                                        type="text"
+                                        autoComplete="off"
+                                        name="SeasonNo"
+                                        placeholder="SeasonNo"
+                                        disabled
+                                        component={Input}
+                                        size="sm"
+                                      />
+                                    ) : (
+                                      <Field name="SeasonNo">
+                                        {({ field, form }) => (
+                                          <Select
+                                            field={field}
+                                            form={form}
+                                            placeholder="SE"
+                                            options={SeasonNo}
+                                            value={SeasonNo.filter(
+                                              (option) =>
+                                                option.value === values.SeasonNo,
+                                            )}
+                                            onChange={(option) => {
+                                              setEpisodeNo([]);
+                                              setData([]);
+                                              values.EpisodeDuration = '';
+                                              setSOM('00:00:00:00');
+                                              setEOM('');
+                                              setSegmentDuration('00:00:00:00');
+                                              dispatch(SetMAXSegment(''));
+                                              values.EpisodeDuration = '';
+                                              dispatch(
+                                                SetSegcaption1(option.label),
+                                              );
+                                              values.EpisodeCaption = `${Segcaption.replace(
+                                                / /,
+                                                '',
+                                              )}_S${option.label
+                                                }_E${Segcaption2}`;
+                                              setFieldValue(
+                                                field.name,
+                                                option?.value,
+                                              );
+                                              const datas = {
+                                                par_ContentCode:
+                                                  selectedItem.value,
+                                                par_SeasonNo: option.value,
+                                              };
+                                              apiCallstoreprocedure(
+                                                'usp_PG_GetEpisodewithoutSegmentation',
+                                                datas,
+                                              )
+                                                .then((response) => {
+                                                  if (response.status === 200) {
+                                                    const EPNO =
+                                                      response.data.map(
+                                                        (item) => ({
+                                                          value: item.EpisodeNo,
+                                                          label: `${item.EpisodeNo}`,
+                                                        }),
+                                                      );
+                                                    setEpisodeNo(EPNO);
+                                                  } else if (
+                                                    response.status === 204
+                                                  ) {
+                                                    setEpisodeNo([]);
+                                                  }
+                                                })
+                                                .catch((error) => {
+                                                  if (error.response.status) {
+                                                    setEpisodeNo([]);
+                                                  }
+                                                });
+                                            }}
+                                          />
+                                        )}
+                                      </Field>
+                                    )}
+                                  </FormItem>
+                                </div>
+                              )}
+                            {(values.ClassificationCode != 2 ||
+                              values.ContentTypeCode != 8) && (
+                                <div className="col-span-2">
+                                  <FormItem
+                                    asterisk
+                                    label="Episode"
+                                    invalid={
+                                      errors.EpisodeNo && touched.EpisodeNo
+                                    }
+                                    errorMessage={errors.EpisodeNo}
+                                  >
+                                    {ContentTypeValue || Content.EpisodeNo ? (
+                                      <Field
+                                        type="text"
+                                        autoComplete="off"
+                                        name="EpisodeNo"
+                                        placeholder="EpisodeNo"
+                                        disabled
+                                        component={Input}
+                                        size="sm"
+                                      />
+                                    ) : (
+                                      <Field name="EpisodeNo">
+                                        {({ field, form }) => (
+                                          <Select
+                                            field={field}
+                                            form={form}
+                                            placeholder="EP"
+                                            options={EpisodeNo}
+                                            value={EpisodeNo?.filter(
+                                              (option) =>
+                                                option.value === values.EpisodeNo,
+                                            )}
+                                            onChange={(option) => {
+                                              values.EpisodeDuration = '';
+                                              dispatch(
+                                                SetSegcaption2(option.label),
+                                              );
+                                              values.EpisodeCaption = `${Segcaption.replace(
+                                                / /,
+                                                '',
+                                              )}_S${Segcaption1}_E${option.label
+                                                }`;
+                                              setData([]);
+                                              values.EpisodeDuration = '';
+                                              setSOM('00:00:00:00');
+                                              setEOM('');
+                                              setSegmentDuration('00:00:00:00');
+                                              setFieldValue(
+                                                field.name,
+                                                option?.value,
+                                              );
+                                            }}
+                                          />
+                                        )}
+                                      </Field>
+                                    )}
+                                  </FormItem>
+                                </div>
+                              )}
+                            {ChannelSetting[0]?.IsTapeCounterFlag == 0 && (
+                              <div className="col-span-2">
+                                <FormItem
+                                  asterisk
+                                  label="House ID"
+                                  invalid={errors.House && touched.House}
+                                  errorMessage={errors.House}
+                                >
+                                  <Field
+                                    type="text"
+                                    disabled={ChannelSetting[0]?.IsTapeCounterFlag == 1}
+                                    autoComplete="off"
+                                    name="House"
+                                    placeholder="House ID"
+                                    component={Input}
+                                    size="sm"
+                                  />
+                                </FormItem>{' '}
+                              </div>
+                            )}
+                            <div className="col-span-3">
+                              <FormItem
+                                asterisk
+                                label="Video Format"
+                                invalid={errors.VideoType && touched.VideoType}
+                                errorMessage={errors.VideoType}
+                              >
+                                {/* {values.VideoType} */}
+                                <Field
+                                  size="sm"
+                                  name="VideoType"
+                                  style={{
+                                    width: '250px',
+                                  }}
+                                >
+                                  {({ field, form }) => (
+                                    <Select
+                                      style={{
+                                        width: '250px',
+                                      }}
+                                      field={field}
+                                      form={form}
+                                      options={VideoType}
+                                      value={VideoType.filter(
+                                        (option) =>
+                                          option.value === values.VideoType,
+                                      )}
+                                      onChange={(option) =>
+                                        form.setFieldValue(
+                                          field.name,
+                                          option?.value,
+                                        )
+                                      }
+                                    />
+                                  )}
+                                </Field>
+                              </FormItem>
+                            </div>
+                            <div className="col-span-4">
+                              <FormItem
+                                label="Episode Caption"
+                                invalid={
+                                  errors.EpisodeCaption &&
+                                  touched.EpisodeCaption
+                                }
+                                errorMessage={errors.EpisodeCaption}
+                              >
+                                <Field
+                                  size="sm"
+                                  autoComplete="off"
+                                  name="EpisodeCaption"
+                                  placeholder="Episode Caption"
+                                  component={Input}
+                                  disabled
+                                />
+                              </FormItem>
+                            </div>
+                            {/* {(values.ClassificationCode == 2 ||
+                              values.ContentTypeCode == 8) && (
+                                <div className="col-span-2"></div>
+                              )} */}
+                            <div className="col-span-1">
+                              <FormItem
+                                asterisk
+                                label="Segment"
+                                invalid={
+                                  errors.MaximumSegments &&
+                                  touched.MaximumSegments
+                                }
+                                errorMessage={errors.MaximumSegments}
+                              >
+                                <Field
+                                  name="MaximumSegments"
+                                  placeholder="MaximumSegments"
+                                >
+                                  {({ field, form }) => (
+                                    <Input
+                                      size="sm"
+                                      style={{ width: 65 }}
+                                      maxLength="2"
+                                      // disabled={Content.MaximumSegments}
+                                      field={field}
+                                      form={form}
+                                      onChange={(option) => {
+                                        if (isNumbers(option.target.value)) {
+                                          // values.EpisodeDuration = '';
+                                          form.setFieldValue(
+                                            field.name,
+                                            option.target.value,
+                                          );
+                                          if (Content.MaximumSegments) {
+                                            if (!UserAcceptToDelete) {
+                                              setIsOpenDialog(true);
+                                            }
+                                          } else {
+                                            setData([]);
+                                            values.EpisodeDuration = '';
+                                            setSOM('00:00:00:00');
+                                            setEOM('');
+                                            setSegmentDuration('00:00:00:00');
+                                          }
+                                        }
+                                      }}
+                                    />
+                                  )}
+                                </Field>
+                              </FormItem>
+                            </div>
+
+                            <div className="col-span-3 ml-4">
+                              <FormItem
+                                asterisk
+                                label="Episode Duration"
+                                invalid={
+                                  errors.EpisodeDuration &&
+                                  touched.EpisodeDuration
+                                }
+                                errorMessage={errors.EpisodeDuration}
+                              >
+                                <Field
+                                  size="lg"
+                                  name="EpisodeDuration"
+                                  placeholder="Episode Duration"
+                                >
+                                  {({ field, form }) => (
+                                    <Input
+                                      field={field}
+                                      form={form}
+                                      size="sm"
+                                      value={values.EpisodeDuration}
+                                      placeholder="HH:MM:SS:FF"
+                                      onChange={(e) => {
+                                        setData([]);
+
+                                        setSOM('00:00:00:00');
+                                        setEOM('');
+                                        setSegmentDuration('00:00:00:00');
+                                        handleChangeWithFrame(
+                                          e,
+                                          form,
+                                          field,
+                                          'formic',
+                                        );
+                                      }}
+                                      onBlur={(event) => {
+                                        const { name, value } = event.target;
+
+                                        const formattedValue =
+                                          formatOnHHMMSSFFBlur(value, Number(ChannelSetting[0]?.FramePerSec || 24));
+                                        const EpisodeDurationSum =
+                                          parseDuration(formattedValue);
+
+                                        if (
+                                          !(
+                                            EpisodeDurationSum <=
+                                            selectedItem?.SlotDuration * 60
+                                          )
+                                        ) {
+                                          openNotification(
+                                            'warning',
+                                            'Episode Duration should not exceed Content Slot Duration alert',
+                                          );
+                                          return;
+                                        }
+
+                                        if (
+                                          values.ContentCode &&
+                                          values.SeasonNo &&
+                                          values.EpisodeNo
+                                        ) {
+                                          createSegment(
+                                            values.MaximumSegments,
+                                            formattedValue,
+                                            values.EpisodeCaption,
+                                            values.House,
+                                            values.EpisodeNo,
+                                            values.SeasonNo,
+                                          );
+                                        }
+
+                                        form.setFieldValue(
+                                          field.name,
+
+                                          formattedValue,
+                                        );
+                                      }}
+                                    />
+                                  )}
+                                </Field>
+                              </FormItem>
+                            </div>
+
+                            {CLIENT.ANI_PLUS == Channel.label &&
+                              <div className="col-span-3 ml-4">
+                                <FormItem
+                                  asterisk
+                                  label="Is Special Episode"
+                                  invalid={errors.isSpecialEpisode && touched.isSpecialEpisode}
+                                  errorMessage={errors.isSpecialEpisode}
+                                >
+                                  <Field name="isSpecialEpisode" component={Switcher} />
+                                </FormItem>
+                              </div>}
+
+                            {(Channel.label === CLIENT.FOOD_INDIA ||
+                              Channel.label === CLIENT.FOOD_USA) && (
+                                <div className="col-span-2">
+                                  <FormItem
+                                    asterisk
+                                    label="House ID"
+                                    invalid={errors.House && touched.House}
+                                    errorMessage={errors.House}
+                                  >
+                                    <Field
+                                      type="text"
+                                      autoComplete="off"
+                                      name="House"
+                                      placeholder="House ID"
+                                      component={Input}
+                                      size="sm"
+                                    />
+                                  </FormItem>{' '}
+                                </div>
+                              )}
+                            {Channel.label == CLIENT.FOOD_INDIA ||
+                              Channel.label == CLIENT.FOOD_USA ? null : (
+                              <>
+                                {ChannelSetting[0]?.IsTapeCounterFlag == 1 && (
+                                  <div className="col-span-4">
+                                    <p className="text-white">House ID</p>
+                                    <h2 className="mt-1">{values.House}</h2>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </Card>
+                      )}
+                    </div>
+                  </Card>
+
+                  {Object.keys(selectedItem).length !== 0 && (
+                    <Card>
+                      <div className="grid grid-cols-2 md:grid-cols-1 gap-2">
+                        <div className="col-span-3">
+                          <SegDetails
+                            touched={touched}
+                            errors={errors}
+                            values={values}
+                            data={data}
+                            setData={setData}
+                            op={Content.open}
+                            EOM={EOM}
+                            setEOM={setEOM}
+                            dataiwanttoshow={dataiwanttoshow}
+                            setdataiwanttoshow={setdataiwanttoshow}
+                            setSOM={setSOM}
+                            SOM={SOM}
+                            setSegmentDuration={setSegmentDuration}
+                            SegmentDuration={SegmentDuration}
+                            setoptions3={setoptions3}
+                            options3={options3}
+                            setChecked={setChecked}
+                            checked={checked}
+                            selectedItem={selectedItem}
+                          />
+                        </div>
+                      </div>
+                    </Card>
+                  )}
+                  {Object.keys(selectedItem).length !== 0 && (
+                    <StickyFooter
+                      className="-mx-8 px-8 flex items-center justify-between py-4"
+                      stickyClass="border-t bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+                    >
+                      <div className="md:flex items-center">
+                        <Button
+                          variant="solid"
+                          type="submit"
+                          disabled={Object.keys(selectedItem).length == 0}
+                        >
+                          Save
+                        </Button>
+                        &nbsp;
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            if (
+                              hashPart.startsWith('/addfpc') ||
+                              hashPart.startsWith('/DailyFPCApp')
+
+                            ) {
+                              navigate('/ContentSegment')
+                              setTimeout(() => setIsOpen(false), 500);
+                            } else {
+                              navigate('/ContentSegment')
+                              setTimeout(() => setIsOpen(false), 500);
+                            }
+                          }}
+                        >
+                          Discard
+                        </Button>
+                      </div>
+                    </StickyFooter>
+                  )}
+
+                  <Dialog
+                    isOpen={dialogIsOpen}
+                    style={{
+                      content: {
+                        marginTop: 250,
+                      },
+                    }}
+                    contentClassName="pb-0 px-0"
+                    onClose={() => {
+                      setIsOpenDialog(false);
+                      values.MaximumSegments = Content.MaximumSegments;
+                    }}
+                  >
+                    <div className="px-6 pb-6">
+                      <p>
+                        You will lose previous entered data. Do you wish to
+                        continue ?
+                      </p>
+                    </div>
+
+                    <div className="text-right px-6 py-3 bg-gray-100 dark:bg-gray-700 rounded-bl-lg rounded-br-lg">
+                      <Button
+                        className="ltr:mr-2 rtl:ml-2"
+                        onClick={() => {
+                          setIsOpenDialog(false);
+                          values.MaximumSegments = Content.MaximumSegments;
+                        }}
+                      >
+                        No
+                      </Button>
+
+                      <Button
+                        variant="solid"
+                        onClick={() => {
+                          setData([]);
+                          values.EpisodeDuration = '';
+                          setSOM('00:00:00:00');
+                          setEOM('');
+                          setSegmentDuration('00:00:00:00');
+                          setIsOpenDialog(false);
+                          setUserAcceptToDelete(true);
+                        }}
+                      >
+                        Yes
+                      </Button>
+                    </div>
+                  </Dialog>
+                </FormContainer>
+              </Form>
+            );
+          }}
+        </Formik>
+      </div>
+    </Card>
+  );
+};
+
+export default ContentsegEdit;

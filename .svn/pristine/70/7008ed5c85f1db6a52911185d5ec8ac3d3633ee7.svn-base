@@ -1,0 +1,25 @@
+import React from 'react'
+import AgencyDetails from './AgencyDetails/AgencyDetails'
+import MultipleAddress from './MultipleAddress/MultipleAddress'
+import MapExecutives from './MapExecutives'
+import MapClients from './MapClients'
+
+function AddAgencyForms({ step, creditRateLimitOptions, businessTypeOptions, countryOptions,
+    stateOptions, cityOptions, setStateOptions, setCityOptions }) {
+    return (
+        <>
+            {step === 0 &&
+                <AgencyDetails creditRateLimitOptions={creditRateLimitOptions} businessTypeOptions={businessTypeOptions} />
+            }
+            {step === 1 &&
+                <MultipleAddress countryOptions={countryOptions}
+                    stateOptions={stateOptions} cityOptions={cityOptions} setStateOptions={setStateOptions} setCityOptions={setCityOptions} />
+            }
+            {step === 2 && <MapExecutives />}
+            {step === 3 && <MapClients />}
+        </>
+
+    )
+}
+
+export default AddAgencyForms

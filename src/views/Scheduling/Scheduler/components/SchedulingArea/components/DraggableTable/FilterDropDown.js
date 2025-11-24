@@ -1,0 +1,231 @@
+import { Button, Dropdown, Input, Tooltip } from 'components/ui';
+import React, { useContext, useEffect, useState } from 'react';
+import { IoFilterSharp } from 'react-icons/io5';
+import SchedulerContext from 'views/Scheduling/Scheduler/context/SchedulerContext';
+import DraggableTableContext from './context/DraggableTableContext';
+import {
+  operationTypesEnum,
+  tableTypesEnum,
+} from 'views/Scheduling/Scheduler/enum';
+import { openNotification } from 'views/Controls/GLOBALFUNACTION';
+import { FILTER_DROPDOWN_OPTIONS } from 'views/Scheduling/Scheduler/constants';
+
+/* CONSTANTS */
+const GRAY_500 = 'rgb(107 114 128)';
+const TEAL_500 = 'rgb(20 184 166)';
+
+function FilterDropdown({ columnKey, isLastColumn }) {
+  /* CONTEXTS */
+  const { tableType } = useContext(DraggableTableContext);
+  const {
+    schTableSelectedFilters,
+    setSchTableSelectedFilters,
+    secTableSelectedFilters,
+    setSecTableSelectedFilters,
+    executeOperation,
+  } = useContext(SchedulerContext);
+
+  /* STATES */
+  const [filterInputValues, setFilterInputValues] = useState({
+    selectorValue: FILTER_DROPDOWN_OPTIONS[1],
+    searchInputValue: '',
+  });
+
+  /* USE EFFECTS */
+  useEffect(() => {
+    try {
+      const currentFilters =
+        tableType === tableTypesEnum.SCHEDULING
+          ? schTableSelectedFilters
+          : secTableSelectedFilters;
+      const selectedFilter = currentFilters.find(
+        (filter) => filter.columnKey === columnKey,
+      );
+      const newFilterInputValues = selectedFilter
+        ? {
+            selectorValue: selectedFilter.filter,
+            searchInputValue: selectedFilter.searchValue,
+          }
+        : {
+            selectorValue: FILTER_DROPDOWN_OPTIONS[1],
+            searchInputValue: '',
+          };
+      setFilterInputValues((prevState) => {
+        if (
+          prevState.selectorValue !== newFilterInputValues.selectorValue ||
+          prevState.searchInputValue !== newFilterInputValues.searchInputValue
+        ) {
+          return newFilterInputValues;
+        }
+        return prevState;
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  }, [tableType, schTableSelectedFilters, secTableSelectedFilters, columnKey]);
+
+  /* EVENT HANDLERS */
+  const handleClearFilter = () => {
+    try {
+      let selectedFilters = [];
+      if (tableType === tableTypesEnum.SCHEDULING) {
+        selectedFilters = removeFilter([...schTableSelectedFilters], columnKey);
+        setSchTableSelectedFilters(selectedFilters);
+      } else {
+        selectedFilters = removeFilter([...secTableSelectedFilters], columnKey);
+        setSecTableSelectedFilters(selectedFilters);
+      }
+      executeOperation({
+        operation: operationTypesEnum.FILTER_ROW,
+        selectedFilters,
+        tableType: [tableType],
+      });
+      setFilterInputValues({
+        selectorValue: FILTER_DROPDOWN_OPTIONS[0],
+        searchInputValue: '',
+      });
+    } catch (error) {
+      console.error(error);
+      openNotification('danger', 'Something went wrong while clearing filter');
+    }
+  };
+
+  const handleApplyFilter = () => {
+    try {
+      let selectedFilters = [];
+      if (tableType === tableTypesEnum.SCHEDULING) {
+        selectedFilters = addFilter([...schTableSelectedFilters]);
+        setSchTableSelectedFilters(selectedFilters);
+      } else {
+        selectedFilters = addFilter([...secTableSelectedFilters]);
+        setSecTableSelectedFilters(selectedFilters);
+      }
+      executeOperation({
+        operation: operationTypesEnum.FILTER_ROW,
+        selectedFilters,
+        tableType: [tableType],
+      });
+    } catch (error) {
+      console.error(error);
+      openNotification('danger', 'Something went wrong while applying filter');
+    }
+  };
+
+  /* HELPER FUNCTIONS */
+  const addFilter = (oldState) => {
+    return [
+      ...oldState.filter((filter) => !(filter.columnKey === columnKey)),
+      {
+        columnKey,
+        filter: filterInputValues.selectorValue,
+        searchValue: filterInputValues.searchInputValue,
+      },
+    ];
+  };
+
+  const removeFilter = (selectedFilters, columnKey) => {
+    return [...selectedFilters].filter(
+      (filter) => filter.columnKey !== columnKey,
+    );
+  };
+
+  const isFilterSelected = () => {
+    try {
+      let selectedFilters = [];
+      if (tableType === tableTypesEnum.SCHEDULING)
+        selectedFilters = [...schTableSelectedFilters];
+      else selectedFilters = [...secTableSelectedFilters];
+      return (
+        selectedFilters.filter((curFilter) => curFilter.columnKey === columnKey)
+          .length > 0
+      );
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  return (
+    <Dropdown
+      renderTitle={
+        <Tooltip title="Filter">
+          <Button
+            shape="circle"
+            variant="plain"
+            size="xs"
+            icon={<IoFilterSharp color={isFilterSelected() ? TEAL_500 : ''} />}
+          />
+        </Tooltip>
+      }
+      menuClass="w-64 font-normal p-3 capitalize text-xs"
+      placement={isLastColumn ? 'bottom-end' : 'bottom-start'}
+      menuStyle={{ boxShadow: '#000000cc 0px 0px 10px' }}
+    >
+      <p className="text-sm text-white font-normal border-b border-b-gray-600 pb-2 flex justify-between items-center">
+        <span>Filter</span>
+        <span>{columnKey}</span>
+      </p>
+      <div className="mt-3 grid grid-cols-2 gap-x-2 gap-y-3 items-center">
+        <select
+          id="filterSelector"
+          name="filterSelector"
+          className="h-full bg-transparent border border-gray-500 focus:border-gray-500 rounded-md px-1.5 text-white"
+          onChange={(event) =>
+            setFilterInputValues({
+              ...filterInputValues,
+              selectorValue: event.target.value,
+            })
+          }
+          value={filterInputValues.selectorValue}
+        >
+          {FILTER_DROPDOWN_OPTIONS.map((option) => (
+            <option value={option} className="bg-gray-700" key={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+        <Input
+          size="sm"
+          style={{
+            borderColor: GRAY_500,
+          }}
+          placeholder="Search"
+          className="h-full hover:cursor-pointer"
+          value={filterInputValues.searchInputValue}
+          onChange={(event) => {
+            setFilterInputValues({
+              ...filterInputValues,
+              searchInputValue: event.target.value,
+            });
+          }}
+          onKeyDown={(event) => event.key === 'Enter' && handleApplyFilter()}
+        />
+        <div className="mt-2 col-span-2 flex justify-between">
+          <Button
+            className="w-max font-normal"
+            style={{
+              borderColor: GRAY_500,
+              fontSize: '0.8rem',
+              lineHeight: '1rem',
+            }}
+            size="sm"
+            onClick={handleClearFilter}
+          >
+            Clear
+          </Button>
+          <Button
+            className="w-max font-normal"
+            size="sm"
+            variant="twoTone"
+            disabled={!filterInputValues.searchInputValue}
+            style={{ fontSize: '0.8rem', lineHeight: '1rem' }}
+            onClick={handleApplyFilter}
+          >
+            Apply
+          </Button>
+        </div>
+      </div>
+    </Dropdown>
+  );
+}
+
+export default FilterDropdown;

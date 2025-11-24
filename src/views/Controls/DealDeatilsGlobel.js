@@ -1,0 +1,325 @@
+import React from 'react';
+import { Checkbox, Table, Tag } from 'components/ui';
+import { FaRegEye } from 'react-icons/fa';
+import { FORMATDATE_FOR_EVERY } from './GLOBALFUNACTION';
+import { useSelector } from 'react-redux';
+const { Tr, Th, Td, THead, TBody } = Table;
+export const DealMasterGlobel = ({ DealData, }) => {
+  return (
+    <div className="mt-2">
+      <div className="grid grid-cols-5 gap-4">
+        <div className="col-span-1">
+          <span
+            style={{
+              fontSize: 18,
+              lineHeight: 1.5,
+              fontWeight: 400,
+              opacity: 0.8,
+            }}
+          >
+            Agency & Booking
+          </span>
+          <h6
+            style={{
+              color: 'rgba(255, 255, 255, 0.8)',
+              fontWeight: 400,
+              fontSize: 16,
+              lineHeight: 1.5,
+            }}
+          >
+            {' '}
+            {DealData?.AgencyName}
+          </h6>{' '}
+          <Tag prefix prefixClass="bg-emerald-500" showCloseButton={false}>
+            <h6
+              style={{
+                color: 'rgba(255, 255, 255, 0.8)',
+                fontWeight: 400,
+                fontSize: 16,
+                lineHeight: 1.5,
+              }}
+            >
+              {DealData?.BookingCode}
+            </h6>
+          </Tag>
+        </div>
+        <div className="col-span-1">
+          <span
+            style={{
+              fontSize: 18,
+              lineHeight: 1.5,
+              fontWeight: 400,
+              opacity: 0.8,
+            }}
+          >
+            {' '}
+            Advertiser
+          </span>
+          <h6
+            style={{
+              color: 'rgba(255, 255, 255, 0.8)',
+              fontWeight: 400,
+              fontSize: 16,
+              lineHeight: 1.5,
+            }}
+          >
+            {' '}
+            {DealData?.ClientName}
+          </h6>
+        </div>
+        <div className="col-span-1">
+          <span
+            style={{
+              fontSize: 17,
+              lineHeight: 1.5,
+              fontWeight: 400,
+              opacity: 0.8,
+            }}
+          >
+            Start & End Date
+          </span>
+          <h6
+            style={{
+              color: 'rgba(255, 255, 255, 0.8)',
+              fontWeight: 500,
+              fontSize: 17,
+              lineHeight: 1.5,
+            }}
+          >
+            {FORMATDATE_FOR_EVERY(new Date(DealData?.DealPeriodFromDate))} ,
+          </h6>
+          <h6
+            style={{
+              color: 'rgba(255, 255, 255, 0.8)',
+              fontWeight: 500,
+              fontSize: 17,
+              lineHeight: 1.5,
+            }}
+          >
+            {FORMATDATE_FOR_EVERY(new Date(DealData?.DealPeriodToDate))}
+          </h6>
+        </div>
+        <div className="col-span-1">
+          <span
+            style={{
+              fontSize: 17,
+              lineHeight: 1.5,
+              fontWeight: 400,
+              opacity: 0.8,
+            }}
+          >
+            Sales Person / Zone
+          </span>
+          <h6
+            style={{
+              color: 'rgba(255, 255, 255, 0.8)',
+              fontWeight: 500,
+              fontSize: 18,
+              lineHeight: 1.5,
+            }}
+          >
+            {' '}
+            {DealData?.Emp_FirstName} {DealData?.Emp_LastName}
+          </h6>
+          <h6
+            style={{
+              color: 'rgba(255, 255, 255, 0.8)',
+              fontWeight: 500,
+              fontSize: 18,
+              lineHeight: 1.5,
+            }}
+          >
+            {' '}
+            {DealData?.ZoneName}
+          </h6>
+        </div>
+        <div className="col-span-1 ">
+          <span
+            style={{
+              fontSize: 18,
+              lineHeight: 1.5,
+              fontWeight: 400,
+              opacity: 0.8,
+            }}
+          >
+            Amount ({DealData?.CurrencyName})
+          </span>
+          <h6
+            style={{
+              color: 'rgba(255, 255, 255, 0.8)',
+              fontWeight: 600,
+              fontSize: 34,
+              lineHeight: 1.5,
+            }}
+          >
+            {DealData?.CurrencySymbol}{' '}
+            {DealData?.TotalAmount.toLocaleString('en-IN')}
+          </h6>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export const DealDeatilsGlobel = ({
+  DealDataDetails,
+  handleCheckboxChange,
+  DealData,
+  setmyid,
+  openDialog,
+  Deatils,
+  checkedItems,
+  IsNTCPage,
+}) => {
+  const currentHref = window.location.href; // Get the full URL
+  const hashPart = currentHref.split('#')[1]; // Get the part after the '#'
+  const spotBooking = hashPart ? hashPart.split('/')[1] : '';
+  const Channel = useSelector((state) => state.locale.selectedChannel);
+  return (
+    <div className="mt-5 mb-5">
+      {DealDataDetails?.length > 0 && (
+        <Table compact>
+          <THead>
+            <Tr>
+              {!(spotBooking === 'RoImportDetails' || spotBooking === 'NTCRoImportDetails') && (
+                <Th style={{ textTransform: 'capitalize' }}>Action</Th>
+              )}
+              <Th style={{ textTransform: 'capitalize' }}>Type</Th>
+              <Th style={{ textTransform: 'capitalize' }}>NTC Type</Th>
+              <Th style={{ textTransform: 'capitalize' }}>Deal Description</Th>
+              <Th style={{ textTransform: 'capitalize' }}>Spot Type</Th>
+              <Th style={{ textTransform: 'capitalize' }}>Week Days </Th>
+              <Th style={{ textTransform: 'capitalize' }}>Rate</Th>
+              <Th style={{ textTransform: 'capitalize' }}>Total</Th>
+              <Th style={{ textTransform: 'capitalize' }}>Used</Th>
+              <Th style={{ textTransform: 'capitalize' }}>Balance</Th>
+              {/* <Th style={{ textTransform: 'capitalize' }}>Utilized</Th> */}
+              <Th style={{ textTransform: 'capitalize' }}>Total Amount</Th>
+              <Th style={{ textTransform: 'capitalize' }}> Used Amt</Th>
+              <Th style={{ textTransform: 'capitalize' }}>Balance Amt</Th>
+              {Deatils.length > 0 && (
+                <Th style={{ textTransform: 'capitalize' }}>View</Th>
+              )}
+            </Tr>
+          </THead>
+          <TBody>
+            {DealDataDetails?.map((item, index) => (
+              <Tr key={index} style={{ borderBottom: '1px solid #6d6a6a70' }}>
+                {!(spotBooking === 'RoImportDetails' || spotBooking === 'NTCRoImportDetails') && (
+                  <Td>
+                    <div className="flex items-center">
+                      <div
+                        style={{
+                          height: 30,
+                          width: 5,
+                        }}
+                        className={`BorderIwant mr-3 ${item.DealLineItemTypeCode == 4 ? 'bg-lime-300' : null
+                          } ${item.DealLineItemTypeCode == 3 ? 'bg-rose-600' : null
+                          } ${item.DealLineItemTypeCode == 1 ? 'bg-teal-300' : null
+                          } ${item.DealLineItemTypeCode == 5
+                            ? 'bg-orange-200'
+                            : null
+                          } ${item.DealLineItemTypeCode == 6
+                            ? 'bg-orange-200'
+                            : null
+                          } ${item.DealLineItemTypeCode == 2 ? 'bg-cyan-300' : null
+                          }`}
+                      ></div>
+                      <Checkbox
+                        disabled={
+                          IsNTCPage == 1
+                            ? item.DealLineItemTypeCode != 4
+                            : item.ChannelCode == Channel.ChannelCode ? false : item.DealLineItemTypeCode == 4
+
+                        }
+                        checked={checkedItems.some(
+                          (checkedItem) => checkedItem.Id === index,
+                        )}
+                        onChange={(e) => handleCheckboxChange(item, e, index)}
+                      />
+                    </div>
+                  </Td>
+                )}
+                <Td style={{
+                  width: 30,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  textTransform: 'capitalize',
+                  textAlign: 'right',
+                }}>{item.DealLineItemTypeName}</Td>
+                <Td>{item.NTCTypeName ? item.NTCTypeName : ''}</Td>
+                <Td>
+                  {item.TimeBandCode != 0 && item.TimeBandName}
+                  {item.ContentCode != 0 && item.ContentName}
+                </Td>
+                <Td>{item.SpotTypeName}</Td>
+                <Td>{item.WeekdaysName}</Td>
+                <Td>
+                  {DealData?.CurrencySymbol}
+                  {item.Rate.toLocaleString('en-IN')}
+                </Td>
+                <Td>
+                  {item.TotalSpots != 0 && item.TotalSpots + 'Spots'}
+                  {item.Seconds != 0 && item.Seconds + 'Sec'}
+                  {item.NTCTotalSpots != 0 && item.NTCTotalSpots + 'Spots'}
+                </Td>
+                <Td>
+                  {[5, 6].includes(item.DealLineItemTypeCode)
+                    ? item.ConsumedSpots + 'Spots'
+                    : [1, 2, 3].includes(item.DealLineItemTypeCode)
+                      ? item.ConsumedSeconds + 'Sec'
+                      : [4].includes(item.DealLineItemTypeCode)
+                        ? item.NTCConsumedSpots + 'Spots'
+                        : null}
+                </Td>
+                <Td>
+                  {[5, 6].includes(item.DealLineItemTypeCode)
+                    ? item.BalancedSpots + 'Spots'
+                    : [1, 2, 3].includes(item.DealLineItemTypeCode)
+                      ? item.BalancedSeconds + 'Sec'
+                      : [4].includes(item.DealLineItemTypeCode)
+                        ? item.NTCBalanceSpots + 'Spots'
+                        : null}
+                </Td>
+                {/* <Td>
+                  <Progress
+                    customInfo={<>{ }</>}
+                    size="sm"
+                    percent={(
+                      (Number(item.ConsumedAmount) / Number(item.Amount)) *
+                      100
+                    ).toFixed(1)}
+                  />
+                </Td> */}
+                <Td>
+                  {DealData?.CurrencySymbol}
+                  {item.Amount.toLocaleString('en-IN')}
+                </Td>
+                <Td>
+                  {DealData?.CurrencySymbol}
+                  {item.ConsumedAmount.toLocaleString('en-IN')}
+                </Td>
+                <Td>
+                  {DealData?.CurrencySymbol}
+                  {item.BalancedAmount.toLocaleString('en-IN')}
+                </Td>
+
+                {Deatils.length > 0 && (
+                  <Td
+                    onClick={() => {
+                      openDialog(item.DealLineItemNo);
+                    }}
+                    className="cursor-pointer"
+                  >
+                    <FaRegEye size={20} />
+                  </Td>
+                )}
+              </Tr>
+            ))}
+          </TBody>
+        </Table>
+      )}
+    </div>
+  );
+};

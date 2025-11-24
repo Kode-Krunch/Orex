@@ -1,0 +1,62 @@
+import React from 'react'
+
+const CheckSongUsedBefore = ({ details, isSongSelected }) => {
+    const getClassName = (value) => {
+        if (value >= 3) return 'text-white bg-red-400'; // red for 3 or more
+        if (value >= 1 && value < 3) return 'bg-amber-400 text-white'; // orange for 1-2
+    };
+    return (
+        <>
+            {isSongSelected && (
+                <div className="grow h-0 flex flex-col">
+                    <div className="table-container w-full">
+                        <table border="1">
+                            <thead>
+                                <tr>
+                                    <th className="w-48 h-5  font-bold border border-gray-500">TeleCast Date</th>
+                                    {Array.from({ length: 24 }, (_, i) => (
+                                        <th key={i} className="w-10 h-5  font-bold border border-gray-500">
+                                            {i.toString().padStart(2, '0')}
+                                        </th>
+                                    ))}
+                                    <th className="w-10 h-5  font-bold border border-gray-500">Total</th>
+                                </tr>
+                            </thead>
+                        </table>
+                    </div>
+                    <div
+                        id="SongschedulDetails"
+                        className="table-container w-full flex-1"
+                        style={{ overflowY: 'auto' }}
+                    >
+                        <table border="1">
+                            <tbody>
+                                {details.map((dayData, dayIndex) => (
+                                    <tr
+                                        key={dayIndex}
+                                        className={`SongschedulDetails-${dayData.labelIndex}`}
+                                        style={{
+                                            background:
+                                                dayData.label === 'Today' ? '#a4a0a012' : 'initial',
+                                        }}
+                                    >
+                                        <td className="w-48 h-5 text-center font-bold border border-gray-500">{dayData.label}</td>
+                                        {dayData.hoursData.map((hourData, index) => {
+                                            const [hour, value] = Object.entries(hourData)[0]; // Destructure hour and value
+                                            return (
+                                                <td key={index} className={`w-10 h-5 text-center font-bold border border-gray-500 ${getClassName(value)}`}>
+                                                    {value === 0 ? '' : value}
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}</>
+    )
+}
+
+export default CheckSongUsedBefore

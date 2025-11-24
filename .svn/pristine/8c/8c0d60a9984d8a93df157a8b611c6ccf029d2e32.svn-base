@@ -1,0 +1,240 @@
+import React, { lazy, Suspense, useContext, useState } from 'react';
+import { Button, Tooltip } from 'components/ui';
+import { FaRegSquarePlus } from 'react-icons/fa6';
+import { LuCopyPlus } from 'react-icons/lu';
+import { getClassNames, isFeatureDisabled } from './utils';
+import { HiMiniArrowsRightLeft } from 'react-icons/hi2';
+import { PiSwap } from 'react-icons/pi';
+import SchedulerContext from 'views/Scheduling/Scheduler/context/SchedulerContext';
+import {
+  operationTypesEnum,
+  rowDataTypesEnum,
+  secondaryTableTypesEnum,
+  secTableBottomToolbarFeaturesEnum,
+} from 'views/Scheduling/Scheduler/enum';
+import Loader from 'views/Controls/Loader';
+import { openNotification } from 'views/Controls/GLOBALFUNACTION';
+import { MdOutlineLibraryAddCheck, MdOutlinePlaylistAdd } from 'react-icons/md';
+import RepeatInsertDialog from './components/RepeatInsertDialog';
+
+/* CODE SPLITTING */
+const ReplaceAllDialog = lazy(() => import('./components/ReplaceAllDialog'));
+const BulkInsertDialog = lazy(() =>
+  import('./components/BulkInsertDialog/BulkInsertDialog'),
+);
+
+function SecondaryTableToolbar({ insertType }) {
+  /* CONTEXT */
+  const {
+    schedulingTableSelectedRows,
+    secondaryTableSelectedRows,
+    secondaryTableType,
+    setSecondaryTableSelectedRows,
+    secondaryTableData,
+    executeOperation,
+    isAutoCalcNtcOffsetTime,
+    isNtcGroupingEnabled,
+  } = useContext(SchedulerContext);
+
+  /* STATES */
+  const [isRepeatInsertDialogOpen, setIsRepeatInsertDialogOpen] =
+    useState(false);
+  const [isReplaceAllDialogOpen, setIsReplaceAllDialogOpen] = useState(false);
+  const [isBulkInsertDialogOpen, setIsBulkInsertDialogOpen] = useState(false);
+
+  /* EVENT HANDLERS */
+  const handleSelectAll = () => {
+    try {
+      if (secondaryTableSelectedRows.length === secondaryTableData.length - 1) {
+        setSecondaryTableSelectedRows([]);
+      } else {
+        const secTableSelectedRows =
+          secondaryTableType === secondaryTableTypesEnum.COMMERCIAL ||
+          secondaryTableType === secondaryTableTypesEnum.DROPPED_SPOTS ||
+          secondaryTableType === secondaryTableTypesEnum.LAST_MINUTE_SPOTS
+            ? secondaryTableData.filter((row) => row.isFiltered)
+            : [...secondaryTableData].splice(1);
+        setSecondaryTableSelectedRows(secTableSelectedRows);
+      }
+    } catch (error) {
+      openNotification(
+        'danger',
+        'Something went wrong while selecting all events',
+      );
+      console.error(error);
+    }
+  };
+
+  const handleInsert = () => {
+    try {
+      executeOperation({
+        operation: operationTypesEnum.INSERT_ROW,
+      });
+    } catch (error) {
+      console.error(error);
+      openNotification('danger', 'Something went wrong while inserting events');
+    }
+  };
+
+  const handleReplace = () => {
+    try {
+      executeOperation({
+        operation: operationTypesEnum.REPLACE_ROW,
+      });
+      openNotification('success', 'Events replaced successfully');
+    } catch (error) {
+      console.error(error);
+      openNotification('danger', 'Something went wrong while replacing events');
+    }
+  };
+
+  /* CONSTANTS */
+  const isAllRowsSelected =
+    secondaryTableSelectedRows.length === secondaryTableData.length - 1;
+  const isEventsComm = insertType === rowDataTypesEnum.COMMERCIAL;
+  const isEventsPaidNtc =
+    insertType === rowDataTypesEnum.NTC &&
+    (secondaryTableData[1]?.BookingDetailID ||
+      secondaryTableData[1]?.BookingDetailsID);
+
+  return (
+    <Suspense fallback={<Loader showLoader={true} />}>
+      <div className="bg-gray-700 bg-opacity-50 flex gap-0.5 p-0.5 rounded-lg border border-gray-600">
+        <Tooltip title={isAllRowsSelected ? 'Un-select all' : 'Select All'}>
+          <Button
+            className={`hover:!bg-teal-700 transition-all !h-8 !w-8 ${
+              isAllRowsSelected && '!bg-teal-700'
+            }`}
+            variant="plain"
+            size="sm"
+            icon={<MdOutlineLibraryAddCheck className="text-[1.2rem]" />}
+            onClick={handleSelectAll}
+          />
+        </Tooltip>
+        <Tooltip title="Insert">
+          <Button
+            className={getClassNames()}
+            variant="plain"
+            size="sm"
+            icon={<FaRegSquarePlus className="text-base" />}
+            disabled={isFeatureDisabled(
+              schedulingTableSelectedRows,
+              secondaryTableSelectedRows,
+              secTableBottomToolbarFeaturesEnum.INSERT,
+              isAutoCalcNtcOffsetTime,
+              isNtcGroupingEnabled,
+            )}
+            onClick={handleInsert}
+          />
+        </Tooltip>
+        {!isEventsComm && !isEventsPaidNtc && (
+          <>
+            {isAutoCalcNtcOffsetTime && insertType === rowDataTypesEnum.NTC && (
+              <Tooltip title="Repeat Insert">
+                <div
+                  onClick={() => {
+                    isFeatureDisabled(
+                      schedulingTableSelectedRows,
+                      secondaryTableSelectedRows,
+                      secTableBottomToolbarFeaturesEnum.REPEAT_INSERT,
+                      isAutoCalcNtcOffsetTime,
+                      isNtcGroupingEnabled,
+                    )
+                      ? openNotification(
+                          'danger',
+                          'Please select a valid NTC parent event',
+                        )
+                      : setIsRepeatInsertDialogOpen(true);
+                  }}
+                >
+                  <Button
+                    className={getClassNames()}
+                    variant="plain"
+                    size="sm"
+                    icon={<MdOutlinePlaylistAdd className="text-[1.4rem]" />}
+                    disabled={isFeatureDisabled(
+                      schedulingTableSelectedRows,
+                      secondaryTableSelectedRows,
+                      secTableBottomToolbarFeaturesEnum.REPEAT_INSERT,
+                      isAutoCalcNtcOffsetTime,
+                      isNtcGroupingEnabled,
+                    )}
+                  />
+                </div>
+                {isRepeatInsertDialogOpen && (
+                  <RepeatInsertDialog
+                    isDialogOpen={isRepeatInsertDialogOpen}
+                    setIsDialogOpen={setIsRepeatInsertDialogOpen}
+                  />
+                )}
+              </Tooltip>
+            )}
+            <Tooltip title="Bulk Insert" wrapperClass="relative">
+              <Button
+                className={getClassNames()}
+                variant="plain"
+                size="sm"
+                icon={<LuCopyPlus className="text-lg" />}
+                disabled={isFeatureDisabled(
+                  schedulingTableSelectedRows,
+                  secondaryTableSelectedRows,
+                  secTableBottomToolbarFeaturesEnum.BULK_INSERT,
+                  isAutoCalcNtcOffsetTime,
+                  isNtcGroupingEnabled,
+                )}
+                onClick={() => setIsBulkInsertDialogOpen(true)}
+              />
+              {isBulkInsertDialogOpen && (
+                <BulkInsertDialog
+                  isDialogOpen={isBulkInsertDialogOpen}
+                  setIsDialogOpen={setIsBulkInsertDialogOpen}
+                  insertType={insertType}
+                />
+              )}
+            </Tooltip>
+            <Tooltip title="Replace">
+              <Button
+                className={getClassNames()}
+                variant="plain"
+                size="sm"
+                icon={<HiMiniArrowsRightLeft className="text-[1.12rem]" />}
+                disabled={isFeatureDisabled(
+                  schedulingTableSelectedRows,
+                  secondaryTableSelectedRows,
+                  secTableBottomToolbarFeaturesEnum.REPLACE,
+                  isAutoCalcNtcOffsetTime,
+                  isNtcGroupingEnabled,
+                )}
+                onClick={handleReplace}
+              />
+            </Tooltip>
+            <Tooltip title="Replace All">
+              <Button
+                className={getClassNames()}
+                variant="plain"
+                size="sm"
+                icon={<PiSwap className="text-xl" />}
+                disabled={isFeatureDisabled(
+                  schedulingTableSelectedRows,
+                  secondaryTableSelectedRows,
+                  secTableBottomToolbarFeaturesEnum.REPLACE_ALL,
+                  isAutoCalcNtcOffsetTime,
+                  isNtcGroupingEnabled,
+                )}
+                onClick={() => setIsReplaceAllDialogOpen(true)}
+              />
+              {isReplaceAllDialogOpen && (
+                <ReplaceAllDialog
+                  isDialogOpen={isReplaceAllDialogOpen}
+                  setIsDialogOpen={setIsReplaceAllDialogOpen}
+                />
+              )}
+            </Tooltip>
+          </>
+        )}
+      </div>
+    </Suspense>
+  );
+}
+
+export default SecondaryTableToolbar;

@@ -1,0 +1,46 @@
+import { Checkbox } from 'components/ui';
+import React, { useContext } from 'react';
+import { openNotification } from 'views/Controls/GLOBALFUNACTION';
+import { getBreaks } from '../../../utils';
+import SchedulerContext from 'views/Scheduling/SchedulerOld/context/SchedulerContext';
+// import SchedulerContext from 'views/Scheduling/Scheduler/context/SchedulerContext';
+
+function Breaks({ selectedBreaks, setSelectedBreaks }) {
+  /* CONTEXT */
+  const { schedulingTableData } = useContext(SchedulerContext);
+
+  /* EVENT HANDLERS */
+  const handleBreakSelection = (breakNumber) => {
+    try {
+      if (selectedBreaks.includes(breakNumber)) {
+        setSelectedBreaks(
+          selectedBreaks.filter((breakNum) => breakNum !== breakNumber),
+        );
+      } else {
+        setSelectedBreaks([...selectedBreaks, breakNumber]);
+      }
+    } catch (error) {
+      openNotification('danger', 'Something went wrong');
+      console.error(error);
+    }
+  };
+
+  return (
+    <div>
+      <p className="text-sm mb-1">Breaks</p>
+      <div className="flex flex-wrap gap-2 text-sm">
+        {getBreaks(schedulingTableData).map((breakItem) => (
+          <Checkbox
+            onChange={() => handleBreakSelection(breakItem.value)}
+            className="text-gray-200"
+            key={breakItem.value}
+          >
+            {breakItem.value}
+          </Checkbox>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default Breaks;

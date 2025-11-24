@@ -1,0 +1,14 @@
+import React from 'react';
+import SearchGlobal from './SearchGlobal';
+import ActiveLog from './ActiveLog/ActiveLog';
+
+const Home = () => {
+  return (
+    <div>
+      Home
+      <SearchGlobal />
+    </div>
+  );
+};
+
+export default Home;

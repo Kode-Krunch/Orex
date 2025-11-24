@@ -1,0 +1,5 @@
+.p-datatable.p-datatable-selectable
+  .p-datatable-tbody
+  > tr.p-selectable-row:not(.p-highlight):not(.p-datatable-emptymessage):hover {
+  background-color: rgb(75 85 99) !important;
+}

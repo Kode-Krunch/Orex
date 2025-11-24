@@ -1,0 +1,38 @@
+import { Button } from 'components/ui';
+import React from 'react';
+import { HiPlusCircle } from 'react-icons/hi';
+import SalesTargetCard from '../components/SalesTargetCard';
+
+function Dashboard({ setScreen }) {
+  return (
+    <>
+      <div className="flex justify-between items-center">
+        <h3>Sales Target</h3>
+        <Button
+          variant="solid"
+          size="sm"
+          icon={<HiPlusCircle />}
+          onClick={() => setScreen('add')}
+        >
+          Add Sales Target
+        </Button>
+      </div>
+      <div className="grid grid-cols-5 gap-4 mt-6">
+        <SalesTargetCard />
+        <SalesTargetCard />
+        <SalesTargetCard />
+        <SalesTargetCard />
+        <SalesTargetCard />
+        <SalesTargetCard />
+      </div>
+      {/* <Card
+        className="h-full mt-4"
+        bodyClass="h-full flex justify-center items-center"
+      >
+        No sales target to show
+      </Card> */}
+    </>
+  );
+}
+
+export default Dashboard;

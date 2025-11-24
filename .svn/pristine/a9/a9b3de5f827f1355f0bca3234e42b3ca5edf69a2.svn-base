@@ -1,0 +1,148 @@
+import { Droppable } from '@hello-pangea/dnd';
+import React, { createContext, useContext, useEffect } from 'react';
+import AutoSizer from 'react-virtualized-auto-sizer';
+import Row from './Row';
+import { innerElementType, RenderRow, StickyList } from './tableUtils';
+import { rowTypesEnum, tableTypesEnum } from 'views/Scheduling/Scheduler/enum';
+import DraggableTableContextProvider from './context/DraggableTableContextProvider';
+import DraggableTableContext from './context/DraggableTableContext';
+import { TABLE_ROW_HEIGHT } from 'views/Scheduling/Scheduler/constants';
+import SchedulerContext from 'views/Scheduling/SchedulerOld/context/SchedulerContext';
+// import SchedulerContext from 'views/Scheduling/Scheduler/context/SchedulerContext';
+
+function DraggableTable({
+  tableName,
+  tableType,
+  tableData,
+  columns,
+  droppableId,
+  selectedRows,
+  setSelectedRows,
+  scrolledOffset,
+  tableRef,
+  isDragDisabled,
+}) {
+  return (
+    <DraggableTableContextProvider>
+      <DraggableTableWithContext
+        tableNameProp={tableName}
+        tableTypeProp={tableType}
+        tableDataProp={tableData}
+        columnsProp={columns}
+        droppableIdProp={droppableId}
+        selectedRowsProp={selectedRows}
+        setSelectedRowsProp={setSelectedRows}
+        scrolledOffsetProp={scrolledOffset}
+        tableRef={tableRef}
+        isDragDisabledProp={isDragDisabled}
+      />
+    </DraggableTableContextProvider>
+  );
+}
+
+function DraggableTableWithContext({
+  tableNameProp,
+  tableTypeProp,
+  tableDataProp,
+  columnsProp,
+  droppableIdProp,
+  selectedRowsProp,
+  setSelectedRowsProp,
+  scrolledOffsetProp,
+  tableRef,
+  isDragDisabledProp,
+}) {
+  /* CONTEXT */
+  const { setSchedulingTableName, setSecondaryTableName } =
+    useContext(SchedulerContext);
+  const {
+    tableData,
+    setTableType,
+    setTableData,
+    setColumns,
+    setScrolledOffset,
+    setIsDragDisabled,
+  } = useContext(DraggableTableContext);
+  const StickyListContext = createContext();
+  StickyListContext.displayName = 'StickyListContext';
+
+  useEffect(() => {
+    try {
+      /* INITIALIZE DRAGGABLE TABLE */
+      if (tableTypeProp === tableTypesEnum.SCHEDULING)
+        setSchedulingTableName(tableNameProp);
+      else setSecondaryTableName(tableNameProp);
+      setTableType(tableTypeProp);
+      setTableData(tableDataProp);
+      setColumns(columnsProp);
+      setScrolledOffset(scrolledOffsetProp);
+      setIsDragDisabled(isDragDisabledProp);
+    } catch (error) {
+      throw error;
+    }
+  }, [
+    tableNameProp,
+    tableTypeProp,
+    tableDataProp,
+    columnsProp,
+    scrolledOffsetProp,
+    isDragDisabledProp,
+  ]);
+
+  return (
+    <Droppable
+      droppableId={droppableIdProp}
+      mode="virtual"
+      renderClone={(provided, snapshot, rubric) => {
+        return (
+          <Row
+            row={tableData[rubric.source.index]}
+            provided={provided}
+            rowType={rowTypesEnum.CLONE}
+            selectedRows={selectedRowsProp}
+            setSelectedRows={setSelectedRowsProp}
+          />
+        );
+      }}
+    >
+      {(provided) => (
+        <div ref={provided.innerRef} className="h-full w-full">
+          <AutoSizer>
+            {({ height, width }) => (
+              <StickyList
+                height={height}
+                innerElementType={innerElementType(StickyListContext)}
+                itemCount={tableData.length}
+                itemSize={(index) =>
+                  (typeof tableData[index].isFiltered === 'boolean' &&
+                    !tableData[index].isFiltered) ||
+                  tableData[index].isHidden
+                    ? 0
+                    : TABLE_ROW_HEIGHT
+                }
+                stickyIndices={[0]}
+                width={width}
+                outerRef={provided.innerRef}
+                tableRef={tableRef}
+                StickyListContext={StickyListContext}
+              >
+                {({ index, style }) => (
+                  <RenderRow
+                    rowType={rowTypesEnum.NORMAL}
+                    selectedRows={selectedRowsProp}
+                    setSelectedRows={setSelectedRowsProp}
+                    index={index}
+                    style={style}
+                    tableType={tableTypeProp}
+                  />
+                )}
+              </StickyList>
+            )}
+          </AutoSizer>
+        </div>
+      )}
+    </Droppable>
+  );
+}
+
+export default DraggableTable;

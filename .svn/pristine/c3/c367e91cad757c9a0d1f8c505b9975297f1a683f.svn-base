@@ -1,0 +1,1626 @@
+import { Button, Tooltip } from 'components/ui';
+import React, {
+  lazy,
+  Suspense,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
+import { BiRedo, BiTimer, BiUndo } from 'react-icons/bi';
+import { CgLockUnlock, CgMaximizeAlt, CgMinimize } from 'react-icons/cg';
+import { IoFilterSharp, IoLogoTableau, IoPlay } from 'react-icons/io5';
+import {
+  MdContentCopy,
+  MdDateRange,
+  MdOutlineCommentsDisabled,
+  MdOutlineDashboard,
+  MdOutlineFactCheck,
+  MdOutlineRestore,
+  MdOutlineSave,
+  MdOutlineViewTimeline,
+  MdPlaylistPlay,
+} from 'react-icons/md';
+import { PiExportBold } from 'react-icons/pi';
+import { RiLayoutBottom2Line, RiListSettingsLine } from 'react-icons/ri';
+import {
+  TbArrowBackUp,
+  TbArrowsShuffle,
+  TbBoxMultiple2,
+  TbCalendarDown,
+  TbClockCog,
+  TbClockHour4,
+  TbGridDots,
+  TbRefreshDot,
+  TbStatusChange,
+  TbTableImport,
+} from 'react-icons/tb';
+import SchedulerContext from '../../../../context/SchedulerContext';
+import {
+  featuresEnum,
+  operationTypesEnum,
+  pagesEnum,
+  tableTypesEnum,
+} from '../../../../enum';
+import {
+  getClassNames,
+  handleFeatureClick,
+  handleFormattedExport,
+  handleSaveSchedule,
+  handleSaveScheduleOnlyForbes,
+  isFeatureHidden,
+} from './utils/utils';
+import { FaClockRotateLeft, FaRegTrashCan } from 'react-icons/fa6';
+import { useDispatch, useSelector } from 'react-redux';
+import { openNotification } from 'views/Controls/GLOBALFUNACTION';
+import { GetDataCount } from 'views/Scheduling/FinalLog/Cols';
+import { BsCalendar2Day, BsTextIndentLeft } from 'react-icons/bs';
+import { RxShuffle } from 'react-icons/rx';
+import { LuPaintBucket } from 'react-icons/lu';
+import { CLIENT } from 'views/Controls/clientListEnum';
+import { convertDateToYMD } from 'components/validators';
+import Loader from 'views/Controls/Loader';
+import ImportSequenceDialog from './components/ImportSequenceDialog';
+import { HiPlusCircle } from 'react-icons/hi';
+import { VscInsert } from 'react-icons/vsc';
+import DeleteEventsDialog from './components/DeleteEventsDialog';
+import WarningDialog from 'views/Controls/WarningDialog';
+import { getContentIndexes } from '../BottomSummary/utils';
+import InsertNTCPattern from './components/toolbarButtons/InsertNTCPattern';
+import ImportNTCs from './components/toolbarButtons/ImportNTCs';
+import InsertLiveDialog from './components/InsertLiveDialog';
+import { apiCallstoreprocedure } from 'services/CommonService';
+import ImportPromos from './components/toolbarButtons/ImportPromos';
+import {
+  isDtmfRowsPresent,
+  isScteOnRowsPresent,
+} from 'views/Scheduling/Scheduler/context/utils';
+
+/* CODE SPLITTING */
+const SmartShuffleDrawer = lazy(() =>
+  import('./components/SmartShuffleDrawer'),
+);
+const ManageColumns = lazy(() =>
+  import('../Dropdowns/ManageColumns/ManageColumns'),
+);
+const AutoShuffleDialog = lazy(() =>
+  import('./components/AutoShuffleDialog/AutoShuffleDialog'),
+);
+const InsertEvents = lazy(() =>
+  import('../Dropdowns/InsertEvents/InsertEvents'),
+);
+const RuleCheckDropdown = lazy(() =>
+  import('../Dropdowns/RuleCheckDropdown/RuleCheckDropdown'),
+);
+const ManageStartTimeDialog = lazy(() =>
+  import('./components/ManageStartTimeDialog'),
+);
+const GenerateLogDialog = lazy(() => import('./components/GenerateLogDialog'));
+const RefreshDurationDialog = lazy(() =>
+  import('./components/RefreshDurationDialog'),
+);
+const ChangeCellColorDialog = lazy(() =>
+  import('./components/ChangeCellColorDialog/ChangeCellColorDialog'),
+);
+const PushToPlayoutDialog = lazy(() =>
+  import('./components/PushToPlayoutDialog/PushToPlayoutDialog'),
+);
+const PartialPlayoutExportDialog = lazy(() =>
+  import('./components/PartialPlayoutExportDialog'),
+);
+const DayWiseSaveAs = lazy(() => import('./components/DayWiseSaveAs'));
+const ExportDropdown = lazy(() =>
+  import('../Dropdowns/ExportDowpdown/ExportDropdown'),
+);
+const RestoreSavedWorkDialog = lazy(() =>
+  import('./components/RestoreSavedWorkDialog'),
+);
+const SaveAsSlotDIalog = lazy(() => import('./components/SaveAsSlotDIalog'));
+function Toolbar() {
+  /* REDUX */
+  const channel = useSelector((state) => state.locale.selectedChannel);
+  const token = useSelector((state) => state.auth.session.token);
+  const unsavedWork = useSelector((state) => state.auth.scheduling.unsavedWork);
+  const dispatch = useDispatch();
+
+  /* CONTEXT */
+  const {
+    page,
+    featuresList,
+    maintainScrolledOffsetOfTables,
+    activeFeatures,
+    setActiveFeatures,
+    schedulingTableData,
+    setSchedulingTableSelectedRows,
+    leftClickedSchTableRow,
+    setLeftClickedSchTableRow,
+    undoStack,
+    redoStack,
+    resetPage,
+    date,
+    setShowLoader,
+    setUpdateSchedulerStateInRedux,
+    dropBucket,
+    executeOperation,
+    lastMinuteSpots,
+    isScheduleAllowedToEdit,
+    secondaryAreaZindexRef,
+    isInsertLiveDialogOpen,
+    setIsInsertLiveDialogOpen,
+    handleUndo,
+    handleRedo,
+  } = useContext(SchedulerContext);
+
+  /* STATES */
+  const [isAutoShuffleDialogOpen, setIsAutoShuffleDialogOpen] = useState(false);
+  const [verticalOpen, setVerticalOpen] = useState(false);
+  const [isManageStartTimeDialogOpen, setIsManageStartTimeDialogOpen] =
+    useState(false);
+  const [isRestoreSavedWorkDialogOpen, setIsRestoreSavedWorkDialogOpen] =
+    useState(false);
+  const [isGenerateLogDialogOpen, setIsGenerateLogDialogOpen] = useState(false);
+  const [isChangeCellBgDialogOpen, setIsChangeCellBgDialogOpen] =
+    useState(false);
+  const [isPushToPlayoutDialogOpen, setIsPushToPlayoutDialogOpen] =
+    useState(false);
+  const [
+    isPartialPlayoutExportDialogOpen,
+    setIsPartialPlayoutExportDialogOpen,
+  ] = useState(false);
+  const [isRefreshDurationDialogOpen, setIsRefreshDurationDialogOpen] =
+    useState(false);
+  const [isImportSequenceDialogOpen, setIsImportSequenceDialogOpen] =
+    useState(false);
+  const [isDeleteEventsDialogOpen, setIsDeleteEventsDialogOpen] =
+    useState(false);
+  const [
+    isImportNTCsForSelContentDialogOpen,
+    setIsImportNTCsForSelContentDialogOpen,
+  ] = useState(false);
+  const [
+    isImportNTcsForAllContentDialogOpen,
+    setIsImportNTcsForAllContentDialogOpen,
+  ] = useState(false);
+
+  const [isInsertNowNTCPatternDialogOpen, setIsInsertNowNTCPatternDialogOpen] =
+    useState(false);
+  const [
+    isInsertNextNTCPatternDialogOpen,
+    setIsInsertNextNTCPatternDialogOpen,
+  ] = useState(false);
+  const [
+    isInsertLaterNTCPatternDialogOpen,
+    setIsInsertLaterNTCPatternDialogOpen,
+  ] = useState(false);
+  const [
+    isInsertTimerNTCPatternDialogOpen,
+    setIsInsertTimerNTCPatternDialogOpen,
+  ] = useState(false);
+
+  const [
+    isImportPromosForSelContentDialogOpen,
+    setIsImportPromosForSelContentDialogOpen,
+  ] = useState(false);
+  const [
+    isImportPromosForAllContentDialogOpen,
+    setIsImportPromosForAllContentDialogOpen,
+  ] = useState(false);
+  const [commercialCounts, setCommercialCounts] = useState([]);
+  const [countData, setCountData] = useState({
+    NTC: [],
+    Promos: [],
+    Songs: [],
+    Commercial: [],
+    Programs: [],
+  });
+  const [totalDuration, setTotalDuration] = useState(0);
+  const [totalBreaks, setTotalBreaks] = useState(0);
+  const [blankTxLogCount, setBlankTxLogCount] = useState(0);
+  const [saveAsvisible, setSaveAsvisible] = useState(false);
+  const [save_Slotvisible, setSave_Slotvisible] = useState(false);
+  const [isUnsavedChangesPresent, setIsUnsavedChangesPresent] = useState(false);
+
+  /* HOOKS */
+  const manageColumnsDropdownRef = useRef(null);
+  const renderCount = useRef(0);
+
+  /* USE EFFECTS */
+  useEffect(() => {
+    document.addEventListener('mousedown', closeDropDowns);
+    return () => {
+      document.removeEventListener('mousedown', closeDropDowns);
+    };
+  }, [manageColumnsDropdownRef]);
+
+  useEffect(() => {
+    if (schedulingTableData.length === 0) return;
+    let sum = 0,
+      count = 0;
+    const cmItems = schedulingTableData.filter(
+      (item) => item.F_C_S_P === 'CM' && item.TxLogCode,
+    );
+    schedulingTableData.forEach(({ F_C_S_P, Duration }) => {
+      if (F_C_S_P === 'CM') {
+        const [hours, minutes, seconds, frames] =
+          Duration.split(':').map(Number);
+        sum += hours * 3600 + minutes * 60 + seconds + frames / 25;
+      }
+      count += F_C_S_P === 'S' ? 1 : F_C_S_P === 'CT' ? -1 : 0;
+    });
+    setTotalDuration(sum);
+    setTotalBreaks(count);
+    GetDataCount(schedulingTableData, setCountData);
+    setBlankTxLogCount(cmItems.length);
+    if (renderCount.current > 0) setIsUnsavedChangesPresent(true);
+    renderCount.current = renderCount.current + 1;
+  }, [schedulingTableData]);
+
+  /* EVENT HANDLERS */
+  const closeDropDowns = (event) => {
+    if (
+      manageColumnsDropdownRef.current &&
+      !manageColumnsDropdownRef.current.contains(event.target)
+    ) {
+      setActiveFeatures((prevState) => {
+        return {
+          ...prevState,
+          [featuresEnum.MANAGE_COLUMNS]: {
+            ...prevState[featuresEnum.MANAGE_COLUMNS],
+            isDropdownVisible: false,
+          },
+        };
+      });
+    }
+  };
+
+  const handleSave = () => {
+    try {
+      if (channel.label === CLIENT.USA_Forbes) {
+        const filteredData = schedulingTableData
+          .filter((item) => item.F_C_S_P.trim() !== '')
+          .map((item, index) => ({
+            ChannelCode: channel.ChannelCode,
+            LocationCode: channel.LocationCode,
+            TelecastDate: convertDateToYMD(date),
+            NewTelecastDate: convertDateToYMD(date),
+            FPCTime: item.FPC_Time,
+            FPC_TimeTo: item.FPC_TimeTo,
+            SequenceNo: item.SequenceNo,
+            RowNumber: index + 1,
+            TransmissionTime: item.Tel_Time,
+            GMTTime: item.Tel_Time,
+            EventCode: item.ContentCode,
+            EventCaption: item.Event_Name,
+            HouseID: item.House_ID,
+            VideoID: item.Video_ID,
+            TapeID: item.TapeID,
+            TCIN: item.TC_IN,
+            TCOUT: item.TC_Out,
+            EventDuration: item.Duration,
+            EventType: item.F_C_S_P,
+            SeasonNo: item.SeasonNo,
+            EpisodeNo: item.EpisodeNo,
+            PartNumber: item.PartNumber,
+            BreakNumber: item.BreakNumber,
+            BookingNumber: item.BookingNumber,
+            BookingDetailCode: item.BookingDetailCode,
+            BookingDetailID: item.BookingDetailID,
+            BookingSeqNo: item.BookingSeqNo,
+            DealNumber: item.DealNo,
+            DealLineItemNo: item.DealLineItemNo,
+            TimeBandCode: item.TimeBandCode ? item.TimeBandCode : null,
+            PrimaryID: item.PrimaryID,
+            TxTimeinSec: item.TxTimeinSec,
+            Description: item.Event_Name,
+            IsActive: 1,
+            NtcTypeName: item.NtcTypeName,
+            NTCTypeName: item.NtcTypeName,
+          }));
+        handleSaveScheduleOnlyForbes({
+          filteredData,
+          setShowLoader,
+          dispatch,
+          unsavedWork,
+          channel,
+          date,
+        });
+      } else {
+        handleSaveSchedule({
+          setShowLoader,
+          page,
+          schedulingTableData,
+          channel,
+          date,
+          token,
+          unsavedWork,
+          dispatch,
+          droppedSpots: dropBucket,
+        });
+      }
+      setIsUnsavedChangesPresent(false);
+    } catch (error) {
+      openNotification('danger', 'Something went wrong while save');
+      console.error(error);
+    }
+  };
+
+  const handleImportNTCsDropdownSelect = (eventName) => {
+    if (eventName === 'selProgram')
+      setIsImportNTCsForSelContentDialogOpen(true);
+    else if (eventName === 'allPrograms')
+      setIsImportNTcsForAllContentDialogOpen(true);
+  };
+
+  const handleInsertNTCPatternDropdownSelect = (eventName) => {
+    if (eventName === 'dtmf') toggleDtmfPattern();
+    else if (eventName === 'scteOn') toggleScteOnPattern();
+    else if (eventName === 'now') setIsInsertNowNTCPatternDialogOpen(true);
+    else if (eventName === 'next') setIsInsertNextNTCPatternDialogOpen(true);
+    else if (eventName === 'later') setIsInsertLaterNTCPatternDialogOpen(true);
+    else if (eventName === 'timer') setIsInsertTimerNTCPatternDialogOpen(true);
+  };
+
+  const handleImportPromosDropdownSelect = (eventName) => {
+    if (eventName === 'selProgram')
+      setIsImportPromosForSelContentDialogOpen(true);
+    else if (eventName === 'allPrograms')
+      setIsImportPromosForAllContentDialogOpen(true);
+  };
+
+  /* HELPER FUNCTIONS */
+  function getInsertDropdownTotal() {
+    try {
+      let total = 0;
+      if (page === pagesEnum.COMMERCIAL) {
+        total =
+          (dropBucket.length > 0 ? dropBucket.length - 1 : 0) +
+          (lastMinuteSpots.length > 0 ? lastMinuteSpots.length - 1 : 0);
+      } else if (page === pagesEnum.FINAL_LOG) {
+        total =
+          (dropBucket.length > 0 ? dropBucket.length - 1 : 0) +
+          (lastMinuteSpots.length > 0 ? lastMinuteSpots.length - 1 : 0);
+      } else total = 0;
+      if (total > 9) total = '9+';
+      return total;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  const getCommercialCounts = async () => {
+    const resp = await apiCallstoreprocedure(
+      'USP_Sch_Commercial_scheduling_Counts',
+      {
+        par_ChannelCode: channel.ChannelCode,
+        par_LocationCode: channel.LocationCode,
+        par_TelecastDate: convertDateToYMD(date),
+      },
+    );
+    setCommercialCounts(resp.data);
+  };
+
+  const importNTCsForSelContent = async () => {
+    try {
+      setShowLoader(true);
+      await executeOperation({
+        operation: operationTypesEnum.IMPORT_NTCS_FOR_SEL_CONTENT,
+      });
+      openNotification('success', 'NTCs imported successfully');
+    } catch (error) {
+      console.error(error);
+      openNotification(
+        'danger',
+        'Something went wrong while importing NTCs for selected program',
+      );
+    } finally {
+      setShowLoader(false);
+      setIsImportNTCsForSelContentDialogOpen(false);
+    }
+  };
+
+  const importNTCsForAllContents = async () => {
+    try {
+      setShowLoader(true);
+      await executeOperation({
+        operation: operationTypesEnum.IMPORT_NTCS_FOR_ALL_CONTENTS,
+      });
+      openNotification('success', 'NTCs imported successfully');
+    } catch (error) {
+      console.error(error);
+      openNotification('danger', 'Something went wrong while importing NTCs');
+    } finally {
+      setShowLoader(false);
+      setIsImportNTcsForAllContentDialogOpen(false);
+    }
+  };
+
+  const toggleDtmfPattern = async () => {
+    try {
+      setShowLoader(true);
+      await executeOperation({
+        operation: operationTypesEnum.TOGGLE_DTMF_PATTERN,
+      });
+      if (isDtmfRowsPresent(schedulingTableData))
+        openNotification('success', 'DTMFs removed successfully');
+      else openNotification('success', 'DTMFs inserted successfully');
+    } catch (error) {
+      console.error(error);
+      openNotification('danger', 'Something went wrong while toggling DTMFs');
+    } finally {
+      setShowLoader(false);
+    }
+  };
+
+  const toggleScteOnPattern = async () => {
+    try {
+      setShowLoader(true);
+      await executeOperation({
+        operation: operationTypesEnum.TOGGLE_SCTE_ON_PATTERN,
+      });
+      if (isScteOnRowsPresent(schedulingTableData))
+        openNotification('success', 'SCTE On removed successfully');
+      else openNotification('success', 'SCTE On inserted successfully');
+    } catch (error) {
+      console.error(error);
+      openNotification('danger', 'Something went wrong while toggling SCTEs');
+    } finally {
+      setShowLoader(false);
+    }
+  };
+
+  const insertNowNTCsForSelContent = async () => {
+    try {
+      setShowLoader(true);
+      await executeOperation({
+        operation: operationTypesEnum.INSERT_NOW_NTCS,
+      });
+      openNotification('success', 'Now NTCs inserted successfully');
+    } catch (error) {
+      console.error(error);
+      openNotification(
+        'danger',
+        'Something went wrong while inserting Now NTCs for selected program',
+      );
+    } finally {
+      setShowLoader(false);
+      setIsInsertNowNTCPatternDialogOpen(false);
+    }
+  };
+
+  const importPromosForSelContent = async () => {
+    try {
+      setShowLoader(true);
+      await executeOperation({
+        operation: operationTypesEnum.IMPORT_PROMOS_FOR_SEL_CONTENT,
+      });
+      openNotification('success', 'Promos imported successfully');
+    } catch (error) {
+      console.error(error);
+      openNotification(
+        'danger',
+        'Something went wrong while importing Promos for selected program',
+      );
+    } finally {
+      setShowLoader(false);
+      setIsImportPromosForSelContentDialogOpen(false);
+    }
+  };
+
+  const importPromosForAllContents = async () => {
+    try {
+      setShowLoader(true);
+      await executeOperation({
+        operation: operationTypesEnum.IMPORT_PROMOS_FOR_ALL_CONTENTS,
+      });
+      openNotification('success', 'Promos imported successfully');
+    } catch (error) {
+      console.error(error);
+      openNotification('danger', 'Something went wrong while importing Promos');
+    } finally {
+      setShowLoader(false);
+      setIsImportPromosForAllContentDialogOpen(false);
+    }
+  };
+
+  /* CONSTANTS */
+  const insertDropdownTotal = getInsertDropdownTotal();
+
+  return (
+    <Suspense fallback={<Loader showLoader={true} />}>
+      {featuresList && (
+        <div className="bg-gray-700 bg-opacity-50 flex justify-between items-center p-0.5 rounded-lg border border-gray-600">
+          <div className="grow flex justify-between items-center pr-2 mr-2.5 border-r border-r-gray-600">
+            <div className="flex items-center gap-0.5">
+              {featuresList[featuresEnum.UNDO] && (
+                <Tooltip title="Undo">
+                  <Button
+                    className={getClassNames()}
+                    variant="plain"
+                    size="sm"
+                    icon={<BiUndo className="text-xl" />}
+                    disabled={undoStack.length === 0}
+                    onClick={handleUndo}
+                  />
+                </Tooltip>
+              )}
+              {featuresList[featuresEnum.REDO] && (
+                <Tooltip title="Redo">
+                  <Button
+                    className={getClassNames()}
+                    variant="plain"
+                    size="sm"
+                    icon={<BiRedo className="text-xl" />}
+                    disabled={redoStack.length === 0}
+                    onClick={handleRedo}
+                  />
+                </Tooltip>
+              )}
+              {featuresList[featuresEnum.MANAGE_COLUMNS] && (
+                <div className="relative">
+                  <Tooltip title="Manage Columns">
+                    <Button
+                      className={getClassNames(
+                        activeFeatures[featuresEnum.MANAGE_COLUMNS] &&
+                          activeFeatures[featuresEnum.MANAGE_COLUMNS].isActive,
+                      )}
+                      variant="plain"
+                      size="sm"
+                      icon={<TbGridDots className="text-xl" />}
+                      onClick={() =>
+                        handleFeatureClick({
+                          feature: featuresEnum.MANAGE_COLUMNS,
+                          maintainScrolledOffsetOfTables,
+                          activeFeatures,
+                          setActiveFeatures,
+                          setUpdateSchedulerStateInRedux,
+                        })
+                      }
+                    />
+                  </Tooltip>
+                  {activeFeatures[featuresEnum.MANAGE_COLUMNS] &&
+                    activeFeatures[featuresEnum.MANAGE_COLUMNS]
+                      .isDropdownVisible && (
+                      <ManageColumns
+                        tableType={tableTypesEnum.SCHEDULING}
+                        dropdownRef={manageColumnsDropdownRef}
+                      />
+                    )}
+                </div>
+              )}
+              {featuresList[featuresEnum.COPY] && (
+                <Tooltip title="Copy">
+                  <Button
+                    className={getClassNames(activeFeatures[featuresEnum.COPY])}
+                    variant="plain"
+                    size="sm"
+                    icon={<MdContentCopy className="text-xl" />}
+                    onClick={() =>
+                      handleFeatureClick({
+                        feature: featuresEnum.COPY,
+                        maintainScrolledOffsetOfTables,
+                        activeFeatures,
+                        setActiveFeatures,
+                        setUpdateSchedulerStateInRedux,
+                      })
+                    }
+                  />
+                </Tooltip>
+              )}
+              {featuresList[featuresEnum.GENERATE_LOG] && (
+                <>
+                  <Tooltip title="Generate Log">
+                    <Button
+                      className={getClassNames()}
+                      variant="plain"
+                      size="sm"
+                      icon={<IoLogoTableau className="text-xl" />}
+                      onClick={() => setIsGenerateLogDialogOpen(true)}
+                    />
+                  </Tooltip>
+                  {isGenerateLogDialogOpen && (
+                    <GenerateLogDialog
+                      isOpen={isGenerateLogDialogOpen}
+                      setIsOpen={setIsGenerateLogDialogOpen}
+                    />
+                  )}
+                </>
+              )}
+              {featuresList[featuresEnum.MAXIMIZE] && (
+                <Tooltip
+                  title={
+                    activeFeatures[featuresEnum.MAXIMIZE]
+                      ? 'Minimize'
+                      : 'Maximize'
+                  }
+                >
+                  <Button
+                    className={getClassNames(
+                      activeFeatures[featuresEnum.MAXIMIZE],
+                    )}
+                    variant="plain"
+                    size="sm"
+                    icon={
+                      activeFeatures[featuresEnum.MAXIMIZE] ? (
+                        <CgMinimize className="text-xl" />
+                      ) : (
+                        <CgMaximizeAlt className="text-xl" />
+                      )
+                    }
+                    onClick={() =>
+                      handleFeatureClick({
+                        feature: featuresEnum.MAXIMIZE,
+                        maintainScrolledOffsetOfTables,
+                        activeFeatures,
+                        setActiveFeatures,
+                        setUpdateSchedulerStateInRedux,
+                      })
+                    }
+                  />
+                </Tooltip>
+              )}
+              {featuresList[featuresEnum.FILTER] && (
+                <Tooltip title="Filter">
+                  <Button
+                    className={getClassNames(
+                      activeFeatures[featuresEnum.FILTER],
+                    )}
+                    variant="plain"
+                    size="sm"
+                    icon={<IoFilterSharp className="text-xl" />}
+                    onClick={() =>
+                      handleFeatureClick({
+                        feature: featuresEnum.FILTER,
+                        maintainScrolledOffsetOfTables,
+                        activeFeatures,
+                        setActiveFeatures,
+                        setUpdateSchedulerStateInRedux,
+                        executeOperation,
+                      })
+                    }
+                  />
+                </Tooltip>
+              )}
+              {featuresList[featuresEnum.SHOW_NTC] && (
+                <Tooltip title="Show NTC">
+                  <Button
+                    className={getClassNames(
+                      activeFeatures[featuresEnum.SHOW_NTC],
+                    )}
+                    variant="plain"
+                    size="sm"
+                    icon={<RiLayoutBottom2Line className="text-xl" />}
+                    onClick={() =>
+                      handleFeatureClick({
+                        feature: featuresEnum.SHOW_NTC,
+                        maintainScrolledOffsetOfTables,
+                        activeFeatures,
+                        setActiveFeatures,
+                        setUpdateSchedulerStateInRedux,
+                        executeOperation,
+                      })
+                    }
+                  />
+                </Tooltip>
+              )}
+              {featuresList[featuresEnum.FINALIZE] && (
+                <Tooltip title="Finalize">
+                  <Button
+                    className={getClassNames()}
+                    variant="plain"
+                    size="sm"
+                    icon={<CgLockUnlock className="text-xl" />}
+                  />
+                </Tooltip>
+              )}
+              {featuresList[featuresEnum.RESTORE_SAVED_WORK] && (
+                <>
+                  <Tooltip title="Restore Saved Work">
+                    <Button
+                      className={getClassNames()}
+                      variant="plain"
+                      size="sm"
+                      icon={<MdOutlineRestore className="text-xl" />}
+                      onClick={() => setIsRestoreSavedWorkDialogOpen(true)}
+                    />
+                  </Tooltip>
+                  {isRestoreSavedWorkDialogOpen && (
+                    <RestoreSavedWorkDialog
+                      isOpen={isRestoreSavedWorkDialogOpen}
+                      setIsOpen={setIsRestoreSavedWorkDialogOpen}
+                    />
+                  )}
+                </>
+              )}
+              {featuresList[featuresEnum.ROTATION_INFO_WITH_MANAGE_COLUMNS] && (
+                <Tooltip title="Rotation Info With Manage Columns">
+                  <Button
+                    className={getClassNames(
+                      activeFeatures[
+                        featuresEnum.ROTATION_INFO_WITH_MANAGE_COLUMNS
+                      ],
+                    )}
+                    variant="plain"
+                    size="sm"
+                    icon={<TbBoxMultiple2 className="text-xl" />}
+                    onClick={() =>
+                      handleFeatureClick({
+                        feature: featuresEnum.ROTATION_INFO_WITH_MANAGE_COLUMNS,
+                        maintainScrolledOffsetOfTables,
+                        activeFeatures,
+                        setActiveFeatures,
+                        setSchedulingTableSelectedRows,
+                        setLeftClickedSchTableRow,
+                        setUpdateSchedulerStateInRedux,
+                        secondaryAreaZindexRef,
+                      })
+                    }
+                  />
+                </Tooltip>
+              )}
+              {featuresList[featuresEnum.HOURWISE_INVENTORY] && (
+                <Tooltip title="Hourwise Inventory">
+                  <Button
+                    className={getClassNames(
+                      activeFeatures[[featuresEnum.HOURWISE_INVENTORY]],
+                    )}
+                    variant="plain"
+                    size="sm"
+                    icon={<MdOutlineViewTimeline className="text-xl" />}
+                    onClick={() =>
+                      handleFeatureClick({
+                        feature: featuresEnum.HOURWISE_INVENTORY,
+                        maintainScrolledOffsetOfTables,
+                        activeFeatures,
+                        setActiveFeatures,
+                        setSchedulingTableSelectedRows,
+                        setLeftClickedSchTableRow,
+                        setUpdateSchedulerStateInRedux,
+                        secondaryAreaZindexRef,
+                      })
+                    }
+                  />
+                </Tooltip>
+              )}
+              {featuresList[featuresEnum.SUMMARY] && (
+                <Tooltip title="Summary">
+                  <Button
+                    className={getClassNames(
+                      activeFeatures[featuresEnum.SUMMARY],
+                    )}
+                    variant="plain"
+                    size="sm"
+                    icon={<MdOutlineDashboard className="text-xl" />}
+                    onClick={() =>
+                      handleFeatureClick({
+                        feature: featuresEnum.SUMMARY,
+                        maintainScrolledOffsetOfTables,
+                        activeFeatures,
+                        setActiveFeatures,
+                        setSchedulingTableSelectedRows,
+                        setLeftClickedSchTableRow,
+                        setUpdateSchedulerStateInRedux,
+                        secondaryAreaZindexRef,
+                      })
+                    }
+                  />
+                </Tooltip>
+              )}
+              {featuresList[featuresEnum.REFRESH_DURATION] && (
+                <>
+                  <Tooltip title="Refresh Duration">
+                    <Button
+                      className={getClassNames(
+                        activeFeatures[featuresEnum.REFRESH_DURATION],
+                      )}
+                      variant="plain"
+                      size="sm"
+                      icon={<TbRefreshDot className="text-xl" />}
+                      onClick={() => setIsRefreshDurationDialogOpen(true)}
+                    />
+                  </Tooltip>
+                  {isRefreshDurationDialogOpen && (
+                    <RefreshDurationDialog
+                      isOpen={isRefreshDurationDialogOpen}
+                      setIsOpen={setIsRefreshDurationDialogOpen}
+                    />
+                  )}
+                </>
+              )}
+              {featuresList[featuresEnum.HOURS] && (
+                <Tooltip title="Hours">
+                  <Button
+                    className={getClassNames(
+                      activeFeatures[featuresEnum.HOURS],
+                    )}
+                    variant="plain"
+                    size="sm"
+                    icon={<TbClockHour4 className="text-xl" />}
+                    onClick={() =>
+                      handleFeatureClick({
+                        feature: featuresEnum.HOURS,
+                        maintainScrolledOffsetOfTables,
+                        activeFeatures,
+                        setActiveFeatures,
+                        setUpdateSchedulerStateInRedux,
+                      })
+                    }
+                  />
+                </Tooltip>
+              )}
+              {featuresList[featuresEnum.FPC_TIME] && (
+                <Tooltip title="FPC Time">
+                  <Button
+                    className={getClassNames(
+                      activeFeatures[featuresEnum.FPC_TIME],
+                    )}
+                    variant="plain"
+                    size="sm"
+                    icon={<FaClockRotateLeft className="text-base" />}
+                    onClick={() =>
+                      handleFeatureClick({
+                        feature: featuresEnum.FPC_TIME,
+                        maintainScrolledOffsetOfTables,
+                        activeFeatures,
+                        setActiveFeatures,
+                        setUpdateSchedulerStateInRedux,
+                      })
+                    }
+                  />
+                </Tooltip>
+              )}
+              {featuresList[featuresEnum.HIDE_COMMERCIALS] && (
+                <Tooltip title="Hide Commercial">
+                  <Button
+                    className={getClassNames(
+                      activeFeatures[featuresEnum.HIDE_COMMERCIALS],
+                    )}
+                    variant="plain"
+                    size="sm"
+                    icon={<MdOutlineCommentsDisabled className="text-xl" />}
+                    onClick={() =>
+                      handleFeatureClick({
+                        feature: featuresEnum.HIDE_COMMERCIALS,
+                        maintainScrolledOffsetOfTables,
+                        activeFeatures,
+                        setActiveFeatures,
+                        setUpdateSchedulerStateInRedux,
+                        executeOperation,
+                      })
+                    }
+                  />
+                </Tooltip>
+              )}
+              {featuresList[featuresEnum.SHOW_PROGRAM_BASE_TIME] && (
+                <Tooltip title="Show Program Base Time">
+                  <Button
+                    className={getClassNames(
+                      activeFeatures[featuresEnum.SHOW_PROGRAM_BASE_TIME],
+                    )}
+                    variant="plain"
+                    size="sm"
+                    icon={<BiTimer className="text-[1.4rem]" />}
+                    onClick={() =>
+                      handleFeatureClick({
+                        feature: featuresEnum.SHOW_PROGRAM_BASE_TIME,
+                        maintainScrolledOffsetOfTables,
+                        activeFeatures,
+                        setActiveFeatures,
+                        setUpdateSchedulerStateInRedux,
+                        executeOperation,
+                      })
+                    }
+                  />
+                </Tooltip>
+              )}
+              {featuresList[featuresEnum.EXPORT] && (
+                <div className="relative">
+                  <Tooltip title="Export">
+                    <Button
+                      className={getClassNames(
+                        activeFeatures[featuresEnum.EXPORT] &&
+                          activeFeatures[featuresEnum.EXPORT].isActive,
+                      )}
+                      variant="plain"
+                      size="sm"
+                      icon={<PiExportBold className="text-xl" />}
+                      onClick={() =>
+                        handleFeatureClick({
+                          feature: featuresEnum.EXPORT,
+                          page,
+                          maintainScrolledOffsetOfTables,
+                          activeFeatures,
+                          setActiveFeatures,
+                          setSchedulingTableSelectedRows,
+                          setLeftClickedSchTableRow,
+                          setUpdateSchedulerStateInRedux,
+                        })
+                      }
+                    />
+                  </Tooltip>
+                  {activeFeatures[featuresEnum.EXPORT] &&
+                    activeFeatures[featuresEnum.EXPORT].isDropdownVisible && (
+                      <ExportDropdown />
+                    )}
+                </div>
+              )}
+              {featuresList[featuresEnum.SMART_SHUFFLE] && (
+                <>
+                  <Tooltip title="Smart Shuffle">
+                    <Button
+                      className={getClassNames()}
+                      variant="plain"
+                      size="sm"
+                      icon={<RxShuffle className="text-xl" />}
+                      onClick={() => setVerticalOpen(true)}
+                    />
+                  </Tooltip>
+                  {/* {verticalOpen && ( */}
+                  <SmartShuffleDrawer
+                    verticalOpen={verticalOpen}
+                    date={date}
+                    onDrawerClose={() => setVerticalOpen(false)}
+                  />
+                  {/* )} */}
+                </>
+              )}
+              {featuresList[featuresEnum.AUTO_SHUFFLE] && (
+                <>
+                  <Tooltip title="Auto Shuffle">
+                    <Button
+                      className={getClassNames()}
+                      variant="plain"
+                      size="sm"
+                      icon={<TbArrowsShuffle className="text-xl" />}
+                      onClick={() => setIsAutoShuffleDialogOpen(true)}
+                    />
+                  </Tooltip>
+                  {isAutoShuffleDialogOpen && (
+                    <AutoShuffleDialog
+                      isDialogOpen={isAutoShuffleDialogOpen}
+                      setIsDialogOpen={setIsAutoShuffleDialogOpen}
+                    />
+                  )}
+                </>
+              )}
+              {featuresList[featuresEnum.PUSH_TO_PLAYOUT] && (
+                <>
+                  <Tooltip
+                    title={
+                      isUnsavedChangesPresent && renderCount.current > 0
+                        ? 'Please save for push to playout'
+                        : 'Push To Playout'
+                    }
+                  >
+                    <Button
+                      className={getClassNames()}
+                      variant="plain"
+                      size="sm"
+                      icon={<IoPlay className="text-xl" />}
+                      disabled={
+                        isUnsavedChangesPresent && renderCount.current > 0
+                      }
+                      onClick={async () => {
+                        await getCommercialCounts();
+                        setIsPushToPlayoutDialogOpen(true);
+                      }}
+                    />
+                  </Tooltip>
+                  {isPushToPlayoutDialogOpen && (
+                    <PushToPlayoutDialog
+                      isDialogOpen={isPushToPlayoutDialogOpen}
+                      setIsDialogOpen={setIsPushToPlayoutDialogOpen}
+                      CountData={countData}
+                      Commercial_scheduling_Counts={commercialCounts}
+                      TotalBreaks={totalBreaks}
+                      totalDuration={totalDuration}
+                      blankTxLogCount={blankTxLogCount}
+                    />
+                  )}
+                </>
+              )}
+              {featuresList[featuresEnum.PUSH_TO_PLAYOUT] && (
+                <>
+                  <Tooltip
+                    title={
+                      isUnsavedChangesPresent && renderCount.current > 0
+                        ? 'Please save for partial playout export'
+                        : 'Partial Playout Export'
+                    }
+                  >
+                    <Button
+                      className={getClassNames()}
+                      variant="plain"
+                      size="sm"
+                      icon={<MdPlaylistPlay className="text-[1.7rem]" />}
+                      disabled={
+                        isUnsavedChangesPresent && renderCount.current > 0
+                      }
+                      onClick={() => setIsPartialPlayoutExportDialogOpen(true)}
+                    />
+                  </Tooltip>
+                  {isPartialPlayoutExportDialogOpen && (
+                    <PartialPlayoutExportDialog
+                      isDialogOpen={isPartialPlayoutExportDialogOpen}
+                      setIsDialogOpen={setIsPartialPlayoutExportDialogOpen}
+                    />
+                  )}
+                </>
+              )}
+              {featuresList[featuresEnum.RULE_CHECK] && (
+                <div className="relative">
+                  <Tooltip title="Rule Check">
+                    <Button
+                      className={getClassNames(
+                        activeFeatures[featuresEnum.RULE_CHECK] &&
+                          activeFeatures[featuresEnum.RULE_CHECK].isActive,
+                      )}
+                      variant="plain"
+                      size="sm"
+                      icon={<MdOutlineFactCheck className="text-xl" />}
+                      onClick={() =>
+                        handleFeatureClick({
+                          feature: featuresEnum.RULE_CHECK,
+                          page,
+                          maintainScrolledOffsetOfTables,
+                          activeFeatures,
+                          setActiveFeatures,
+                          setSchedulingTableSelectedRows,
+                          setLeftClickedSchTableRow,
+                          setUpdateSchedulerStateInRedux,
+                          secondaryAreaZindexRef,
+                        })
+                      }
+                    />
+                  </Tooltip>
+                  {activeFeatures[featuresEnum.RULE_CHECK] &&
+                    activeFeatures[featuresEnum.RULE_CHECK]
+                      .isDropdownVisible && <RuleCheckDropdown />}
+                </div>
+              )}
+              {featuresList[featuresEnum.FORMATTED_EXPORT] && (
+                <Tooltip title="Formatted Export">
+                  <Button
+                    className={getClassNames()}
+                    variant="plain"
+                    size="sm"
+                    icon={<TbTableImport className="text-xl" />}
+                    onClick={() =>
+                      handleFormattedExport(
+                        date,
+                        [...schedulingTableData].splice(1),
+                      )
+                    }
+                  />
+                </Tooltip>
+              )}
+              {featuresList[featuresEnum.CHANGE_PROGRAM] &&
+                !isFeatureHidden({ channel }) && (
+                  <Tooltip title="Change Program">
+                    <Button
+                      className={getClassNames(
+                        activeFeatures[featuresEnum.CHANGE_PROGRAM],
+                      )}
+                      variant="plain"
+                      size="sm"
+                      icon={<TbStatusChange className="text-xl -scale-x-100" />}
+                      onClick={() =>
+                        handleFeatureClick({
+                          feature: featuresEnum.CHANGE_PROGRAM,
+                          maintainScrolledOffsetOfTables,
+                          activeFeatures,
+                          setActiveFeatures,
+                          setSchedulingTableSelectedRows,
+                          setLeftClickedSchTableRow,
+                          setUpdateSchedulerStateInRedux,
+                          secondaryAreaZindexRef,
+                        })
+                      }
+                    />
+                  </Tooltip>
+                )}
+              {featuresList[featuresEnum.MANAGE_SEGMENT] &&
+                !isFeatureHidden({ channel }) && (
+                  <Tooltip title="Manage Segment">
+                    <Button
+                      className={getClassNames(
+                        activeFeatures[featuresEnum.MANAGE_SEGMENT],
+                      )}
+                      variant="plain"
+                      size="sm"
+                      icon={<RiListSettingsLine className="text-xl" />}
+                      onClick={() =>
+                        handleFeatureClick({
+                          feature: featuresEnum.MANAGE_SEGMENT,
+                          maintainScrolledOffsetOfTables,
+                          activeFeatures,
+                          setActiveFeatures,
+                          setSchedulingTableSelectedRows,
+                          setLeftClickedSchTableRow,
+                          setUpdateSchedulerStateInRedux,
+                          secondaryAreaZindexRef,
+                        })
+                      }
+                    />
+                  </Tooltip>
+                )}
+              {featuresList[featuresEnum.MANAGE_START_TIME] && (
+                <>
+                  <Tooltip title="Manage Start Time">
+                    <Button
+                      className={getClassNames(
+                        activeFeatures[featuresEnum.MANAGE_START_TIME],
+                      )}
+                      variant="plain"
+                      size="sm"
+                      icon={<TbClockCog className="text-xl" />}
+                      onClick={() => setIsManageStartTimeDialogOpen(true)}
+                    />
+                  </Tooltip>
+                  {isManageStartTimeDialogOpen && (
+                    <ManageStartTimeDialog
+                      isOpen={isManageStartTimeDialogOpen}
+                      setIsOpen={setIsManageStartTimeDialogOpen}
+                    />
+                  )}
+                </>
+              )}
+              {featuresList[featuresEnum.DURATION] && (
+                <Tooltip title="Show Break Wise Duration">
+                  <Button
+                    className={getClassNames(
+                      activeFeatures[[featuresEnum.DURATION]],
+                    )}
+                    variant="plain"
+                    size="sm"
+                    icon={
+                      <BsTextIndentLeft className="text-[1.4rem] font-bold" />
+                    }
+                    onClick={() =>
+                      handleFeatureClick({
+                        feature: featuresEnum.DURATION,
+                        maintainScrolledOffsetOfTables,
+                        activeFeatures,
+                        setActiveFeatures,
+                        setSchedulingTableSelectedRows,
+                        setLeftClickedSchTableRow,
+                        setUpdateSchedulerStateInRedux,
+                        secondaryAreaZindexRef,
+                      })
+                    }
+                  />
+                </Tooltip>
+              )}
+              {featuresList[featuresEnum.DAY_WISE_SAVE_AS] && (
+                <>
+                  <Tooltip title="DAY_WISE_SAVE_AS">
+                    <Button
+                      className={getClassNames(
+                        activeFeatures[[featuresEnum.DAY_WISE_SAVE_AS]],
+                      )}
+                      variant="plain"
+                      size="sm"
+                      icon={
+                        <BsCalendar2Day className="text-[1.4rem] font-bold" />
+                      }
+                      onClick={() => setSaveAsvisible(true)}
+                    />
+                  </Tooltip>
+                  {saveAsvisible && (
+                    <DayWiseSaveAs
+                      saveAsvisible={saveAsvisible}
+                      setSaveAsvisible={setSaveAsvisible}
+                    />
+                  )}
+                </>
+              )}
+              {featuresList[featuresEnum.CHANGE_CELL_COLOR] && (
+                <>
+                  <Tooltip title="Customize Cell Colour">
+                    <Button
+                      className={getClassNames()}
+                      variant="plain"
+                      size="sm"
+                      icon={<LuPaintBucket className="text-xl text-gray-200" />}
+                      onClick={() => setIsChangeCellBgDialogOpen(true)}
+                    />
+                  </Tooltip>
+                  {isChangeCellBgDialogOpen && (
+                    <ChangeCellColorDialog
+                      isOpen={isChangeCellBgDialogOpen}
+                      setIsOpen={setIsChangeCellBgDialogOpen}
+                    />
+                  )}
+                </>
+              )}
+              {featuresList[featuresEnum.IMPORT_SEQUENECE] && (
+                <>
+                  <Tooltip title="Import Sequence">
+                    <Button
+                      className={getClassNames()}
+                      variant="plain"
+                      size="sm"
+                      icon={
+                        <TbCalendarDown className="text-xl text-gray-200" />
+                      }
+                      onClick={() => setIsImportSequenceDialogOpen(true)}
+                    />
+                  </Tooltip>
+                  {isImportSequenceDialogOpen && (
+                    <ImportSequenceDialog
+                      isOpen={isImportSequenceDialogOpen}
+                      setIsOpen={setIsImportSequenceDialogOpen}
+                    />
+                  )}
+                </>
+              )}
+              {featuresList[featuresEnum.SHOW_SCTE] && (
+                <Tooltip
+                  title={
+                    activeFeatures[featuresEnum.SHOW_SCTE]
+                      ? 'SCTE Off'
+                      : 'SCTE On'
+                  }
+                >
+                  <Button
+                    className={getClassNames(
+                      activeFeatures[featuresEnum.SHOW_SCTE],
+                    )}
+                    variant="plain"
+                    size="sm"
+                    icon={<VscInsert strokeWidth={0.5} className="mr-0.5" />}
+                    onClick={() =>
+                      handleFeatureClick({
+                        feature: featuresEnum.SHOW_SCTE,
+                        maintainScrolledOffsetOfTables,
+                        activeFeatures,
+                        setActiveFeatures,
+                        setUpdateSchedulerStateInRedux,
+                        executeOperation,
+                      })
+                    }
+                  />
+                </Tooltip>
+              )}
+              {featuresList[featuresEnum.SAVE_SLOT] && (
+                <>
+                  {page === pagesEnum.SONG && (
+                    <>
+                      <Tooltip title={`Save As Slot Duration`}>
+                        <Button
+                          className={getClassNames(
+                            activeFeatures[featuresEnum.SAVE_SLOT],
+                          )}
+                          size="sm"
+                          variant="plain"
+                          onClick={() => setSave_Slotvisible(true)}
+                          icon={
+                            <MdDateRange strokeWidth={0.5} className="mr-0.5" />
+                          }
+                        />
+                      </Tooltip>
+                      <SaveAsSlotDIalog
+                        save_Slotvisible={save_Slotvisible}
+                        setSave_Slotvisible={setSave_Slotvisible}
+                      />
+                    </>
+                  )}
+                </>
+              )}
+              {featuresList[featuresEnum.DELETE_EVENTS] && (
+                <>
+                  <Tooltip title="Delete Events">
+                    <Button
+                      className={getClassNames()}
+                      variant="plain"
+                      size="sm"
+                      icon={<FaRegTrashCan className="text-[1.05rem]" />}
+                      onClick={() => setIsDeleteEventsDialogOpen(true)}
+                    />
+                  </Tooltip>
+                  {isDeleteEventsDialogOpen && (
+                    <DeleteEventsDialog
+                      isOpen={isDeleteEventsDialogOpen}
+                      setIsOpen={setIsDeleteEventsDialogOpen}
+                    />
+                  )}
+                </>
+              )}
+              {featuresList[featuresEnum.IMPORT_NTCS] && (
+                <>
+                  <ImportNTCs onSelect={handleImportNTCsDropdownSelect} />
+                  {isImportNTCsForSelContentDialogOpen && (
+                    <WarningDialog
+                      isDialogOpen={isImportNTCsForSelContentDialogOpen}
+                      title="Import NTCs"
+                      description={`Are you sure you want to import NTCs for ${
+                        schedulingTableData[
+                          getContentIndexes(
+                            schedulingTableData,
+                            leftClickedSchTableRow,
+                          ).startIndex
+                        ].Event_Name
+                      }?`}
+                      submitButtonTitle="Import"
+                      handleDialogSubmit={importNTCsForSelContent}
+                      handleDialogClose={() =>
+                        setIsImportNTCsForSelContentDialogOpen(false)
+                      }
+                    />
+                  )}
+                  {isImportNTcsForAllContentDialogOpen && (
+                    <WarningDialog
+                      isDialogOpen={isImportNTcsForAllContentDialogOpen}
+                      title="Import NTCs"
+                      description={`Are you sure you want to import NTCs for all contents?`}
+                      submitButtonTitle="Import"
+                      handleDialogSubmit={importNTCsForAllContents}
+                      handleDialogClose={() =>
+                        setIsImportNTcsForAllContentDialogOpen(false)
+                      }
+                    />
+                  )}
+                </>
+              )}
+              {featuresList[featuresEnum.INSERT_NTC_PATTERN] && (
+                <>
+                  <InsertNTCPattern
+                    onSelect={handleInsertNTCPatternDropdownSelect}
+                  />
+                  {isInsertNowNTCPatternDialogOpen && (
+                    <WarningDialog
+                      isDialogOpen={isInsertNowNTCPatternDialogOpen}
+                      title="Insert Pattern"
+                      description={`Are you sure you want to insert Now NTCs for ${
+                        schedulingTableData[
+                          getContentIndexes(
+                            schedulingTableData,
+                            leftClickedSchTableRow,
+                          ).startIndex
+                        ].Event_Name
+                      }?`}
+                      submitButtonTitle="Insert"
+                      handleDialogSubmit={insertNowNTCsForSelContent}
+                      handleDialogClose={() =>
+                        setIsInsertNowNTCPatternDialogOpen(false)
+                      }
+                    />
+                  )}
+                  {isInsertNextNTCPatternDialogOpen && (
+                    <WarningDialog
+                      isDialogOpen={isInsertNextNTCPatternDialogOpen}
+                      title="Insert Pattern"
+                      description={`Are you sure you want to insert Next NTCs for ${
+                        schedulingTableData[
+                          getContentIndexes(
+                            schedulingTableData,
+                            leftClickedSchTableRow,
+                          ).startIndex
+                        ].Event_Name
+                      }?`}
+                      submitButtonTitle="Insert"
+                      // handleDialogSubmit={importNTCsForSelContent}
+                      handleDialogClose={() =>
+                        setIsInsertNextNTCPatternDialogOpen(false)
+                      }
+                    />
+                  )}
+                  {isInsertLaterNTCPatternDialogOpen && (
+                    <WarningDialog
+                      isDialogOpen={isInsertLaterNTCPatternDialogOpen}
+                      title="Insert Pattern"
+                      description={`Are you sure you want to insert Later NTCs for ${
+                        schedulingTableData[
+                          getContentIndexes(
+                            schedulingTableData,
+                            leftClickedSchTableRow,
+                          ).startIndex
+                        ].Event_Name
+                      }?`}
+                      submitButtonTitle="Insert"
+                      // handleDialogSubmit={importNTCsForSelContent}
+                      handleDialogClose={() =>
+                        setIsInsertLaterNTCPatternDialogOpen(false)
+                      }
+                    />
+                  )}
+                  {isInsertTimerNTCPatternDialogOpen && (
+                    <WarningDialog
+                      isDialogOpen={isInsertTimerNTCPatternDialogOpen}
+                      title="Insert Pattern"
+                      description={`Are you sure you want to insert Timer NTCs for ${
+                        schedulingTableData[
+                          getContentIndexes(
+                            schedulingTableData,
+                            leftClickedSchTableRow,
+                          ).startIndex
+                        ].Event_Name
+                      }?`}
+                      submitButtonTitle="Insert"
+                      // handleDialogSubmit={importNTCsForSelContent}
+                      handleDialogClose={() =>
+                        setIsInsertTimerNTCPatternDialogOpen(false)
+                      }
+                    />
+                  )}
+                </>
+              )}
+              {featuresList[featuresEnum.IMPORT_PROMOS] && (
+                <>
+                  <ImportPromos onSelect={handleImportPromosDropdownSelect} />
+                  {isImportPromosForSelContentDialogOpen && (
+                    <WarningDialog
+                      isDialogOpen={isImportPromosForSelContentDialogOpen}
+                      title="Import Promos"
+                      description={`Are you sure you want to import Promos for ${
+                        schedulingTableData[
+                          getContentIndexes(
+                            schedulingTableData,
+                            leftClickedSchTableRow,
+                          ).startIndex
+                        ].Event_Name
+                      }?`}
+                      submitButtonTitle="Import"
+                      handleDialogSubmit={importPromosForSelContent}
+                      handleDialogClose={() =>
+                        setIsImportPromosForSelContentDialogOpen(false)
+                      }
+                    />
+                  )}
+                  {isImportPromosForAllContentDialogOpen && (
+                    <WarningDialog
+                      isDialogOpen={isImportPromosForAllContentDialogOpen}
+                      title="Import Promos"
+                      description={`Are you sure you want to import Promos for all contents?`}
+                      submitButtonTitle="Import"
+                      handleDialogSubmit={importPromosForAllContents}
+                      handleDialogClose={() =>
+                        setIsImportPromosForAllContentDialogOpen(false)
+                      }
+                    />
+                  )}
+                </>
+              )}
+            </div>
+            {featuresList[featuresEnum.INSERT] && (
+              <>
+                {page !== pagesEnum.FINAL_LOG &&
+                  page !== pagesEnum.COMMERCIAL &&
+                  page !== pagesEnum.NTC && (
+                    <Tooltip
+                      title={`Insert ${
+                        page === pagesEnum.PROMO
+                          ? 'Promo'
+                          : page === pagesEnum.SONG
+                          ? 'Song'
+                          : 'Event'
+                      }`}
+                    >
+                      <Button
+                        icon={<HiPlusCircle className="text-base" />}
+                        className="!py-0 !pl-2 !pr-2.5 !h-8"
+                        size="sm"
+                        variant="solid"
+                        color="teal-700"
+                        shape="circle"
+                        onClick={() =>
+                          handleFeatureClick({
+                            feature: featuresEnum.INSERT,
+                            page,
+                            maintainScrolledOffsetOfTables,
+                            activeFeatures,
+                            setActiveFeatures,
+                            setSchedulingTableSelectedRows,
+                            setLeftClickedSchTableRow,
+                            setUpdateSchedulerStateInRedux,
+                          })
+                        }
+                      >
+                        Insert
+                      </Button>
+                    </Tooltip>
+                  )}
+                {(page === pagesEnum.FINAL_LOG ||
+                  page === pagesEnum.COMMERCIAL ||
+                  page === pagesEnum.NTC) && (
+                  <div className="relative flex items-center gap-1">
+                    <Tooltip
+                      title={`Insert ${
+                        page === pagesEnum.NTC ? 'NTC' : 'Events'
+                      }`}
+                      wrapperClass="relative"
+                    >
+                      <Button
+                        icon={<HiPlusCircle className="text-base" />}
+                        className="!py-0 !pl-2 !pr-2.5 !h-8"
+                        size="sm"
+                        variant="solid"
+                        color="teal-700"
+                        shape="circle"
+                        onClick={() =>
+                          handleFeatureClick({
+                            feature: featuresEnum.INSERT,
+                            page,
+                            maintainScrolledOffsetOfTables,
+                            activeFeatures,
+                            setActiveFeatures,
+                            setSchedulingTableSelectedRows,
+                            setLeftClickedSchTableRow,
+                            setUpdateSchedulerStateInRedux,
+                          })
+                        }
+                      >
+                        Insert
+                      </Button>
+                      {(insertDropdownTotal > 0 ||
+                        insertDropdownTotal === '9+') && (
+                        <span
+                          className={`absolute -top-2 font-normal text-[0.8rem] rounded-full flex items-center justify-center bg-red-500 text-white ${
+                            insertDropdownTotal === '9+'
+                              ? 'h-[1.35rem] w-[1.6rem] -right-3.5'
+                              : 'h-5 w-5 -right-2.5'
+                          }`}
+                        >
+                          {insertDropdownTotal}
+                        </span>
+                      )}
+                    </Tooltip>
+                    {activeFeatures[featuresEnum.INSERT] &&
+                      activeFeatures[featuresEnum.INSERT].isDropdownVisible && (
+                        <InsertEvents />
+                      )}
+                  </div>
+                )}
+                {isInsertLiveDialogOpen && (
+                  <InsertLiveDialog
+                    isOpen={isInsertLiveDialogOpen}
+                    setIsOpen={setIsInsertLiveDialogOpen}
+                  />
+                )}
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5 my-1 mr-1">
+            {!isScheduleAllowedToEdit ? (
+              <Tooltip
+                title="Backdated schedule cannot be saved"
+                placement="left"
+              >
+                <Button
+                  icon={<MdOutlineSave />}
+                  className="!py-0 !px-2 !h-8"
+                  size="sm"
+                  variant="solid"
+                  color="teal-800"
+                  disabled
+                >
+                  Save
+                </Button>
+              </Tooltip>
+            ) : (
+              <Button
+                icon={<MdOutlineSave />}
+                className="!py-0 !px-2 !h-8"
+                size="sm"
+                variant="solid"
+                color="teal-800"
+                onClick={handleSave}
+              >
+                Save
+              </Button>
+            )}
+            <Tooltip title="Back">
+              <Button
+                icon={<TbArrowBackUp />}
+                className="!py-0 !px-2 !h-8"
+                size="sm"
+                onClick={resetPage}
+              />
+            </Tooltip>
+          </div>
+        </div>
+      )}
+    </Suspense>
+  );
+}
+
+export default Toolbar;

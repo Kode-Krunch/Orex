@@ -1,0 +1,310 @@
+import React, { memo, useEffect, useState } from 'react';
+import DealDetails from './DealDetails';
+import NewDealDetails from './NewDealDetails';
+import BookingDetails from './BookingDetails';
+import {
+  apiGetAgencyCityIDCITY,
+  apiGetclientcitymasterdropmaster,
+  apiGetempmasterdropmaster,
+} from 'services/MasterService';
+import {
+  hideCursorLoader,
+  openNotification,
+  showCursorLoader,
+} from 'views/Controls/GLOBALFUNACTION';
+import {
+  apiGetAgencygetagencyasperclient,
+  apiGetclientmasterdropmaster,
+  apiGetDealmaster_drop,
+  apiGetPayroutemasterDrop,
+} from 'services/CreditcontrolService';
+import { defaultUpdateFormState } from './constants';
+import { apidealmasterBYID } from 'services/DealServices';
+
+function DealUpdate() {
+  /* STATES */
+  const [dealSelectorOptions, setDealSelectorOptions] = useState([]);
+  const [selectedDeal, setSelectedDeal] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [dealDetails, setDealDetails] = useState(null);
+  const [updateFormState, setUpdateFormState] = useState(
+    defaultUpdateFormState,
+  );
+  const [updateFormFieldOptions, setUpdateFormFieldOptions] = useState({
+    executiveName: [],
+    clientName: [],
+    clientCity: [],
+    agencyName: [],
+    agencyCity: [],
+    payRoute: [],
+  });
+
+  /* USE EFFECTS */
+  useEffect(() => {
+    (async () => {
+      try {
+        showCursorLoader();
+        await setDealSelectorOptionsFn();
+        await setExecutiveOptions();
+        await setClientNameOptions();
+        await setPayRouteOptions();
+      } catch (error) {
+        console.error(error);
+      } finally {
+        hideCursorLoader();
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!selectedDeal) return;
+        showCursorLoader();
+        setUpdateFormState(defaultUpdateFormState);
+        await setDealDetailsFn(selectedDeal.value);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        hideCursorLoader();
+      }
+    })();
+  }, [selectedDeal]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!updateFormState.clientName) return;
+        showCursorLoader();
+        await setClientCityOptions(updateFormState.clientName.value);
+        await setAgencyNameOptions(updateFormState.clientName.value);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        hideCursorLoader();
+      }
+    })();
+  }, [updateFormState.clientName]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!updateFormState.agencyName) return;
+        showCursorLoader();
+        await setAgencyCityOptions(updateFormState.agencyName.value);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        hideCursorLoader();
+      }
+    })();
+  }, [updateFormState.agencyName]);
+
+  /* HELPER FUNCTIONS */
+  const setDealSelectorOptionsFn = async () => {
+    try {
+      let options = [];
+      const response = await apiGetDealmaster_drop();
+      if (response.status === 200)
+        options = response.data.map((option) => ({
+          value: option.DealNumber,
+          label: option.DealCode,
+        }));
+      else if (response.status === 204)
+        openNotification('info', 'No deals found');
+      else throw new Error(response);
+      setDealSelectorOptions(options);
+    } catch (error) {
+      openNotification('danger', 'Something went wrong while fetching deals');
+      throw error;
+    }
+  };
+
+  const setDealDetailsFn = async (dealNumber) => {
+    try {
+      const response = await apidealmasterBYID(dealNumber);
+      if (response.status === 200) {
+        setDealDetails(response.data);
+      } else if (response.status === 204)
+        openNotification('info', 'No details found for selected deal');
+      else throw new Error(response);
+    } catch (error) {
+      openNotification(
+        'danger',
+        'Something went wrong while fetching deal details',
+      );
+      throw error;
+    }
+  };
+
+  const setExecutiveOptions = async () => {
+    try {
+      let options = [];
+      const response = await apiGetempmasterdropmaster();
+      if (response.status === 200)
+        options = response.data.map((option) => ({
+          value: option.EmployeeCode,
+          label: option.Emp_FirstName,
+        }));
+      else if (response.status === 204)
+        openNotification('info', 'No executives found');
+      else throw new Error(response);
+      setUpdateFormFieldOptions((prev) => ({
+        ...prev,
+        executiveName: options,
+      }));
+    } catch (error) {
+      openNotification(
+        'danger',
+        'Something went wrong while fetching executives',
+      );
+      throw error;
+    }
+  };
+
+  const setClientNameOptions = async () => {
+    try {
+      let options = [];
+      const response = await apiGetclientmasterdropmaster();
+      if (response.status === 200)
+        options = response.data.map((option) => ({
+          value: option.ClientCode,
+          label: option.ClientName,
+        }));
+      else if (response.status === 204)
+        openNotification('info', 'No clients found');
+      else throw new Error(response);
+      setUpdateFormFieldOptions((prev) => ({
+        ...prev,
+        clientName: options,
+      }));
+    } catch (error) {
+      openNotification('danger', 'Something went wrong while fetching clients');
+      throw error;
+    }
+  };
+
+  const setClientCityOptions = async (clientCode) => {
+    try {
+      let options = [];
+      const response = await apiGetclientcitymasterdropmaster(clientCode);
+      if (response.status === 200)
+        options = response.data.map((option) => ({
+          value: option.Place.PlaceCode,
+          label: option.Place.PlaceName,
+        }));
+      else if (response.status === 204)
+        openNotification('info', 'No cities found for selected client');
+      else throw new Error(response);
+      setUpdateFormFieldOptions((prev) => ({
+        ...prev,
+        clientCity: options,
+      }));
+    } catch (error) {
+      openNotification(
+        'danger',
+        'Something went wrong while fetching cities for selected clients',
+      );
+      throw error;
+    }
+  };
+
+  const setAgencyNameOptions = async (clientCode) => {
+    try {
+      let options = [];
+      const response = await apiGetAgencygetagencyasperclient(clientCode);
+      if (response.status === 200)
+        options = response.data.map((option) => ({
+          value: option.AgencyCode,
+          label: option.AgencyName,
+        }));
+      else if (response.status === 204)
+        openNotification('info', 'No agencies found');
+      else throw new Error(response);
+      setUpdateFormFieldOptions((prev) => ({
+        ...prev,
+        agencyName: options,
+      }));
+    } catch (error) {
+      openNotification(
+        'danger',
+        'Something went wrong while fetching agencies',
+      );
+      throw error;
+    }
+  };
+
+  const setAgencyCityOptions = async (agencyCode) => {
+    try {
+      let options = [];
+      const response = await apiGetAgencyCityIDCITY(agencyCode);
+      if (response.status === 200)
+        options = response.data.map((option) => ({
+          value: option.Place.PlaceCode,
+          label: option.Place.PlaceName,
+        }));
+      else if (response.status === 204)
+        openNotification('info', 'No cities found for selected agency');
+      else throw new Error(response);
+      setUpdateFormFieldOptions((prev) => ({
+        ...prev,
+        agencyCity: options,
+      }));
+    } catch (error) {
+      openNotification(
+        'danger',
+        'Something went wrong while fetching city for selected agency',
+      );
+      throw error;
+    }
+  };
+
+  const setPayRouteOptions = async () => {
+    try {
+      let options = [];
+      const response = await apiGetPayroutemasterDrop();
+      if (response.status === 200)
+        options = response.data.map((option) => ({
+          value: option.PayRouteCode,
+          label: option.PayRouteName,
+        }));
+      else if (response.status === 204)
+        openNotification('info', 'No pay route found');
+      else throw new Error(response);
+      setUpdateFormFieldOptions((prev) => ({
+        ...prev,
+        payRoute: options,
+      }));
+    } catch (error) {
+      openNotification(
+        'danger',
+        'Something went wrong while fetching pay route',
+      );
+      throw error;
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-4 gap-4 grow">
+      <DealDetails
+        dealDetails={dealDetails}
+        dealSelectorOptions={dealSelectorOptions}
+        selectedDeal={selectedDeal}
+        setSelectedDeal={setSelectedDeal}
+        selectedCategory={selectedCategory}
+        setSelectedCategory={setSelectedCategory}
+      />
+      <NewDealDetails
+        dealDetails={dealDetails}
+        updateFormFieldOptions={updateFormFieldOptions}
+        updateFormState={updateFormState}
+        setUpdateFormState={setUpdateFormState}
+        selectedDeal={selectedDeal}
+        selectedCategory={selectedCategory}
+      />
+      <BookingDetails />
+    </div>
+  );
+}
+
+export default memo(DealUpdate);

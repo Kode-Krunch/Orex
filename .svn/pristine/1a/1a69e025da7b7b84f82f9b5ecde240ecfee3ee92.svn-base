@@ -1,0 +1,73 @@
+import { Button, Card, Input } from 'components/ui';
+import React from 'react';
+import { IoCloseCircle } from 'react-icons/io5';
+import SelectXs from 'views/Controls/SelectXs/SelectXs';
+import ExecutiveTargets from '../components/ExecutiveTargets';
+import { HiPlusCircle } from 'react-icons/hi';
+import { FaSave } from 'react-icons/fa';
+
+function AddEditSalesTarget({ setScreen }) {
+  return (
+    <>
+      <div className="flex justify-between items-center">
+        <h4>Add Sales Target</h4>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            onClick={() => setScreen('home')}
+            icon={<IoCloseCircle />}
+          >
+            Close
+          </Button>
+          <Button
+            variant="solid"
+            size="sm"
+            onClick={() => setScreen('home')}
+            icon={<FaSave className="text-[0.95rem]" />}
+          >
+            Save
+          </Button>
+        </div>
+      </div>
+      <Card
+        className="h-full mt-4 border-none"
+        bodyClass="h-full flex flex-col gap-5"
+      >
+        <div className="grid grid-cols-4 gap-4">
+          <div>
+            <p className="text-gray-200 mb-1">
+              Financial Year <span className="text-red-500">*</span>
+            </p>
+            <SelectXs placeholder="Select"></SelectXs>
+          </div>
+          <div>
+            <p className="text-gray-200 mb-1">
+              Target Amount <span className="text-red-500">*</span>
+            </p>
+            <Input prefix="$" placeholder="Amount" size="sm"></Input>
+          </div>
+          <div>
+            <p className="text-gray-200 mb-1">
+              Assign Target to Executive <span className="text-red-500">*</span>
+            </p>
+            <SelectXs placeholder="Select"></SelectXs>
+          </div>
+        </div>
+        <div className="grow h-0 flex flex-col">
+          <h5>Executives</h5>
+          <div className="grow h-0 overflow-auto flex flex-col pr-3">
+            <ExecutiveTargets />
+            <ExecutiveTargets />
+            <ExecutiveTargets />
+            <ExecutiveTargets />
+            <ExecutiveTargets />
+            <ExecutiveTargets />
+            <ExecutiveTargets />
+          </div>
+        </div>
+      </Card>
+    </>
+  );
+}
+
+export default AddEditSalesTarget;

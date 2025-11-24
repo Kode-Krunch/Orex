@@ -1,0 +1,724 @@
+import { useEffect, useState } from 'react';
+import { Button, Card, Tooltip } from 'components/ui';
+import HeaderExtra from 'views/Controls/HeaderExtra';
+import { entityTypeCodeEnum, viewsEnum } from './enum';
+import AddHeader from './components/AddHeader';
+import Events from './components/Events';
+import { useSelector } from 'react-redux';
+import { openNotification } from 'views/Controls/GLOBALFUNACTION';
+import SelectEntityDialog from './components/SelectEntityDialog';
+import { StickyFooter } from 'components/shared';
+import { IoSaveOutline } from 'react-icons/io5';
+import {
+  hideStackedSideNav_secondary,
+  hideStackedSideNav_secondaryShow,
+} from 'views/Scheduling/general';
+import WarningDialog from 'views/Controls/WarningDialog';
+import {
+  apiEventMasterCreate,
+  apiEventMasterUpdate,
+  apiGetContentmasterDrop,
+  apiGetEventMaster,
+  apiGetEventMasterDetails,
+} from 'services/ProgrammingService';
+import ReportsTable from 'views/Controls/ReportsTable/ReportsTable';
+import { GRAY_300 } from 'views/Controls/Dashboard/constants/tw_colors';
+import { MdOutlineEdit } from 'react-icons/md';
+import { FaRegEye } from 'react-icons/fa';
+import { TbArrowMerge } from 'react-icons/tb';
+import { apiGetChannelmasterdrop } from 'services/MasterService';
+import SelectableTable from './components/SelectableTable';
+import TeamMapping from './components/TeamMapping';
+import Loader from 'views/Controls/Loader';
+import {
+  EXPORT_FILE_NAME,
+  EVENT_MASTER_COLUMNS,
+  SELECT_CHANNEL_COLUMNS,
+  TOOLBAR_OPTIONS,
+} from './constants';
+import HeaderExtraContent from './components/HeaderExtraContent';
+
+const ManageEvents = () => {
+  /* REDUX */
+  const channel = useSelector((state) => state.locale.selectedChannel);
+  const token = useSelector((state) => state.auth.session.token);
+  const loginId = useSelector((state) => state.auth.session.LoginId);
+
+  /* STATES */
+  // Event Master Table States
+  const [globalFilter, setGlobalFilter] = useState('');
+  const [tableData, setTableData] = useState([]);
+  const [managedColumns, setManagedColumns] = useState([]);
+  const [originalColumns, setOriginalColumns] = useState(
+    getTableColumnsWithActions(),
+  );
+  const [clickedActionRowData, setClickedActionRowData] = useState(null);
+  // Add/Edit Event States
+  const [eventOptions, setEventOptions] = useState([]);
+  const [selectedEvent, setSelectedEvent] = useState('');
+  const [selectedEntityType, setSelectedEntityType] = useState('events');
+  const [selectedEventGroup, setSelectedEventGroup] = useState('');
+  const [eventGroupOptions, setEventGroupOptions] = useState([]);
+  const [groupWiseSelectedEntities, setGroupWiseSelectedEntities] = useState(
+    {},
+  );
+  // Select Channel Table States
+  const [selectChannelTableData, setSelectChannelTableData] = useState([]);
+  const [selectedChannelRowIndexes, setSelectedChannelRowIndexes] = useState(
+    [],
+  );
+  const [selectedChannelRows, setSelectedChannelRows] = useState({});
+  // UI STATES
+  const [curView, setCurView] = useState(viewsEnum.HOME);
+  const [isSelectEntityDialogOpen, setIsSelectEntityDialogOpen] =
+    useState(false);
+  const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false);
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+  const [showLoader, setShowLoader] = useState(false);
+
+  /* USE EFFECTS */
+  useEffect(() => {
+    (async () => {
+      try {
+        resetPage();
+        await setEventMasterDataFromAPI();
+      } catch (error) {
+        console.error(error);
+      }
+    })();
+  }, [channel]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        setGlobalFilter('');
+        // TODO: INITIALIZE STATE ACCORDING TO CURRENT VIEW
+        if (curView === viewsEnum.HOME) {
+          await setEventMasterDataFromAPI();
+          hideStackedSideNav_secondaryShow();
+        } else if (curView === viewsEnum.ADD || curView === viewsEnum.EDIT) {
+          hideStackedSideNav_secondary();
+          setEventOptionsFromAPI();
+          setSelectChannelTableDataFromAPI();
+        } else {
+          hideStackedSideNav_secondary();
+        }
+      } catch (error) {
+        openNotification(
+          'danger',
+          'Something went wrong. Unable to fetch Events',
+        );
+        console.error(error);
+      }
+    })();
+  }, [curView]);
+
+  useEffect(() => {
+    try {
+      if (curView === viewsEnum.EDIT && clickedActionRowData) {
+        initializeStateForEdit();
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }, [clickedActionRowData, curView, eventOptions, selectChannelTableData]);
+
+  useEffect(() => {
+    try {
+      if (!selectedEvent) setSelectedEntityType('events');
+      else
+        setSelectedEntityType(
+          selectedEvent.ContentTypeCode === entityTypeCodeEnum.TEAM
+            ? 'teams'
+            : selectedEvent.ContentTypeCode === entityTypeCodeEnum.CONTENT
+              ? 'contents'
+              : 'events',
+        );
+    } catch (error) {
+      console.error(error);
+    }
+  }, [selectedEvent]);
+
+  useEffect(() => {
+    try {
+      if (selectedEvent && selectedEventGroup) {
+        setIsSelectEntityDialogOpen(true);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }, [selectedEvent, selectedEventGroup]);
+
+  /* EVENT HANDLERS */
+  const handleAdd = () => {
+    try {
+      setCurView(viewsEnum.ADD);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleEdit = (rowData) => {
+    try {
+      setCurView(viewsEnum.EDIT);
+      setClickedActionRowData(rowData);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleMapTeamsClick = (rowData) => {
+    try {
+      setCurView(viewsEnum.MAP_TEAMS);
+      setClickedActionRowData(rowData);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleDiscard = () => {
+    try {
+      resetPage();
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleReset = () => {
+    try {
+      setGlobalFilter('');
+      setSelectedEvent('');
+      setSelectedEntityType('');
+      setSelectedEventGroup('');
+      setGroupWiseSelectedEntities({});
+      setIsSelectEntityDialogOpen(false);
+      setIsDiscardDialogOpen(false);
+      setIsResetDialogOpen(false);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      setShowLoader(true);
+      const data = generateDataForSave();
+      let response = await apiEventMasterCreate(data, token);
+      if (response.status === 200) {
+        openNotification('success', 'Event added successfully');
+        resetPage();
+      } else {
+        openNotification(
+          'danger',
+          `Unable to add event. Server responded with status code ${response.status}`,
+        );
+      }
+      setShowLoader(false);
+    } catch (error) {
+      if (
+        error &&
+        'response' in error &&
+        error.response &&
+        'data' in error.response &&
+        error.response.data &&
+        'detail' in error.response.data &&
+        error.response.data.detail === 'Data already exists'
+      ) {
+        openNotification('danger', 'Data already exists for selected event');
+      } else {
+        openNotification('danger', 'Something went wrong. Unable to add event');
+      }
+      setShowLoader(false);
+    }
+  };
+
+  const handleUpdate = async () => {
+    try {
+      setShowLoader(true);
+      const data = generateDataForSave();
+      let response = await apiEventMasterUpdate(
+        data,
+        clickedActionRowData.EventCode,
+        token,
+      );
+      if (response.status === 200) {
+        openNotification('success', 'Event updated successfully');
+        resetPage();
+      } else {
+        openNotification(
+          'danger',
+          `Unable to update event. Server responded with status code ${response.status}`,
+        );
+      }
+      setShowLoader(false);
+    } catch (error) {
+      openNotification(
+        'danger',
+        'Something update wrong. Unable to update event',
+      );
+      setShowLoader(false);
+    }
+  };
+
+  /* HELPER FUNCTIONS */
+  function getTableColumnsWithActions() {
+    try {
+      return [
+        ...EVENT_MASTER_COLUMNS,
+        {
+          header: 'Action',
+          accessorKey: 'action',
+          actions: [
+            {
+              action: (rowIndex, rowData) => (
+                <Tooltip
+                  title="View / Generate Matches"
+                  key={`${rowIndex}-map`}
+                  wrapperClass="my-1"
+                >
+                  <Button
+                    size="xs"
+                    icon={<TbArrowMerge color={GRAY_300} />}
+                    onClick={() => handleMapTeamsClick(rowData)}
+                  />
+                </Tooltip>
+              ),
+            },
+            {
+              action: (rowIndex, rowData) => (
+                <Tooltip
+                  title="Edit Event"
+                  key={`${rowIndex}-edit`}
+                  wrapperClass="my-1"
+                >
+                  <Button
+                    size="xs"
+                    icon={<MdOutlineEdit color={GRAY_300} />}
+                    onClick={() => handleEdit(rowData)}
+                  />
+                </Tooltip>
+              ),
+            },
+            {
+              action: (rowIndex, rowData) => (
+                <Tooltip
+                  title="View Contents"
+                  key={`${rowIndex}-view`}
+                  wrapperClass="my-1"
+                >
+                  <Button
+                    size="xs"
+                    icon={<FaRegEye color={GRAY_300} />}
+                  // onClick={() => handleRowClick(rowIndex, rowData)}
+                  />
+                </Tooltip>
+              ),
+            },
+          ],
+        },
+      ];
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  const setEventMasterDataFromAPI = async () => {
+    try {
+      setShowLoader(true);
+      const response = await apiGetEventMaster(
+        channel.LocationCode,
+        channel.ChannelCode,
+      );
+      if (response.status === 200) {
+        setTableData(response.data);
+      } else if (response.status === 204) {
+        setTableData([]);
+      } else {
+        openNotification(
+          'danger',
+          `Unable to fetch Events. Server responsed with status code ${response.status}`,
+        );
+      }
+      setShowLoader(false);
+    } catch (error) {
+      openNotification(
+        'danger',
+        'Something went wrong. Unable to fetch Events',
+      );
+      setShowLoader(false);
+      throw error;
+    }
+  };
+
+  const setEventOptionsFromAPI = async () => {
+    try {
+      setShowLoader(true);
+      const response = await apiGetContentmasterDrop(
+        undefined,
+        channel.LocationCode,
+        channel.ChannelCode,
+        1,
+      );
+      if (response.status === 200) {
+        setEventOptions(
+          response.data.map((item) => {
+            return {
+              ...item,
+              value: item.ContentCode,
+              label: item.ContentName,
+            };
+          }),
+        );
+      } else if (response.status === 204) {
+        setEventOptions([]);
+      } else {
+        openNotification(
+          'danger',
+          `Unable to fetch Events. Server responsed with status code ${response.status}`,
+        );
+      }
+      setShowLoader(false);
+    } catch (error) {
+      setShowLoader(false);
+      throw error;
+    }
+  };
+
+  const setSelectChannelTableDataFromAPI = async () => {
+    try {
+      setShowLoader(true);
+      const response = await apiGetChannelmasterdrop(loginId);
+      if (response.status === 200) {
+        const data = response.data.map((item) => ({
+          ...item,
+          channelNameWithLocation: `${item.LocationName} ${item.ChannelName}`,
+        }));
+        setSelectChannelTableData(data);
+        if (curView === viewsEnum.ADD) {
+          const defaultSelectedChannelIndex = data.findIndex(
+            (curChannel) =>
+              curChannel.ChannelCode === channel.ChannelCode &&
+              curChannel.LocationCode === channel.LocationCode,
+          );
+          setSelectedChannelRowIndexes({ [defaultSelectedChannelIndex]: true });
+        }
+      } else if (response.status === 204) {
+        setSelectChannelTableData([]);
+      } else {
+        openNotification(
+          'danger',
+          `Unable to fetch channels. Server responded with status code ${response.status}`,
+        );
+      }
+      setShowLoader(false);
+    } catch (error) {
+      openNotification(
+        'danger',
+        'Something went wrong. Unable to fetch channels',
+      );
+      setShowLoader(false);
+      throw error;
+    }
+  };
+
+  const initializeStateForEdit = async () => {
+    try {
+      // Set Selected Event Option
+      const selectedOption = eventOptions.filter(
+        (option) =>
+          option.ContentCode === clickedActionRowData.ContentMaster.ContentCode,
+      )[0];
+      selectedOption.value = clickedActionRowData.ContentMaster.ContentCode;
+      selectedOption.label = clickedActionRowData.ContentMaster.ContentName;
+      setSelectedEvent(selectedOption);
+
+      const response = await apiGetEventMasterDetails(
+        clickedActionRowData.EventCode,
+      );
+      if (response.status === 200) {
+        const data = response.data;
+        // Set Group wise selected entities
+        if (data.EventDetails.length > 0) {
+          setGroupWiseSelectedEntities(
+            getGroupWiseSelectedEntites(data.EventDetails),
+          );
+        } else {
+          openNotification('info', 'No data found for selected event');
+        }
+        // Set Selected Channel Row Indexes
+        if (data.EventLocChannelMapping.length > 0) {
+          let selectedChannelRowIndexes = {};
+          data.EventLocChannelMapping.map((channel) =>
+            selectChannelTableData.findIndex(
+              (curChannel) =>
+                curChannel.ChannelCode === channel.ChannelCode &&
+                curChannel.LocationCode === channel.LocationCode,
+            ),
+          ).forEach((index) => {
+            selectedChannelRowIndexes[index] = true;
+          });
+          setSelectedChannelRowIndexes(selectedChannelRowIndexes);
+        }
+      } else if (response.status === 204) {
+        openNotification('info', 'No data found for selected event');
+      } else {
+        openNotification(
+          'danger',
+          `Something went wrong while fetching data for selected event. Server responded with status code ${response.status}`,
+        );
+      }
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const getGroupWiseSelectedEntites = (eventDetails) => {
+    try {
+      let groupWiseSelectedEntities = {};
+      Array.from(new Set(eventDetails.map((item) => item.GroupName))).forEach(
+        (group) => {
+          let curGroupSelectedEntities = eventDetails.filter(
+            (event) => event.GroupName === group,
+          );
+          if (selectedEvent.ContentTypeCode === entityTypeCodeEnum.CONTENT) {
+            curGroupSelectedEntities = curGroupSelectedEntities.map((item) => {
+              return {
+                ContentCode: item.ContentCode,
+                ContentName: item.ContentName,
+                Content_Image: item.Content_Image,
+              };
+            });
+          } else {
+            curGroupSelectedEntities = curGroupSelectedEntities.map((item) => {
+              return {
+                TeamCode: item.TeamCode,
+                TeamName: item.TeamName,
+                Team_Image: item.Team_Image,
+              };
+            });
+          }
+          groupWiseSelectedEntities[group] = curGroupSelectedEntities;
+        },
+      );
+      return groupWiseSelectedEntities;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const generateDataForSave = () => {
+    try {
+      const channelMappings = selectedChannelRows.map((channel) => {
+        return {
+          LocationCode: channel.LocationCode,
+          ChannelCode: channel.ChannelCode,
+        };
+      });
+      let data = {
+        request: {
+          EventName: selectedEvent.ContentName,
+          ContentCode: selectedEvent.ContentCode,
+          IsActive: 1,
+        },
+        details: [],
+        maping: channelMappings,
+      };
+      Object.keys(groupWiseSelectedEntities).forEach((group) => {
+        groupWiseSelectedEntities[group].forEach((entity) => {
+          if (selectedEvent.ContentTypeCode === entityTypeCodeEnum.CONTENT) {
+            data.details.push({
+              GroupCode: eventGroupOptions.filter(
+                (eventGroup) => eventGroup.GroupName === group,
+              )[0].GroupCode,
+              ContentCode: entity.ContentCode,
+              IsActive: 1,
+            });
+          } else {
+            data.details.push({
+              GroupCode: eventGroupOptions.filter(
+                (eventGroup) => eventGroup.GroupName === group,
+              )[0].GroupCode,
+              TeamCode: entity.TeamCode,
+              IsActive: 1,
+            });
+          }
+        });
+      });
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const resetPage = () => {
+    try {
+      setGlobalFilter('');
+      setTableData([]);
+      setManagedColumns([]);
+      setOriginalColumns(getTableColumnsWithActions());
+      setClickedActionRowData(null);
+      setEventOptions([]);
+      setSelectedEvent('');
+      setSelectedEntityType('events');
+      setSelectedEventGroup('');
+      setEventGroupOptions([]);
+      setGroupWiseSelectedEntities({});
+      setSelectChannelTableData([]);
+      setSelectedChannelRowIndexes([]);
+      setSelectedChannelRows({});
+      setCurView(viewsEnum.HOME);
+      setIsSelectEntityDialogOpen(false);
+      setIsDiscardDialogOpen(false);
+      setIsResetDialogOpen(false);
+      setShowLoader(false);
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  return (
+    <>
+      <Card
+        header={<HeaderExtra Component={'Event Management'} />}
+        headerExtra={HeaderExtraContent(
+          handleAdd,
+          handleDiscard,
+          globalFilter,
+          setGlobalFilter,
+          curView,
+          isDiscardDialogOpen,
+          setIsDiscardDialogOpen,
+        )}
+        className="flex flex-col min-h-[87vh]"
+        bodyClass="grow p-5 pt-4 flex flex-col"
+      >
+        {curView === viewsEnum.HOME ? (
+          <ReportsTable
+            tableData={tableData}
+            tableName={'manageEventsHome'}
+            originalColumns={originalColumns}
+            managedColumns={managedColumns}
+            setManagedColumns={setManagedColumns}
+            exportFileName={EXPORT_FILE_NAME}
+            toolbarOptions={TOOLBAR_OPTIONS}
+            externalGlobalFilter={globalFilter}
+          />
+        ) : curView === viewsEnum.ADD || curView === viewsEnum.EDIT ? (
+          <>
+            <div className="grow grid grid-cols-4 gap-4">
+              <div className="col-span-3 border-r border-r-gray-700 pr-4 min-h-full flex flex-col">
+                <div className="pb-6">
+                  <p className="text-slate-300 text-lg font-semibold mb-3">
+                    Map Events
+                  </p>
+                  <AddHeader
+                    curView={curView}
+                    eventOptions={eventOptions}
+                    selectedEvent={selectedEvent}
+                    setSelectedEvent={setSelectedEvent}
+                    selectedEventGroup={selectedEventGroup}
+                    setSelectedEventGroup={setSelectedEventGroup}
+                    eventGroupOptions={eventGroupOptions}
+                    setEventGroupOptions={setEventGroupOptions}
+                    groupWiseSelectedEntities={groupWiseSelectedEntities}
+                    setShowLoader={setShowLoader}
+                  />
+                </div>
+                <div className="grow flex flex-col">
+                  <p className="text-slate-300 text-lg font-semibold mb-3">
+                    Mapped{' '}
+                    <span className="capitalize">{selectedEntityType}</span>
+                  </p>
+                  <div className="grow">
+                    <Events
+                      groupWiseSelectedEntities={groupWiseSelectedEntities}
+                      setGroupWiseSelectedEntities={
+                        setGroupWiseSelectedEntities
+                      }
+                      selectedEntityType={selectedEntityType}
+                      entityTypeCode={selectedEvent.ContentTypeCode}
+                      setIsSelectEntityDialogOpen={setIsSelectEntityDialogOpen}
+                      setSelectedEventGroup={setSelectedEventGroup}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="grow flex flex-col gap-1">
+                <p className="text-slate-300">
+                  Select Channel <span className="text-red-500">*</span>
+                </p>
+                <div className="grow border border-gray-700">
+                  <SelectableTable
+                    data={selectChannelTableData}
+                    columns={SELECT_CHANNEL_COLUMNS}
+                    selectedRowIndexes={selectedChannelRowIndexes}
+                    setSelectedRows={setSelectedChannelRows}
+                  />
+                </div>
+              </div>
+            </div>
+            <StickyFooter
+              className="-mx-8 px-12 flex items-center justify-end py-4 mt-4"
+              stickyClass="border-t bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+            >
+              <div className="flex gap-3">
+                <Button
+                  disabled={
+                    !selectedEvent ||
+                    Object.keys(groupWiseSelectedEntities).length === 0
+                  }
+                  onClick={() => setIsResetDialogOpen(true)}
+                >
+                  Reset
+                </Button>
+                <Button
+                  variant="solid"
+                  icon={<IoSaveOutline />}
+                  onClick={
+                    curView === viewsEnum.ADD ? handleSave : handleUpdate
+                  }
+                  disabled={
+                    !selectedEvent ||
+                    Object.keys(groupWiseSelectedEntities).length === 0 ||
+                    selectedChannelRows.length === 0
+                  }
+                >
+                  Save
+                </Button>
+              </div>
+            </StickyFooter>
+          </>
+        ) : (
+          <TeamMapping
+            channel={channel}
+            resetPage={resetPage}
+            eventDetails={clickedActionRowData}
+            setShowLoader={setShowLoader}
+          ></TeamMapping>
+        )}
+      </Card>
+      <SelectEntityDialog
+        channel={channel}
+        isSelectEntityDialogOpen={isSelectEntityDialogOpen}
+        setIsSelectEntityDialogOpen={setIsSelectEntityDialogOpen}
+        selectedEventGroup={selectedEventGroup}
+        setSelectedEventGroup={setSelectedEventGroup}
+        groupWiseSelectedEntities={groupWiseSelectedEntities}
+        setGroupWiseSelectedEntities={setGroupWiseSelectedEntities}
+        entityTypeCode={selectedEvent.ContentTypeCode}
+        setShowLoader={setShowLoader}
+      />
+      <WarningDialog
+        isDialogOpen={isResetDialogOpen}
+        title="Reset"
+        description={`Are you sure you want to reset?`}
+        submitButtonTitle="Reset"
+        handleDialogSubmit={handleReset}
+        handleDialogClose={() => setIsResetDialogOpen(false)}
+      />
+      <Loader showLoader={showLoader} />
+    </>
+  );
+};
+
+export default ManageEvents;

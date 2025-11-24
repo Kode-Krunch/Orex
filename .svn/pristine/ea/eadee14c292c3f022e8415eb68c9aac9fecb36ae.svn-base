@@ -1,0 +1,13 @@
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.slick-track {
+  display: flex;
+  gap: 0.5rem;
+}

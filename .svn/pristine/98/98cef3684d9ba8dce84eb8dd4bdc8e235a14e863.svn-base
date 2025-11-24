@@ -1,0 +1,324 @@
+/* COMMON FUNCTIONS USED BY SEVERAL COMPONENTS IN SCHEDULING AREA */
+import { featuresEnum, pagesEnum, rowDataTypesEnum } from '../../../enum';
+import {
+  isDateBackDate,
+  openNotification,
+} from 'views/Controls/GLOBALFUNACTION';
+import {
+  IS_BACKDATED_SCHEDULE_ALLOWED_TO_EDIT,
+  ROW_ID_KEY,
+  TABLE_NAMES,
+} from '../../../constants';
+import { v4 as uuid } from 'uuid';
+import { apiGETColumnSetting } from 'services/ControlsService';
+import { apiGetTrafficDayCloseByDateRange } from 'services/SalesAdminService';
+import dayjs from 'dayjs';
+import { CLIENT } from 'views/Controls/clientListEnum';
+
+const getDummyRow = (row) => {
+  try {
+    const dummyRow = {};
+    Object.keys(row).forEach((key) => (dummyRow[key] = ''));
+    return dummyRow;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const getRowId = (tableType, row) => {
+  try {
+    return `${tableType}-row-id-${row[ROW_ID_KEY]}-${uuid()}`;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const getColumnsState = async (page, tableData, token, channel) => {
+  try {
+    const { visibleColumns, removedColumns } = await getColumnSettingsFromAPI(
+      TABLE_NAMES.SCHEDULING_TABLE_NAMES[page],
+      tableData,
+      token,
+      channel,
+    );
+    const columnsState = {
+      originalColumns: getAllColumnsOfTable(tableData, channel),
+      visibleColumns,
+      removedColumns,
+    };
+    return columnsState;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const getColumnSettingsFromAPI = async (
+  tableName,
+  tableData,
+  token,
+  channel,
+  ignoredColumns = [],
+) => {
+  try {
+    let visibleColumns = [],
+      removedColumns = [];
+    if (tableData.length > 0) {
+      const response = await apiGETColumnSetting(tableName, token);
+      if (response.status === 200) {
+        if (response.data.length === 0) {
+          visibleColumns = getAllColumnsOfTable(
+            tableData,
+            channel,
+            ignoredColumns,
+          );
+        } else {
+          const sortedColumnSetting = response.data.sort(
+            (a, b) => a.SequenceNo - b.SequenceNo,
+          );
+          sortedColumnSetting.forEach((columnSetting) => {
+            if (columnSetting.IsVisible) {
+              visibleColumns.push({
+                header: columnSetting.Header,
+                accessorKey: columnSetting.ColumnName,
+                style: { width: columnSetting.ColumnWidht },
+                id: columnSetting.ColumnName,
+              });
+            } else {
+              removedColumns.push({
+                header: columnSetting.Header,
+                accessorKey: columnSetting.ColumnName,
+                style: { width: columnSetting.ColumnWidht },
+                id: columnSetting.ColumnName,
+              });
+            }
+          });
+          /* Attach all columns that are missing in response to removed columns list */
+          const allColumnsName = getAllColumnsOfTable(
+            tableData,
+            channel,
+            ignoredColumns,
+          ).map((column) => column.accessorKey);
+          const sortedColumnsName = sortedColumnSetting.map(
+            (columnSetting) => columnSetting.ColumnName,
+          );
+          const missingColumnsName = allColumnsName.filter(
+            (column) => !sortedColumnsName.includes(column),
+          );
+          missingColumnsName.forEach((columnName) => {
+            removedColumns.push({
+              header: columnName,
+              accessorKey: columnName,
+              style: { width: 12 },
+              id: columnName,
+            });
+          });
+        }
+      } else if (response.status === 204) {
+        visibleColumns = getAllColumnsOfTable(
+          tableData,
+          channel,
+          ignoredColumns,
+        );
+      } else {
+        openNotification(
+          'danger',
+          'Something went wrong while fetching saved column settings',
+        );
+        console.error(
+          `Something went wrong while fetching saved column settings. Server responded with status code: ${response.status}`,
+        );
+        visibleColumns = getAllColumnsOfTable(
+          tableData,
+          channel,
+          ignoredColumns,
+        );
+      }
+    }
+    return { visibleColumns, removedColumns };
+  } catch (error) {
+    openNotification(
+      'danger',
+      'Something went wrong while fetching saved column settings',
+    );
+    throw error;
+  }
+};
+
+const getAllColumnsOfTable = (tableData, channel, ignoredColumns = []) => {
+  try {
+    let columns = [];
+    const newIgnoredColumns = [...ignoredColumns];
+    if (channel && channel.label !== CLIENT.USA_Forbes)
+      newIgnoredColumns.push('Description');
+    if (tableData.length > 0) {
+      const rowKeys = Object.keys(tableData[0]);
+      if (rowKeys) {
+        rowKeys.forEach((key) => {
+          if (
+            ![
+              ...newIgnoredColumns,
+              'rowId',
+              'rowIndex',
+              'Id',
+              'EventDefaultFrontColor',
+              'EventDefaultBackColor',
+              'isHidden',
+              'isFiltered',
+              'customCellColor',
+              'cellWarning',
+            ].includes(key)
+          ) {
+            columns.push({
+              header: key,
+              accessorKey: key,
+              style: { width: 12 },
+              id: key,
+            });
+          }
+        });
+      }
+    }
+    return columns;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const isAnyRHSFeatureActive = (activeFeatures, page) => {
+  try {
+    return Object.keys(activeFeatures).filter(
+      (feature) =>
+        ((feature === featuresEnum.SUMMARY ||
+          feature === featuresEnum.ROTATION_INFO ||
+          feature === featuresEnum.ROTATION_INFO_WITH_MANAGE_COLUMNS ||
+          feature === featuresEnum.CHANGE_PROGRAM ||
+          feature === featuresEnum.MANAGE_SEGMENT ||
+          feature === featuresEnum.HOURWISE_INVENTORY ||
+          feature === featuresEnum.DURATION) &&
+          activeFeatures[feature]) ||
+        (feature === featuresEnum.RULE_CHECK &&
+          activeFeatures[feature].isActive) ||
+        (feature === featuresEnum.INSERT &&
+          ((page !== pagesEnum.FINAL_LOG &&
+            page !== pagesEnum.COMMERCIAL &&
+            page !== pagesEnum.NTC &&
+            activeFeatures[feature]) ||
+            ((page === pagesEnum.FINAL_LOG ||
+              page === pagesEnum.COMMERCIAL ||
+              page === pagesEnum.NTC) &&
+              activeFeatures[feature].isActive))),
+    )[0]
+      ? true
+      : false;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const handleFeatureClose = (setActiveFeatures, feature) => {
+  try {
+    setActiveFeatures((prevState) => ({
+      ...prevState,
+      [feature]: false,
+    }));
+  } catch (error) {
+    openNotification('danger', 'Something went wrong while closing window');
+    console.error(error);
+  }
+};
+
+const getProgramSchedule = (tableData, program) => {
+  try {
+    let programSchedule = [program];
+    for (let index = program.rowIndex + 1; index < tableData.length; index++) {
+      let row = tableData[index];
+      if (row.F_C_S_P === rowDataTypesEnum.CONTENT_TERMINATION) break;
+      row = { ...tableData[index], isFiltered: true };
+      delete row.isHidden;
+      programSchedule.push(row);
+    }
+    return programSchedule;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const isTrafficDayOpenFn = async (date, channel, token) => {
+  try {
+    let result = false;
+    const dateInYYYYMMDD = dayjs(date).format('YYYY-MM-DD');
+    const response = await apiGetTrafficDayCloseByDateRange(
+      dateInYYYYMMDD,
+      dateInYYYYMMDD,
+      channel,
+      token,
+    );
+    if (response.status === 200) {
+      result = response.data.length === 1 && response.data[0].IsActive === 1;
+    } else if (response.status !== 204) {
+      openNotification(
+        'danger',
+        'Something went wrong while fetching traffic day close status',
+      );
+    }
+    return result;
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+};
+
+const isScheduleAllowedToEditFn = async (date, channel, token) => {
+  try {
+    const result =
+      (isDateBackDate(date) &&
+        (await isTrafficDayOpenFn(date, channel, token))) ||
+      (isDateBackDate(date) && IS_BACKDATED_SCHEDULE_ALLOWED_TO_EDIT) ||
+      !isDateBackDate(date);
+    return result;
+  } catch (error) {
+    console.error(error);
+    return false;
+  }
+};
+
+const getDeletableRows = (rows) =>
+  rows.filter(
+    (row) =>
+      row.F_C_S_P !== rowDataTypesEnum.COMMERCIAL &&
+      !(row.F_C_S_P === rowDataTypesEnum.NTC && row.BookingDetailID),
+  );
+
+const getContentSegmentsForContent = (tableData, contentIndex) => {
+  let contentSegments = [];
+  for (let index = contentIndex + 1; index < tableData.length; index++) {
+    let row = tableData[index];
+    if (!row || row.F_C_S_P === rowDataTypesEnum.CONTENT_TERMINATION) break;
+    if (row.F_C_S_P === rowDataTypesEnum.SEGMENT) {
+      contentSegments.push(row);
+    }
+  }
+  return contentSegments;
+};
+
+const getAllProgramsInTable = (tableData) => {
+  return tableData.filter(
+    (row) => row.F_C_S_P === rowDataTypesEnum.CONTENT_TERMINATION,
+  );
+};
+
+export {
+  getDummyRow,
+  getColumnsState,
+  getRowId,
+  getAllColumnsOfTable,
+  getColumnSettingsFromAPI,
+  isAnyRHSFeatureActive,
+  handleFeatureClose,
+  getProgramSchedule,
+  isScheduleAllowedToEditFn,
+  getDeletableRows,
+  isTrafficDayOpenFn,
+  getContentSegmentsForContent,
+  getAllProgramsInTable,
+};

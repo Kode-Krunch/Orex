@@ -1,0 +1,176 @@
+.h-11 {
+  height: 38px !important;
+}
+
+.justify-content-center {
+  height: 2.5rem !important;
+}
+.lmop .p-dialog-header {
+  background-color: transparent;
+  color: whitesmoke;
+}
+.lmop .p-dialog-content {
+  background-color: transparent;
+  color: whitesmoke;
+}
+.lmop .p-dialog-footer {
+  background-color: transparent;
+  color: whitesmoke;
+}
+.lmop {
+  padding: 30px;
+}
+.jhh {
+  white-space: nowrap;
+}
+.the {
+  text-align: center !important; /* Add position: relative to create a positioning context */
+}
+
+.tre {
+  text-align: center !important;
+}
+
+.tde {
+  text-align: center;
+}
+
+.resizer {
+  opacity: 0;
+  position: absolute;
+  right: 0; /* Align to the right */
+  top: 50%; /* Center vertically */
+  transform: translateY(-50%);
+  transition: opacity 0.2s ease-in-out;
+}
+
+.the:hover .resizer {
+  cursor: ew-resize;
+  opacity: 1;
+}
+.CurserPR {
+  cursor: grab;
+}
+.CurserDEF {
+  cursor: default;
+}
+.PDH4 {
+  font-size: '15px' !important;
+  padding-left: '14px' !important;
+}
+.PDH5 {
+  font-size: '15px' !important;
+  padding-right: '14px' !important;
+}
+.HeaderDa {
+  font-size: '15px' !important;
+}
+
+.table-container
+  .p-datatable
+  .p-datatable-tbody
+  .p-datatable-selection
+  .p-highlight {
+  background-color: #f0f0f0; /* Change the background color as needed */
+}
+
+.lbl {
+  color: #4dd4bf;
+}
+
+.hidden {
+  display: none;
+}
+.showntcRow {
+  display: table-row;
+}
+#div1 {
+  flex-grow: 1; /* Allow div1 to expand and fill available space */
+  overflow-y: auto;
+}
+
+.lblrows {
+  color: rgb(33, 32, 32);
+}
+
+/* .fpctimebtn{
+   
+    border: 2px solid #4dd4bf;
+  } */
+
+.filter {
+  background-color: '#212121';
+  color: 'white';
+  padding: '10px 15px';
+  border: 'none';
+  border-radius: '5px';
+  font-family: 'sans-serif';
+  font-size: '16px';
+}
+
+/* header fix */
+
+.table-container table {
+  width: 100%;
+}
+
+.table-container th,
+.table-container td {
+  padding: 8px;
+}
+
+.table-container th {
+  position: sticky;
+  top: -1px;
+  background-color: rgb(55, 65, 81);
+  border: 0.1px solid #e2e2e2;
+  z-index: 1; /* Ensure the header is above the content */
+}
+
+/* .custom-overlay .p-overlaypanel-content {
+    background-color: rgb(31 41 55/var(--tw-bg-opacity));
+  
+  }
+
+  .custom-overlay .p-overlay-arrow {
+    background-color: red !important;
+  } */
+
+.col-span-1 {
+  /* Use the "Cabin" font family, which is the primary font used by Primeflex. */
+  /* font-family: 'Handlee', sans-serif; */
+
+  /* Set the font weight to 400 (regular) for normal text. */
+  font-weight: 400;
+
+  /* Adjust the line-height slightly to match the Primeflex style. */
+  line-height: 1.5;
+}
+
+.Rowhidden {
+  display: none;
+}
+
+.CountDataLabel {
+  font-size: 15;
+  font-weight: bolder;
+  margin-top: -5px;
+  color: mintcream;
+  text-align: center;
+}
+.CountDatavalue {
+  font-weight: 800;
+  color: whitesmoke;
+  border: 2px solid #54e4cb;
+  padding: 5px 10px;
+  border-radius: 5px;
+  margin-bottom: 5px;
+  height: 35px;
+  text-align: center;
+  width: 60px;
+}
+
+.backcolor {
+  background-color: rgb(104, 104, 104);
+  color: whitesmoke;
+}

@@ -1,0 +1,41 @@
+import { Card } from 'components/ui';
+import React, { useContext } from 'react';
+import {
+  featuresEnum,
+  ruleCheckTypesEnum,
+} from 'views/Scheduling/Scheduler/enum';
+import SchedulerContext from 'views/Scheduling/SchedulerOld/context/SchedulerContext';
+// import SchedulerContext from 'views/Scheduling/Scheduler/context/SchedulerContext';
+
+function NoRuleCheckToShow() {
+  /* CONTEXT */
+  const { activeFeatures } = useContext(SchedulerContext);
+
+  return (
+    <Card
+      className="h-full w-full"
+      bodyClass="h-full w-full flex justify-center items-center p-2"
+    >
+      No{' '}
+      {activeFeatures[featuresEnum.RULE_CHECK].ruleCheckType ===
+      ruleCheckTypesEnum.BACK_TO_BACK_PROMOS
+        ? 'promos'
+        : activeFeatures[featuresEnum.RULE_CHECK].ruleCheckType ===
+          ruleCheckTypesEnum.BACK_TO_BACK_SONGS
+        ? 'songs'
+        : activeFeatures[featuresEnum.RULE_CHECK].ruleCheckType ===
+          ruleCheckTypesEnum.BACK_TO_BACK_COMMERCIALS
+        ? 'commercials'
+        : activeFeatures[featuresEnum.RULE_CHECK].ruleCheckType ===
+          ruleCheckTypesEnum.MULTI_SPOTS
+        ? 'multi spots'
+        : activeFeatures[featuresEnum.RULE_CHECK].ruleCheckType ===
+          ruleCheckTypesEnum.OUT_OF_TIMEBAND
+        ? 'out of RODP/TimeBand'
+        : 'rule check'}{' '}
+      to show
+    </Card>
+  );
+}
+
+export default NoRuleCheckToShow;

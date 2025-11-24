@@ -1,0 +1,66 @@
+import {
+  bulkInsertPositionEnum,
+  rowDataTypesEnum,
+} from 'views/Scheduling/Scheduler/enum';
+import { isRowLastSegment, isSegmentValid } from '../../utils';
+import { CLIENT } from 'views/Controls/clientListEnum';
+
+function executeSongBulkInsert(
+  insertPosition,
+  time,
+  selectedBreaks,
+  isSkipLastBreak,
+  selectedRows,
+  schedulingTableData,
+  channel,
+) {
+  let isChannelForbes = channel === CLIENT.USA_Forbes;
+  let newSchedulingTableData = [];
+  let isCurBlockValid = false;
+  for (let index = 0; index < schedulingTableData.length; index++) {
+    const row = schedulingTableData[index];
+    const nextRow = schedulingTableData[index + 1];
+    const isRowSegment = row.F_C_S_P === rowDataTypesEnum.SEGMENT;
+    const isRowLive = row.F_C_S_P === rowDataTypesEnum.LIVE;
+    // Update the validity of the current segment
+    if (row.F_C_S_P === rowDataTypesEnum.CONTENT_TERMINATION) {
+      // Mark the segment as invalid if the row is content termination
+      isCurBlockValid = false;
+    } else if (isRowSegment) {
+      // Validate the segment using the given time and selected breaks
+      isCurBlockValid = isSegmentValid(row, time, selectedBreaks);
+    } else if (isRowLive) {
+      // Validate the live row using the given time and selected breaks
+      isCurBlockValid =
+        isSegmentValid(row, time, selectedBreaks) && !isChannelForbes;
+    }
+    // Mark the segment as invalid if isSkipLastBreak === true and row is last segment
+    if (isCurBlockValid && isSkipLastBreak)
+      isCurBlockValid = !isRowLastSegment(row, schedulingTableData);
+    // Perform insertion logic if the current segment is valid
+    if (isCurBlockValid) {
+      // Case 1: Insert rows at the start of the segment
+      if (insertPosition === bulkInsertPositionEnum.START && isRowSegment) {
+        // Add the current row and the secondary table's selected rows
+        newSchedulingTableData.push(row, ...selectedRows);
+        continue; // Move to the next iteration
+      }
+      // Case 2: Insert rows at the end of the segment
+      if (
+        insertPosition === bulkInsertPositionEnum.END && // Check if insertion is at the end
+        nextRow && // Ensure there is a next row
+        (nextRow.F_C_S_P === rowDataTypesEnum.CONTENT_TERMINATION || // Check if the next row is content termination
+          nextRow.F_C_S_P === rowDataTypesEnum.SEGMENT) // Or if it's another segment
+      ) {
+        // Add the current row and the secondary rows
+        newSchedulingTableData.push(row, ...selectedRows);
+        continue; // Move to the next iteration
+      }
+    }
+    // Default case: Add the current row to the updated table
+    newSchedulingTableData.push(row);
+  }
+  return newSchedulingTableData;
+}
+
+export { executeSongBulkInsert };

@@ -1,0 +1,182 @@
+import { Button, Dialog } from 'components/ui';
+import DatePickerRange from 'components/ui/DatePicker/DatePickerRange';
+import { addDays, differenceInDays, format, isSameDay } from 'date-fns';
+import React, { useState } from 'react';
+import { AiOutlineSave } from 'react-icons/ai';
+import { useSelector } from 'react-redux';
+import { apiGetFPCMasterWithHouseID } from 'services/ProgrammingService';
+import {
+  convertDateFormatyyyyMMdd,
+  openNotification,
+} from 'views/Controls/GLOBALFUNACTION';
+import {
+  getCellClassNames,
+  getRowId,
+  handleStartTimeChange,
+} from '../../../utils/logicalUtils';
+import { getDummyRow } from 'views/Scheduling/Scheduler/components/SchedulingArea/utils/utils';
+import BulkSaveDialogProgress from './BulkSaveDialogProgress';
+import { apiCallstoreprocedure } from 'services/CommonService';
+
+/* CONSTANTS */
+const dateFormat = 'DD MMM YYYY';
+
+function BulkSaveDialog({
+  isOpen,
+  setIsOpen,
+  fpcDate,
+  handleSaveClick,
+  originalData,
+  FCPSaveDt,
+  channelStartTime,
+  addNewTelecastDate,
+  arr,
+}) {
+  /* REDUX */
+  const channel = useSelector((state) => state.locale.selectedChannel);
+
+  /* STATES */
+  const [dateRange, setDateRange] = useState([null, null]);
+  const [savedFpcDates, setSavedFpcDates] = useState([]);
+  const [missedFpcDates, setMissedFpcDates] = useState([]);
+  const [isBulkSaveProgDialogOpen, setIsBulkSaveProgDialogOpen] =
+    useState(false);
+  const [progressPercent, setProgressPercent] = useState(0);
+  const [isSaveComplete, setIsSaveComplete] = useState(false);
+
+  /* EVENT HANDLERS */
+  const handleSave = async () => {
+    try {
+      setIsOpen(false);
+      setIsBulkSaveProgDialogOpen(true);
+      const [startDate, endDate] = dateRange;
+      const totalDays = differenceInDays(endDate, startDate) + 1;
+      let processedDays = 0;
+      for (
+        let curDate = startDate;
+        curDate <= endDate;
+        curDate = addDays(curDate, 1)
+      ) {
+        let SelectedDate = convertDateFormatyyyyMMdd(curDate);
+        let formattedDate = format(curDate, 'dd-MMM-yyyy');
+        try {
+          if (curDate === startDate && isSameDay(curDate, fpcDate)) {
+            await handleSaveClick(
+              originalData,
+              FCPSaveDt,
+              formattedDate,
+              SelectedDate,
+              false,
+            );
+            setSavedFpcDates((prev) => [...prev, curDate]);
+          } else {
+            const respfpc = await apiGetFPCMasterWithHouseID(
+              channel.LocationCode,
+              channel.ChannelCode,
+              SelectedDate,
+            );
+            let startTime = channelStartTime;
+            const reps = await apiCallstoreprocedure('USP_GetFPCEndTime', {
+              par_LocationCode: channel.LocationCode,
+              par_ChannelCode: channel.ChannelCode,
+              par_TeleCastDat: SelectedDate,
+            });
+            const endTime = reps?.data[0]?.TelecastEndTime;
+            if (typeof endTime === 'string') {
+              startTime = endTime.substring(0, 5); // Extract HH:MM format
+            }
+            let ogData = [];
+            if (respfpc.status === 200) {
+              var updt = handleStartTimeChange(0, startTime, respfpc.data);
+              ogData =
+                updt.length > 0
+                  ? [getDummyRow(updt[0]), ...updt].map((row, index) => ({
+                      ...row,
+                      rowId: getRowId('primary', row, 'ContentCode'),
+                      rowIndex: index,
+                      cellClassNames: getCellClassNames(row, arr),
+                      verify: false,
+                    }))
+                  : [];
+              let fpcSaveDt = addNewTelecastDate(
+                [...ogData].slice(1),
+                SelectedDate,
+              );
+              await handleSaveClick(
+                ogData,
+                fpcSaveDt,
+                formattedDate,
+                SelectedDate,
+                false,
+              );
+              setSavedFpcDates((prev) => [...prev, curDate]);
+            } else setMissedFpcDates((prev) => [...prev, curDate]);
+          }
+        } catch (error) {
+          console.error(error);
+          setMissedFpcDates((prev) => [...prev, curDate]);
+        }
+        processedDays++;
+        const percent = Math.round((processedDays / totalDays) * 100);
+        setProgressPercent(percent);
+      }
+      setIsSaveComplete(true);
+    } catch (error) {
+      console.error(error);
+      openNotification('danger', 'Something went wrong while bulk saving FPC');
+    }
+  };
+
+  return (
+    <>
+      <Dialog width={600} isOpen={isOpen} onClose={() => setIsOpen(false)}>
+        <h5 className="mb-5">Bulk FPC Save</h5>
+        <div className="flex flex-col gap-1">
+          <div className="flex gap-1">
+            <p>Date Range</p>
+            <span className="text-red-500">*</span>
+          </div>
+          <DatePickerRange
+            minDate={fpcDate}
+            maxDate={addDays(fpcDate, 30)}
+            value={dateRange}
+            onChange={setDateRange}
+            inputFormat={dateFormat}
+            size="sm"
+            placeholder="Select"
+          />
+        </div>
+        <div className="flex justify-end mt-10">
+          <Button
+            variant="solid"
+            type="button"
+            className="btnEdit"
+            size="sm"
+            icon={<AiOutlineSave />}
+            disabled={!dateRange[0] || !dateRange[1]}
+            onClick={handleSave}
+          >
+            Save
+          </Button>
+        </div>
+      </Dialog>
+      {isBulkSaveProgDialogOpen && (
+        <BulkSaveDialogProgress
+          isOpen={isBulkSaveProgDialogOpen}
+          setIsOpen={setIsBulkSaveProgDialogOpen}
+          savedFpcDates={savedFpcDates}
+          setSavedFpcDates={setSavedFpcDates}
+          missedFpcDates={missedFpcDates}
+          setMissedFpcDates={setMissedFpcDates}
+          isSaveComplete={isSaveComplete}
+          setIsSaveComplete={setIsSaveComplete}
+          progressPercent={progressPercent}
+          setProgressPercent={setProgressPercent}
+          setDateRange={setDateRange}
+        />
+      )}
+    </>
+  );
+}
+
+export default BulkSaveDialog;

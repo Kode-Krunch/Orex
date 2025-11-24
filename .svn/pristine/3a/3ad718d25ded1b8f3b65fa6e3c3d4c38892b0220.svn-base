@@ -1,0 +1,222 @@
+import { format } from 'date-fns';
+import {
+  EMPTY_LINE,
+  PAGE_MARGINS,
+  PAGE_ORIENTATION,
+  PAGE_SIZE,
+  PAGE_WIDTH,
+  STYLES,
+} from './constants';
+import pdfMake from 'pdfmake/build/pdfmake';
+import { kpg } from 'views/Billing/BillPrinting/pdfDefinations/jso';
+const { apiCallstoreprocedure } = require('services/CommonService');
+const { openNotification } = require('views/Controls/GLOBALFUNACTION');
+
+const fetchPromos = async (channel, dateRange) => {
+  let promos = [];
+  try {
+    const response = await apiCallstoreprocedure('usp_Get_ScheduledPromos', {
+      LocationCode: channel.LocationCode,
+      ChannelCode: channel.ChannelCode,
+      Fromdate: format(dateRange[0], 'yyyy-MM-dd'),
+      Todate: format(dateRange[1], 'yyyy-MM-dd'),
+    });
+    if (response.status === 200 && response.data.length > 0) {
+      promos = response.data;
+    }
+  } catch (error) {
+    throw error;
+  } finally {
+    return promos;
+  }
+};
+
+const fetchReportsTableData = async (dateRange, selPromos, channel) => {
+  let tableData = [];
+  try {
+    const response = await apiCallstoreprocedure('Sp_TelecastCertificate', {
+      ChannelCode: channel.ChannelCode,
+      LocationCode: channel.LocationCode,
+      Fromdate: format(dateRange[0], 'yyyy-MM-dd'),
+      Todate: format(dateRange[1], 'yyyy-MM-dd'),
+      par_FilterValues: selPromos.map((obj) => obj.PromoCode).join(','),
+    });
+    if (response.status === 200) {
+      if (response.data.length === 0) {
+        openNotification('info', `No reports found for the selected dates`);
+      } else {
+        tableData = response.data.map((row) => ({
+          ...row,
+          TelecastDate: format(new Date(row.TelecastDate), 'dd-MM-yyyy'),
+        }));
+      }
+    } else if (response.status === 204) {
+      openNotification('info', `No reports found for the selected dates`);
+    } else {
+      openNotification(
+        'danger',
+        `Something went wrong while fetching reports. Server responded with status code ${response.status}`,
+      );
+    }
+  } catch (error) {
+    throw error;
+  } finally {
+    return tableData;
+  }
+};
+
+const getHeaderDefinition = (channel, dateRange) => [
+  {
+    columns: [
+      {
+        width: (PAGE_WIDTH * 15) / 100,
+        text: '',
+      },
+      {
+        width: '*',
+        alignment: 'center',
+        margin: [0, 10, 0, 0],
+        text: [
+          {
+            text: `PROMO TELECASTED CERTIFICATE\n`,
+            style: 'headerPrimary',
+          },
+          { ...EMPTY_LINE },
+          { ...EMPTY_LINE },
+          {
+            text: `Location: ${channel.LocationName}\tChannel: ${
+              channel.ChannelName
+            }\t\t\t\tFrom Date: ${format(
+              dateRange[0],
+              'dd-MM-yyyy',
+            )}\tTo Date: ${format(dateRange[1], 'dd-MM-yyyy')}\n\n`,
+            style: 'headerSecondary',
+          },
+        ],
+      },
+      {
+        width: (PAGE_WIDTH * 15) / 100,
+        height: (PAGE_WIDTH * 5) / 100,
+        image: channel.imgPath,
+        alignment: 'center',
+        margin: [0, 10, 10, 10],
+      },
+    ],
+  },
+];
+
+const getTableDefinition = (tableData) => {
+  try {
+    return {
+      table: {
+        widths: [
+          (PAGE_WIDTH * 4) / 100,
+          (PAGE_WIDTH * 8) / 100,
+          (PAGE_WIDTH * 8) / 100,
+          (PAGE_WIDTH * 20) / 100,
+          (PAGE_WIDTH * 8) / 100,
+          (PAGE_WIDTH * 10) / 100,
+          (PAGE_WIDTH * 17) / 100,
+          (PAGE_WIDTH * 15) / 100,
+        ],
+        body: [
+          [
+            { text: 'Sr No.', style: 'tableKey' },
+            { text: 'Telecast Date', style: 'tableKey' },
+            { text: 'Telecast Time', style: 'tableKey' },
+            { text: 'Event Caption', style: 'tableKey' },
+            { text: 'Video ID', style: 'tableKey' },
+            { text: 'Promo Duration', style: 'tableKey' },
+            { text: 'Program Name', style: 'tableKey' },
+            { text: 'Remark', style: 'tableKey' },
+          ],
+          ...tableData.map((row, index) => {
+            return [
+              { text: index + 1, style: 'tableValue' },
+              {
+                text: row.TelecastDate,
+                style: 'tableValue',
+              },
+              { text: row.TransmissionTime, style: 'tableValue' },
+              { text: row.PromoCaption, style: 'tableValue' },
+              { text: row.HouseID, style: 'tableValue' },
+              {
+                text: row.PromoDuration,
+                style: 'tableValue',
+              },
+              {
+                text: row.ContentName,
+                style: 'tableValue',
+              },
+              {
+                text: row.Remark,
+                style: 'tableValue',
+              },
+            ];
+          }),
+        ],
+      },
+    };
+  } catch (error) {
+    throw error;
+  }
+};
+
+const authorizedSignatoryDefinition = () => [
+  {
+    columns: [
+      {
+        width: '60%',
+        margin: [0, 20, 0, 0],
+        stack: [{ ...EMPTY_LINE }],
+      },
+      {
+        width: '40%',
+        margin: [0, 20, 10, 0],
+        stack: [
+          {
+            image: kpg,
+            width: (PAGE_WIDTH * 15) / 100,
+            height: (PAGE_WIDTH * 5) / 100,
+            alignment: 'right',
+          },
+          {
+            text: 'Authorised Signatory',
+            style: 'secondaryText',
+            alignment: 'right',
+            margin: [0, 0, 20, 0],
+          },
+        ],
+      },
+    ],
+  },
+];
+
+const downloadReport = async (tableData, channel, dateRange) => {
+  try {
+    const pdfDefination = {
+      pageSize: PAGE_SIZE,
+      pageOrientation: PAGE_ORIENTATION,
+      pageMargins: PAGE_MARGINS,
+      content: [
+        getHeaderDefinition(channel, dateRange),
+        getTableDefinition(tableData),
+        authorizedSignatoryDefinition(),
+      ],
+      styles: STYLES,
+    };
+    pdfMake
+      .createPdf(pdfDefination)
+      .download(
+        `Promo Report - ${format(dateRange[0], 'dd-MM-yyyy')} to ${format(
+          dateRange[1],
+          'dd-MM-yyyy',
+        )}.pdf`,
+      );
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+};
+
+export { fetchPromos, fetchReportsTableData, downloadReport };

@@ -1,0 +1,121 @@
+import { Button, Dropdown, Input } from 'components/ui';
+import React, { memo, useEffect, useMemo, useState } from 'react';
+import { LiaMoneyBillWaveSolid } from 'react-icons/lia';
+
+function MultiCurrencyDropdown({
+  currencyOptions,
+  selectedCurrency,
+  fetchedExchRatesForBaseCur,
+  actualExchRatesForBaseCur,
+  setActualExchRatesForBaseCur,
+}) {
+  /* STATES */
+  const [exchangeValues, setExchangeValues] = useState({});
+
+  /* HOOKS */
+  const currencyList = useMemo(
+    () =>
+      currencyOptions.length > 0 &&
+        Array.isArray(selectedCurrency) &&
+        selectedCurrency.length > 0
+        ? currencyOptions.filter(
+          (option) => option.value !== selectedCurrency[0].value,
+        )
+        : currencyOptions,
+    [currencyOptions, selectedCurrency],
+  );
+
+  /* USE EFFECTS */
+  useEffect(() => {
+    const newExchangeValues = {};
+    actualExchRatesForBaseCur.forEach((exchRate) => {
+      newExchangeValues[exchRate.CurrencyCode] = exchRate.CurrencyRate;
+    });
+    setExchangeValues(newExchangeValues);
+  }, [actualExchRatesForBaseCur]);
+
+  /* EVENT HANDLERS */
+  const handleApply = () => {
+    setActualExchRatesForBaseCur(
+      Object.keys(exchangeValues).map((key) => ({
+        CurrencyCode: Number(key),
+        CurrencyRate: exchangeValues[key],
+      })),
+    );
+  };
+
+  return (
+    <Dropdown
+      renderTitle={
+        <Button size="sm" icon={<LiaMoneyBillWaveSolid />}>
+          Multi Currency
+        </Button>
+      }
+      placement="top-start"
+      className="h-full"
+      toggleClassName="hover:cursor-pointer h-full"
+      menuClass="p-3 pt-3 min-w-[400px]"
+    >
+      <h6 className="pb-1 border-b border-b-gray-600 mb-3 text-white">
+        Currency conversion rate
+      </h6>
+      <div className="pb-2 mb-2 pr-1 border-b border-b-gray-600 h-48 flex flex-col">
+        <div className="grid grid-cols-3 gap-2 items-center mb-3 border-dashed border-b border-b-gray-600 pb-2">
+          <div className="font-semibold text-gray-200 text-xs">CURRENCY</div>
+          <div className="font-semibold text-gray-200 text-xs">
+            TODAY'S RATE
+          </div>
+          <div className="font-semibold text-gray-200 text-xs">INPUT</div>
+        </div>
+        <div className="grow overflow-auto no-scrollbar">
+          {currencyList.map((currency) => (
+            <div className="grid grid-cols-3 gap-2 items-center mb-3">
+              <p className="text-gray-300 mb-1 text-sm">{currency.label}</p>
+              <p className="text-gray-300 text-sm">
+                {fetchedExchRatesForBaseCur?.rates &&
+                  fetchedExchRatesForBaseCur?.rates[currency.shortName]
+                  ? fetchedExchRatesForBaseCur?.rates[
+                    currency.shortName
+                  ].toFixed(5)
+                  : '-'}
+              </p>
+              <Input
+                type="number"
+                size="sm"
+                placeholder="0.00"
+                prefix={currency.symbol}
+                value={exchangeValues[currency.value] || ''}
+                onChange={(e) => {
+                  const newExchangeValues = { ...exchangeValues };
+                  if (!e.target.value) delete newExchangeValues[currency.value];
+                  else
+                    newExchangeValues[currency.value] = Number(
+                      Number(e.target.value).toFixed(5),
+                    );
+                  setExchangeValues(newExchangeValues);
+                }}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="flex justify-end itmes-center w-full">
+        <Dropdown.Item onClick={handleApply} className="p-0 w-max">
+          <Button
+            size="sm"
+            className="w-max font-normal"
+            variant="twoTone"
+            style={{
+              fontSize: '0.8rem',
+              lineHeight: '1rem',
+            }}
+          >
+            Apply
+          </Button>
+        </Dropdown.Item>
+      </div>
+    </Dropdown>
+  );
+}
+
+export default memo(MultiCurrencyDropdown);

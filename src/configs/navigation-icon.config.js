@@ -1,0 +1,86 @@
+import React from 'react';
+import {
+  HiOutlineHome,
+  HiOutlineSpeakerphone,
+  HiOutlineUser,
+  HiOutlineFilm,
+  HiOutlineBadgeCheck,
+  HiOutlineRss,
+  HiOutlineSparkles,
+  HiOutlineReceiptTax,
+  HiPresentationChartBar,
+} from 'react-icons/hi';
+
+import { BsBookFill } from 'react-icons/bs';
+import {
+  FaCalculator,
+  FaCreativeCommonsSa,
+  FaFileInvoice,
+  FaFilm,
+  FaHandsHelping,
+  FaPhotoVideo,
+  FaRegFolder,
+  FaRegUser,
+  FaTags,
+} from 'react-icons/fa';
+import { CgLaptop, CgListTree } from 'react-icons/cg';
+import { FaMeta, FaScroll, FaWpforms } from 'react-icons/fa6';
+import {
+  TbBrandNeteaseMusic,
+  TbReportAnalytics,
+  TbSettingsDollar,
+} from 'react-icons/tb';
+import { LuListMusic } from 'react-icons/lu';
+import { RiFolderSettingsLine, RiSecurePaymentLine } from 'react-icons/ri';
+import { MdOutlineManageHistory, MdOutlineSportsCricket } from 'react-icons/md';
+const navigationIcon = {
+  UserManagement: <HiOutlineUser />,
+  CommonMaster: <FaCreativeCommonsSa />,
+  ChannelSettings: <CgListTree />,
+  SystemSettings: <CgLaptop />,
+  ContentManagement: <HiOutlineFilm />,
+  ContentLicense: <FaWpforms />,
+  ApprovalManagement: <HiOutlineBadgeCheck />,
+  FPCManagement: <FaPhotoVideo />,
+  PlaylistManagement: <FaPhotoVideo />,
+  Metadata: <FaMeta />,
+  MasterData: <FaHandsHelping />,
+  RateManagement: <HiOutlineSparkles />,
+  BillGeneration: <HiOutlineReceiptTax />,
+  BillPrinting: <FaScroll />,
+  'Third-PartyIntegration': <HiOutlineSparkles />,
+  DailyTransaction: <HiOutlineRss />,
+  Home: <HiOutlineHome />,
+  BILLING: <FaFileInvoice />,
+  Admin: <FaRegUser />,
+  ADMIN: <FaRegUser />,
+  NTC: <HiOutlineSpeakerphone />,
+  PROGRAMMING: <FaRegFolder />,
+  DEAL: <FaHandsHelping />,
+  SALES: <HiPresentationChartBar />,
+  SALESADMIN: <FaTags />,
+  SCHEDULING: <FaFilm />,
+  LIBRARY: <BsBookFill />,
+  Reports: <TbReportAnalytics />,
+  REPORTS: <TbReportAnalytics />,
+  PromoOrganizer: <HiOutlineSpeakerphone />,
+  SongOrganizer: <TbBrandNeteaseMusic />,
+  LinearManagement: <LuListMusic />,
+  DailyTransactions: <HiOutlineRss />,
+  MISReports: <TbReportAnalytics />,
+  ACCOUNTS: <FaCalculator />,
+  BillSettings: <RiFolderSettingsLine />,
+  NTCBillSetting: <RiFolderSettingsLine />,
+  NTCBillSettings: <RiFolderSettingsLine />,
+  NTCBillPrinting: <FaScroll />,
+  NTCBillGeneration: <HiOutlineReceiptTax />,
+  BillingSettings: <TbSettingsDollar />,
+  Payments: <RiSecurePaymentLine />,
+  SpotManagement: <MdOutlineManageHistory />,
+  EventManagement: <HiOutlineSpeakerphone />,
+  NTCSpotManagement: <MdOutlineManageHistory />,
+  SCHEDULER: <FaRegFolder />,
+  SPORTS: <MdOutlineSportsCricket />,
+};
+
+export default navigationIcon;

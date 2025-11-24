@@ -1,0 +1,33 @@
+import { combineReducers } from 'redux';
+import theme from './theme/themeSlice';
+import auth from './auth';
+import base from './base';
+import locale from './locale/localeSlice';
+import Scheduling from './Scheduling/SchedulingSlice';
+import contentSegment from './sectionWiseState/contentSegSlice';
+import promoMaster from './sectionWiseState/promoMasterSlice';
+import commMaster from './sectionWiseState/commMasterSlice';
+import { RESET_STORE } from './action';
+// Import the reset action
+
+const rootReducer = (asyncReducers) => (state, action) => {
+  if (action.type === RESET_STORE) {
+    state = undefined; // Clear the state
+  }
+
+  const combinedReducer = combineReducers({
+    theme,
+    auth,
+    base,
+    locale,
+    Scheduling,
+    contentSegment,
+    promoMaster,
+    commMaster,
+    ...asyncReducers,
+  });
+
+  return combinedReducer(state, action);
+};
+
+export default rootReducer;

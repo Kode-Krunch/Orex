@@ -1,0 +1,325 @@
+import React, { useEffect, useState } from 'react';
+import { Button, Card } from 'components/ui';
+import { IoCloseCircle } from 'react-icons/io5';
+import { HiPlusCircle } from 'react-icons/hi';
+import { FaSave } from 'react-icons/fa';
+import SelectXs from 'views/Controls/SelectXs/SelectXs';
+import { apiGetempmasterdropmaster } from 'services/MasterService';
+import { apiGetYearMaster } from 'services/SalesAdminService';
+import { openNotification } from 'views/Controls/GLOBALFUNACTION';
+import { apiCallstoreprocedure } from 'services/CommonService';
+import { useSelector } from 'react-redux';
+//import { financialYearOptions, invoiceSeries } from ''; 
+
+const months = [
+  'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep',
+  'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'
+];
+
+const AddEditSalesTarget = ({ setScreen }) => {
+  const Channel = useSelector((state) => state.locale.selectedChannel);
+  const [executives, setExecutives] = useState([]);
+  const [selectedExecutive, setSelectedExecutive] = useState(null);
+  const [executiveTargets, setExecutiveTargets] = useState([]);
+  const [financialYears, setFinancialYears] = useState(null);
+  const [financialYearOptions, setFinancialYearOptions] = useState(null);
+  const [financialYear, setFinancialYear] = useState(null);
+  const [mode, setMode] = useState('Monthly'); // 'Monthly' or 'Yearly'
+
+  console.log(executiveTargets);
+
+  useEffect(() => {
+    fetchExecutives();
+  }, []);
+
+  useEffect(() => {
+    getFinancialYears();
+
+  }, []);
+
+
+  const getFinancialYears = async () => {
+    try {
+      const response = await apiGetYearMaster();
+      if (response.status === 200) {
+        if (response.data.length > 0) {
+          const financialYears = response.data;
+          const financialYearOptions = financialYears.map((year) => {
+            return {
+              value: year.Yearcode,
+              label: year.Description,
+            };
+          });
+          setFinancialYears(financialYears);
+          setFinancialYearOptions(financialYearOptions);
+        }
+      } else {
+        openNotification(
+          'danger',
+          `Unable to get financial years. Server returned with status code: ${response.status}`,
+        );
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const fetchExecutives = async () => {
+    try {
+      const res = await apiGetempmasterdropmaster();
+      const formatted = res.data.map((option) => ({
+        value: option.EmployeeCode,
+        label: option.Emp_FirstName,
+      }));
+      setExecutives(formatted);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+  const handleSave = async () => {
+    try {
+      if (!financialYear) {
+        openNotification('danger', 'Please select financial year.');
+        return;
+      }
+
+      if (executiveTargets.length === 0) {
+        openNotification('danger', 'Please add at least one executive target.');
+        return;
+      }
+
+      for (const exec of executiveTargets) {
+        let April = 0, May = 0, June = 0, July = 0, August = 0, September = 0;
+        let October = 0, November = 0, December = 0, January = 0, February = 0, March = 0;
+        let TotalAmount = 0;
+
+        if (mode === 'Monthly') {
+          const targets = exec.targets.map(val => parseFloat(val) || 0);
+
+          [
+            April, May, June, July, August, September,
+            October, November, December, January, February, March
+          ] = targets;
+
+          TotalAmount = getExecutiveTotal(exec.targets);
+        } else if (mode === 'Yearly') {
+          TotalAmount = parseFloat(exec.targets[0]) || 0;
+          // All month values remain 0
+        }
+
+        const payload = {
+          Id: 0,
+          channelId: Channel.ChannelCode,
+          locationId: Channel.LocationCode,
+          Year: parseInt(financialYear.value),
+          Edit: 0,
+          Executivecode: exec.employeeCode,
+          April,
+          May,
+          June,
+          July,
+          August,
+          September,
+          October,
+          November,
+          December,
+          January,
+          February,
+          March,
+          TotalAmount,
+          AddedBy: exec.employeeCode,
+          AddedOn: new Date().toISOString().split('T')[0],
+        };
+
+        console.log(payload);
+
+        const response = await apiCallstoreprocedure('Sp_UserSales_Target', payload);
+
+        if (response.status !== 200) {
+          openNotification('danger', `Failed to save target for ${exec.name}`);
+          return;
+        }
+      }
+
+      openNotification('success', 'All targets saved successfully');
+      setScreen('home');
+    } catch (error) {
+      console.error(error);
+      openNotification('danger', 'Something went wrong while saving targets');
+    }
+  };
+
+
+  const handleAddExecutive = () => {
+    if (!selectedExecutive) return;
+
+    const alreadyExists = executiveTargets.some(
+      (item) => item.employeeCode === selectedExecutive.value
+    );
+    if (alreadyExists) return;
+
+    const newExecutive = {
+      employeeCode: selectedExecutive.value,
+      name: selectedExecutive.label,
+      targets: mode === 'Monthly' ? Array(12).fill('') : [''],
+    };
+
+    setExecutiveTargets([...executiveTargets, newExecutive]);
+    setSelectedExecutive(null);
+  };
+
+  const updateTarget = (index, monthIndex, value) => {
+    const updated = [...executiveTargets];
+    updated[index].targets[monthIndex] = value;
+    setExecutiveTargets(updated);
+  };
+
+  const getExecutiveTotal = (targets) =>
+    targets.reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
+
+  const getMonthTotal = (monthIndex) =>
+    executiveTargets.reduce(
+      (sum, exec) => sum + (parseFloat(exec.targets[monthIndex]) || 0),
+      0
+    );
+
+  const getOverallTotal = () =>
+    executiveTargets.reduce((sum, exec) => sum + getExecutiveTotal(exec.targets), 0);
+
+  const handleModeChange = (value) => {
+    setMode(value);
+    const resetExecutives = executiveTargets.map((exec) => ({
+      ...exec,
+      targets: value === 'Monthly' ? Array(12).fill('') : [''],
+    }));
+    setExecutiveTargets(resetExecutives);
+  };
+
+  return (
+    <>
+      <div className="flex justify-between items-center">
+        <h4>Add Sales Target</h4>
+        <div className="flex gap-2">
+          <Button size="sm" onClick={() => setScreen('home')} icon={<IoCloseCircle />}>
+            Close
+          </Button>
+          {/* <Button variant="solid" size="sm" onClick={() => console.log('Saving...')} icon={<FaSave />}>
+            Save
+          </Button> */}
+          <Button variant="solid" size="sm" onClick={handleSave} icon={<FaSave />}>
+            Save
+          </Button>
+        </div>
+      </div>
+
+      <Card className="h-full mt-4 border-none" bodyClass="h-full flex flex-col gap-5">
+        <div className="grid grid-cols-4 gap-4">
+          <div>
+            <p className="text-gray-200 mb-1">
+              Financial Year <span className="text-red-500">*</span>
+            </p>
+            <SelectXs
+              options={financialYearOptions}
+              value={financialYear}
+
+              onChange={setFinancialYear}
+              placeholder="Select"
+            />
+          </div>
+
+
+
+          <div className="col-span-2">
+            <p className="text-gray-200 mb-1">Monthly/Yearly</p>
+            <div className="flex items-center gap-2">
+              <SelectXs
+                value={{ label: mode, value: mode }}
+                onChange={(selected) => handleModeChange(selected?.value)}
+                options={[
+                  { label: 'Monthly', value: 'Monthly' },
+                  { label: 'Yearly', value: 'Yearly' },
+                ]}
+                placeholder="Select"
+              />
+            </div>
+          </div>
+
+          <div className="col-span-5">
+            <p className="text-gray-200 mb-1">Assign Target to Executive</p>
+            <div className="flex items-center gap-4">
+              <SelectXs
+                placeholder="Select"
+                options={executives}
+                value={selectedExecutive}
+                onChange={setSelectedExecutive}
+              />
+              <Button size="sm" icon={<HiPlusCircle />} onClick={handleAddExecutive} />
+            </div>
+          </div>
+        </div>
+
+        <div className="grow h-0 flex flex-col">
+          <h5>Executives</h5>
+          <div className="grow h-0 overflow-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="bg-gray-100 text-left">
+                  <th className="p-2 border">Executive</th>
+                  {mode === 'Monthly'
+                    ? months.map((m, idx) => (
+                      <th key={idx} className="p-2 border text-center">{m}</th>
+                    ))
+                    : <th className="p-2 border text-center">Yearly Target</th>}
+                  <th className="p-2 border text-center">Total</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {executiveTargets.map((exec, rowIndex) => (
+                  <tr key={rowIndex}>
+                    <td className="p-2 border">{exec.name}</td>
+                    {exec.targets.map((val, colIdx) => (
+                      <td key={colIdx} className="p-1 border text-center">
+                        <input
+                          type="number"
+                          className="w-16 text-center border rounded"
+                          value={val}
+                          onChange={(e) =>
+                            updateTarget(rowIndex, colIdx, e.target.value)
+                          }
+                        />
+                      </td>
+                    ))}
+                    <td className="p-2 border text-right font-bold">
+                      {getExecutiveTotal(exec.targets)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+
+              {executiveTargets.length > 0 && (
+                <tfoot>
+                  <tr className="bg-gray-100 font-bold">
+                    <td className="p-2 border text-right">Total</td>
+                    {mode === 'Monthly'
+                      ? months.map((_, idx) => (
+                        <td key={idx} className="p-2 border text-right">
+                          {getMonthTotal(idx)}
+                        </td>
+                      ))
+                      : <td className="p-2 border text-right">{getOverallTotal()}</td>}
+                    <td className="p-2 border text-right">{getOverallTotal()}</td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+
+
+          </div>
+        </div>
+      </Card>
+    </>
+  );
+};
+
+export default AddEditSalesTarget;

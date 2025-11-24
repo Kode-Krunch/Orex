@@ -1,0 +1,189 @@
+import {
+  PaymentElement,
+  useStripe,
+  useElements,
+  Elements,
+} from '@stripe/react-stripe-js';
+import { Avatar, Button, Dialog } from 'components/ui';
+import {
+  stripeAppearance,
+  stripePromise,
+} from 'configs/paymentGateways/stripeConfig';
+import React, { useEffect, useState } from 'react';
+import { FaSadTear } from 'react-icons/fa';
+import { useSelector } from 'react-redux';
+import { apiPostCreateStripePaymentIntent } from 'services/PaymentGatewayService';
+import { openNotification } from 'views/Controls/GLOBALFUNACTION';
+import Loader from 'views/Controls/Loader';
+import PaymentGatewayBtn from './PaymentGatewayBtn';
+
+export default function StripePaymentDialog({
+  isOpen,
+  setIsOpen,
+  invoices,
+  description,
+  formattedTotalAmount,
+  handleClosePaymentGatewayDialog,
+  setIsPaymentSuccessDialogOpen,
+  setIsPaymentFailedDialogOpen,
+  updateBillsTableDataForPaidBills,
+}) {
+  /* REDUX */
+  const user = useSelector((state) => state.auth.user);
+
+  /* STATES */
+  const [stripeClientSecret, setStripeClientSecret] = useState('');
+  const [showLoader, setShowLoader] = useState(false);
+
+  /* USE EFFECTS */
+  useEffect(() => {
+    (async () => {
+      try {
+        setShowLoader(true);
+        setStripeClientSecret(
+          await apiPostCreateStripePaymentIntent({
+            amount: 100,
+            currency: 'inr',
+            description,
+            name: user.userName || 'testuser',
+            email: user.email || 'test@email.com',
+            addressLine1: 'test address line 1',
+            postalCode: '000000',
+            city: 'Mumbai',
+            state: 'MH',
+            country: 'IN',
+          }),
+        );
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setShowLoader(false);
+      }
+    })();
+  }, []);
+
+  return (
+    <>
+      {stripeClientSecret && (
+        <Elements
+          stripe={stripePromise}
+          options={{
+            clientSecret: stripeClientSecret,
+            appearance: stripeAppearance,
+          }}
+        >
+          <DialogContent
+            isOpen={isOpen}
+            setIsOpen={setIsOpen}
+            invoices={invoices}
+            formattedTotalAmount={formattedTotalAmount}
+            setShowLoader={setShowLoader}
+            handleClosePaymentGatewayDialog={handleClosePaymentGatewayDialog}
+            setIsPaymentSuccessDialogOpen={setIsPaymentSuccessDialogOpen}
+            setIsPaymentFailedDialogOpen={setIsPaymentFailedDialogOpen}
+            updateBillsTableDataForPaidBills={updateBillsTableDataForPaidBills}
+          />
+        </Elements>
+      )}
+      <Loader showLoader={showLoader} />
+    </>
+  );
+}
+
+function DialogContent({
+  isOpen,
+  setIsOpen,
+  invoices,
+  formattedTotalAmount,
+  setShowLoader,
+  handleClosePaymentGatewayDialog,
+  setIsPaymentSuccessDialogOpen,
+  setIsPaymentFailedDialogOpen,
+  updateBillsTableDataForPaidBills,
+}) {
+  /* HOOKS */
+  const stripe = useStripe();
+  const elements = useElements();
+
+  /* EVENTH HANDLERS */
+  const handleClose = () => setIsOpen(false);
+
+  const handleSubmit = async (e) => {
+    try {
+      e.preventDefault();
+      if (!stripe || !elements) return;
+      setShowLoader(true);
+      // TODO: Store transaction info in DB
+      const { error } = await stripe.confirmPayment({
+        elements,
+        redirect: 'if_required',
+      });
+      // TODO: Store transaction result in DB
+      if (error) {
+        setIsPaymentFailedDialogOpen(true);
+      } else {
+        setIsPaymentSuccessDialogOpen(true);
+        updateBillsTableDataForPaidBills(invoices);
+      }
+    } catch (error) {
+      console.error(error);
+      openNotification('danger', 'Something went wrong while checkout');
+    } finally {
+      handleClosePaymentGatewayDialog();
+      setShowLoader(false);
+    }
+  };
+
+  return (
+    <Dialog isOpen={isOpen} onClose={handleClose} contentClassName="bg-white">
+      <form
+        onSubmit={handleSubmit}
+        className="flex flex-col h-full justify-between"
+      >
+        <div className="flex items-center justify-between mb-4 mr-4">
+          <h5>Pay with Stripe</h5>
+          <PaymentGatewayBtn
+            imgSrc="/assets/logos/stripe-logo.svg"
+            imgAlt="Stripe Logo"
+            imgHeight={20}
+            active={true}
+          />
+        </div>
+        <div className="h-[60vh] overflow-y-auto">
+          {stripe ? (
+            <PaymentElement />
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center gap-5">
+              <Avatar
+                className="!bg-red-500"
+                size={100}
+                shape="circle"
+                icon={<FaSadTear />}
+              />
+              <div className="flex flex-col justify-center">
+                <p className="text-gray-200 text-base text-center">
+                  Payment Gateway Down
+                </p>
+                <p>Please try another payment gateway</p>
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="flex justify-between items-center gap-3 mt-4 pt-3 border-t border-t-gray-600">
+          <div>
+            <p>Total Amount</p>
+            <h6>{formattedTotalAmount}</h6>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button className="ml-2" variant="plain" onClick={handleClose}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="solid">
+              Pay
+            </Button>
+          </div>
+        </div>
+      </form>
+    </Dialog>
+  );
+}

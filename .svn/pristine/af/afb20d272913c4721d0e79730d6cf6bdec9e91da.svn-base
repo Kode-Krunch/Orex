@@ -1,0 +1,3022 @@
+import appConfig from 'configs/app.config';
+import ApiService from './ApiService';
+
+const axios = require('axios');
+const APIURL = process.env.APIURL;
+
+export async function apiGetStarCastTypemaster(data) {
+  return ApiService.fetchData({
+    url: '/starcasttype/',
+    method: 'get',
+    data,
+  });
+}
+export async function apiGetscenetypemasterDrop(data) {
+  return ApiService.fetchData({
+    url: '/scenetypemaster/drop/',
+    method: 'get',
+    data,
+  });
+}
+const Poststarcasttype = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      StarCastTypeName: param.StarCastTypeName,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/starcasttype/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Putstarcasttype = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      StarCastTypeName: param.StarCastTypeName,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/starcasttype/${param.StarCastTypeCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+export async function dropcontenttypewise(data) {
+  return ApiService.fetchData({
+    url: `/contentmaster/contenttypewisedrop/${data}`,
+    method: 'get',
+    data,
+  });
+}
+export async function apiGetStarCastmaster(data) {
+  return ApiService.fetchData({
+    url: '/starcastmaster/',
+    method: 'get',
+    data,
+  });
+}
+export async function apiGetpatterndetailsmasterbyid(id) {
+  return ApiService.fetchData({
+    url: `/patterndetails/${id}`,
+    method: 'get',
+  });
+}
+
+export async function apiGetCountrymaster(data) {
+  return ApiService.fetchData({
+    url: '/countrymaster/',
+    method: 'get',
+    data,
+  });
+}
+
+const Poststarcast = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = {
+      StarCastName: param.StarCastName,
+      StarCastTypeCode: param.StarCastTypeCode,
+      CountryCode: param.CountryCode,
+      MaleFemale: param.MaleFemale,
+      DateOfBirth: param.DateOfBirth,
+      DateOfDeath: param.DateOfDeath,
+      StarCast_Image: '1.png',
+      IsActive: param.IsActive ? 1 : 0,
+    };
+
+    if (!param.DateOfDeath) {
+      delete data.DateOfDeath;
+    }
+    let jsonString = JSON.stringify(data);
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/starcastmaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: jsonString,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Putstarcast = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = {
+      StarCastName: param.StarCastName,
+      StarCastTypeCode: param.StarCastTypeCode,
+      CountryCode: param.CountryCode,
+      MaleFemale: param.MaleFemale,
+      DateOfBirth: param.DateOfBirth,
+      DateOfDeath: param.DateOfDeath,
+      StarCast_Image: '1.png',
+      IsActive: param.IsActive ? 1 : 0,
+    };
+
+    if (!param.DateOfDeath) {
+      delete data.DateOfDeath;
+    }
+    let jsonString = JSON.stringify(data);
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/starcastmaster/${param.StarCastCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: jsonString,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+export async function apiGetGenremaster(data) {
+  return ApiService.fetchData({
+    url: '/genremaster/',
+    method: 'get',
+    data,
+  });
+}
+export async function apiGetviewmasterdrop() {
+  return ApiService.fetchData({
+    url: '/viewmaster/drop/',
+    method: 'get',
+  });
+}
+
+const Postgenre = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      GenreName: param.GenreName,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/genremaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Putgenre = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      GenreName: param.GenreName,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/genremaster/${param.GenreCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+export async function apiGetSceneTypeMaster(data) {
+  return ApiService.fetchData({
+    url: '/scenetypemaster/',
+    method: 'get',
+    data,
+  });
+}
+
+const Postscene = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      SceneTypeName: param.SceneTypeName,
+      SortName: param.SortName,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/scenetypemaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Putscene = (param, token) => {
+  console.log(param);
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      SceneTypeName: param.SceneTypeName,
+      SortName: param.SortName,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/scenetypemaster/${param.SceneTypeCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+export async function apiGetSubGenremaster(data) {
+  return ApiService.fetchData({
+    url: '/SubGenreMaster/',
+    method: 'get',
+    data,
+  });
+}
+
+const Postsubgenre = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      SubGenreName: param.SubGenreName,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/SubGenreMaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Putsubgenre = (param, token, avatarImg) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      SubGenreName: param.SubGenreName,
+      IsActive: param.IsActive ? 1 : 0,
+      Genre_Image: avatarImg,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/SubGenreMaster/${param.SubGenreCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+export async function apiGetContentTypemaster(data) {
+  return ApiService.fetchData({
+    url: '/contenttypemaster/',
+    method: 'get',
+    data,
+  });
+}
+export async function apiGetcontenttxversion(ids) {
+  return ApiService.fetchData({
+    url: `/contenttxversion/${ids}`,
+    method: 'get',
+  });
+}
+export async function apiGetcontentsuppliermap(ids) {
+  return ApiService.fetchData({
+    url: `/contentsuppliermap/${ids}`,
+    method: 'get',
+  });
+}
+
+export async function apiGetcontentsegdetailsid(id) {
+  return ApiService.fetchData({
+    url: `/contentsegdetails/${id}`,
+    method: 'get',
+  });
+}
+export async function apiGetcontentscenedetailsid(id) {
+  return ApiService.fetchData({
+    url: `/contentscenedetails/${id}`,
+    method: 'get',
+  });
+}
+
+const Postcontenttype = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      ContentTypeName: param.ContentTypeName,
+      MultiPart: param.MultiPart,
+      EpisodeSpecific: param.EpisodeSpecific,
+      LiveEvent: param.LiveEvent,
+      SportEvent: param.SportEvent,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/contenttypemaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Putcontenttype = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      ContentTypeName: param.ContentTypeName,
+      MultiPart: param.MultiPart,
+      EpisodeSpecific: param.EpisodeSpecific,
+      LiveEvent: param.LiveEvent,
+      SportEvent: param.SportEvent,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/contenttypemaster/${param.ContentTypeCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+export async function apiGetViewmaster(data) {
+  return ApiService.fetchData({
+    url: '/viewmaster/',
+    method: 'get',
+    data,
+  });
+}
+
+export async function apiGetweekdaysweekendsmaster(data) {
+  return ApiService.fetchData({
+    url: '/weekdaysweekendsmaster/',
+    method: 'get',
+    data,
+  });
+}
+
+const Postweekdaysweekendsmaster = (data, token) => {
+  return new Promise((resolve, reject) => {
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/weekdaysweekendsmaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+const Putweekdaysweekendsmaster = (param, token, WeekdaysCode) => {
+  return new Promise((resolve, reject) => {
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url:
+        appConfig.apiPrefix +
+        `/weekdaysweekendsmaster/Weekdaysadd/${WeekdaysCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: param,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Postview = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      ViewName: param.ViewName,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/viewmaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const PutBusinessType = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      BusinessTypeName: param.BusinessTypeName,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/businesstype/${param.BusinessTypeCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const PostBusinessType = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      BusinessTypeName: param.BusinessTypeName,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/businesstype/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Putview = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      ViewName: param.ViewName,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/viewmaster/${param.ViewCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+export async function apiGetCensorshipmaster(data) {
+  return ApiService.fetchData({
+    url: '/censorshipmaster/',
+    method: 'get',
+    data,
+  });
+}
+
+const Postcensorship = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      CensorshipName: param.CensorshipName,
+      ShortName: param.ShortName,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/censorshipmaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Putcensorship = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      CensorshipName: param.CensorshipName,
+      ShortName: param.ShortName,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/censorshipmaster/${param.CensorshipCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+export async function apiGetTXVersionmaster(data) {
+  return ApiService.fetchData({
+    url: '/txversionmaster/',
+    method: 'get',
+    data,
+  });
+}
+
+const Posttxversion = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      TXVersionName: param.TXVersionName,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/txversionmaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Puttxversion = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      TXVersionName: param.TXVersionName,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/txversionmaster/${param.TXVersionCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+export async function apiGetTXVersionmasterDrop(data) {
+  return ApiService.fetchData({
+    url: '/txversionmaster/drop/',
+    method: 'get',
+    data,
+  });
+}
+
+export async function apiGetSuppliermasterDrop(data) {
+  return ApiService.fetchData({
+    url: '/suppliermastertable/drop/',
+    method: 'get',
+    data,
+  });
+}
+
+const PostSupplier = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      SupplierName: param.SupplierName,
+      ShortName: param.ShortName,
+      SupplierERPCode: param.SupplierERPCode,
+      Address1: param.Address1,
+      Address2: param.Address2,
+      Pin: '' + param.Pin + '', // Convert int to string
+      CountryCode: param.CountryCode,
+      StateCode: param.StateCode,
+      PlaceCode: param.PlaceCode,
+      Phone: param.Phone,
+      Mobile: param.Mobile,
+      Fax: param.Fax,
+      Email: param.Email,
+      ContactPerson: param.ContactPerson,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/suppliermastertable/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+    // console.log(data)
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const PutSupplier = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      SupplierName: param.SupplierName,
+      ShortName: param.ShortName,
+      SupplierERPCode: param.SupplierERPCode,
+      Address1: param.Address1,
+      Address2: param.Address2,
+      Pin: '' + param.Pin + '',
+      CountryCode: param.CountryCode,
+      StateCode: param.StateCode,
+      PlaceCode: param.PlaceCode,
+      Phone: param.Phone,
+      Mobile: param.Mobile,
+      Fax: param.Fax,
+      Email: param.Email,
+      ContactPerson: param.ContactPerson,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/suppliermastertable/${param.SupplierCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+export async function apiGetSuppliermaster(data) {
+  return ApiService.fetchData({
+    url: '/suppliermastertable/',
+    method: 'get',
+    data,
+  });
+}
+
+export async function apiGetAspectratiomaster(data) {
+  return ApiService.fetchData({
+    url: '/aspectratiomaster/',
+    method: 'get',
+    data,
+  });
+}
+export async function apiGetAspectratiomasterdrop(data) {
+  return ApiService.fetchData({
+    url: '/aspectratiomaster/drop/',
+    method: 'get',
+    data,
+  });
+}
+const AddAspectRatio = (row, token) => {
+  return fetch(appConfig.apiPrefix + `/aspectratiomaster`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      AspectRatio: row.AspectRatio,
+      IsActive: row.IsActive,
+    }),
+  });
+};
+
+const PutUpdateAspectRatio = (row, token) => {
+  //return fetch(appConfig.apiPrefix + `/aspectratiomaster/${row.VideoTypeCode}`, {
+  return fetch(
+    appConfig.apiPrefix + `/aspectratiomaster/${row.AspectRatioCode}`,
+    {
+      method: 'PUT',
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        AspectRatio: row.AspectRatio,
+        IsActive: row.IsActive,
+      }),
+    },
+  );
+};
+
+export async function apiGetfpcorgrepmasterdrop(data) {
+  return ApiService.fetchData({
+    url: '/fpcorgrep/drop/',
+    method: 'get',
+    data,
+  });
+}
+
+export async function apiGetfpcorgrepmaster(data) {
+  return ApiService.fetchData({
+    url: '/fpcorgrep/',
+    method: 'get',
+    data,
+  });
+}
+
+export async function apiGetSpotSpotPreferencedrop(data) {
+  return ApiService.fetchData({
+    url: '/spotpreferencemaster/drop/',
+    method: 'get',
+    data,
+  });
+}
+
+const Postfpcorgrep = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      OriginalRepeatName: param.OriginalRepeatName,
+      ShortName: param.ShortName,
+      NewColourCode: param.NewColourCode,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/fpcorgrep/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Putfpcorgrep = (param, token, colorname, colorOp) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      OriginalRepeatName: param.OriginalRepeatName,
+      ShortName: param.ShortName,
+      NewColourCode: `${colorname}-${colorOp}`,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/fpcorgrep/${param.OriginalRepeatCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+export async function apiGetawardmaster(data) {
+  return ApiService.fetchData({
+    url: '/awardmaster/',
+    method: 'get',
+    data,
+  });
+}
+
+const PostAwardmaster = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      AwardName: param.AwardName,
+      AwardDate: param.AwardDate,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/awardmaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const PutAwardmaster = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      AwardName: param.AwardName,
+      AwardDate: param.AwardDate,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/awardmaster/${param.AwardCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+export async function apiGetCommercialtypemaster(data) {
+  return ApiService.fetchData({
+    url: '/commercialtypemaster/',
+    method: 'get',
+    data,
+  });
+}
+
+const Postcommercialtype = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      CommercialTypeName: param.CommercialTypeName,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/commercialtypemaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Putcommercialtype = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      CommercialTypeName: param.CommercialTypeName,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url:
+        appConfig.apiPrefix +
+        `/commercialtypemaster/${param.CommercialTypeCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+export async function apiGetPromotypemaster(data) {
+  return ApiService.fetchData({
+    url: '/promotypemaster/',
+    method: 'get',
+    data,
+  });
+}
+
+const Postpromotype = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      PromoTypeName: param.PromoTypeName,
+      PromoTypeShortName: param.PromoTypeShortName,
+      ChannelSpecific: param.ChannelSpecific ? 1 : 0,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/promotypemaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Putpromotype = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      PromoTypeName: param.PromoTypeName,
+      PromoTypeShortName: param.PromoTypeShortName,
+      ChannelSpecific: param.ChannelSpecific ? 1 : 0,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/promotypemaster/${param.PromoTypeCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+export async function apiGetFillertypemaster(data) {
+  return ApiService.fetchData({
+    url: '/fillertypemaster/',
+    method: 'get',
+    data,
+  });
+}
+
+const Postfillertype = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      FillerTypeName: param.FillerTypeName,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/fillertypemaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Putfillertype = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      FillerTypeName: param.FillerTypeName,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/fillertypemaster/${param.FillerTypeCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+export async function apiGetContentsegmaster(data) {
+  return ApiService.fetchData({
+    url: `/contentsegmaster/?LocationCode=${data.LocationCode}&ChannelCode=${data.ChannelCode}&ContentCode=${data.ContentCode}&SeasonNo=${data.SeasonNo}`,
+    method: 'get',
+    data,
+  });
+}
+
+const Postcontentseg = (data, token) => {
+  return new Promise((resolve, reject) => {
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/contentsegmaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Putcontentseg = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      ContentCode: param.ContentCode,
+      OriginalRepeatCode: param.OriginalRepeatCode,
+      SeasonNo: param.SeasonNo,
+      EpisodeNo: param.EpisodeNo,
+      PartNumber: param.PartNumber,
+      SubContentCode: param.SubContentCode,
+      TapeID: param.TapeID,
+      MaximumSegments: param.MaximumSegments,
+      EpisodeCaption: param.EpisodeCaption,
+      EpisodeDuration: param.EpisodeDuration,
+      EpisodeDurationinMin: param.EpisodeDurationinMin,
+      Remarks: param.Remarks,
+      VideoTypeCode: param.VideoTypeCode,
+      AspectRatioCode: param.AspectRatioCode,
+      AssetTypeCode: param.AssetTypeCode,
+      VideoSizeCode: param.VideoSizeCode,
+      VideoFormatTypeCode: param.VideoFormatTypeCode,
+      TXVersionCode: param.TXVersionCode,
+      ShortSynopsis: param.ShortSynopsis,
+      LongSynopsis: param.LongSynopsis,
+      IsReadyToBroadCast: param.IsReadyToBroadCast,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/contentsegmaster/${param.SegmentCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+export async function apiGetPatternmaster(data) {
+  return ApiService.fetchData({
+    url: '/patternmaster/',
+    method: 'get',
+    data,
+  });
+}
+export async function apiGetPatternmasterDropDown(data) {
+  return ApiService.fetchData({
+    url: '/patternmaster/drop/',
+    method: 'get',
+    data,
+  });
+}
+
+export async function PostpatternNew(data) {
+  return ApiService.fetchData({
+    url: `/patternmaster/`,
+    method: 'post',
+    data: data,
+  });
+}
+export async function PutpatternNew(data, PatternCode) {
+  return ApiService.fetchData({
+    url: `/patternmaster/${PatternCode}`,
+    method: 'put',
+    data: data,
+  });
+}
+export async function PostpatternDeatilsNew(data) {
+  return ApiService.fetchData({
+    url: `/patterndetails/`,
+    method: 'post',
+    data: data,
+  });
+}
+export async function PutpatternDeatilsNew(data, PatternCode) {
+  return ApiService.fetchData({
+    url: `/patterndetails/${PatternCode}`,
+    method: 'put',
+    data: data,
+  });
+}
+
+const Postpattern = (blankObject, token) => {
+  return new Promise((resolve, reject) => {
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/patternmaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: blankObject,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Putpattern = (data, PatternCode, token) => {
+  return new Promise((resolve, reject) => {
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/patternmaster/${PatternCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+const Postpatterndetails = (blankObject, token) => {
+  return new Promise((resolve, reject) => {
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/patterndetails/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: blankObject,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Putpatterndetails = (data, PatternCode, token) => {
+  return new Promise((resolve, reject) => {
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/patterndetails/${PatternCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+//
+export async function apiGetfpccontent(
+  ChannelCode,
+  ContentTypeCode,
+  LocationCode,
+  ContentName,
+  FPCDate,
+) {
+  return ApiService.fetchData({
+    url: `/usp_pg_fpc_get_content/?ContentTypeCode=${ContentTypeCode}&LocationCode=${LocationCode}&ChannelCode=${ChannelCode}&FPCDate=${FPCDate}&ContentName=${ContentName}`,
+    method: 'get',
+  });
+}
+export async function apiGetepbyseason(SeasonNo, ContentCode) {
+  return ApiService.fetchData({
+    url: `/usp_pg_get_epno_by_seasonno/?SeasonNo=${SeasonNo}&ContentCode=${ContentCode}`,
+    method: 'get',
+  });
+}
+export async function apiStarcastmasterDrop(Id) {
+  return ApiService.fetchData({
+    url: `/starcastmaster/drop/${Id}`,
+    method: 'get',
+  });
+}
+export async function apiPOSTSTAR(data) {
+  return ApiService.fetchData({
+    url: `/contentmaster/addstartcast/`,
+    method: 'post',
+    data: data,
+  });
+}
+
+export async function apiStarcasttypemasterDrop(Id) {
+  return ApiService.fetchData({
+    url: `/starcasttype/drop/${Id}`,
+    method: 'get',
+  });
+}
+export async function apicontentepsrestriction(Id) {
+  return ApiService.fetchData({
+    url: `/contentepsrestriction/${Id}`,
+    method: 'get',
+  });
+}
+
+export async function apicontenteRATE(Id) {
+  return ApiService.fetchData({
+    url: `/contentratings/${Id}`,
+    method: 'get',
+  });
+}
+
+export async function apicontentGEtrates(name) {
+  return ApiService.fetchData({
+    url: `/rating/?ratingapp=${1}&name=${name}`,
+    method: 'post',
+  });
+}
+export async function apicontentupdaterates(data) {
+  return ApiService.fetchData({
+    url: `/contentratings/`,
+    method: 'post',
+    data: data,
+  });
+}
+
+const Postcontentepsrestriction = (data, token) => {
+  return new Promise((resolve, reject) => {
+    //console.log(param)
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/contentepsrestriction/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+export async function apideleteEpisoderestriction(id) {
+  return ApiService.fetchData({
+    url: `/contentepsrestriction/${id}`,
+    method: 'delete',
+  });
+}
+export async function apiGetContentmasterbyid(data) {
+  return ApiService.fetchData({
+    url: `/contentmaster/${data}`,
+    method: 'get',
+    data,
+  });
+}
+export async function apiGetContentmaster(data) {
+  const { LocationCode, ChannelCode, IsGroup, EventContentCode } = data;
+
+  // Construct the URL with mandatory parameters
+  let url = `/contentmaster/?LocationCode=${LocationCode}&ChannelCode=${ChannelCode}`;
+
+  // Append optional parameters if they are provided
+  if (IsGroup !== undefined && IsGroup !== null) {
+    url += `&IsGroup=${IsGroup}`;
+  }
+
+  if (EventContentCode !== undefined && EventContentCode !== null) {
+    url += `&EventContentCode=${EventContentCode}`;
+  }
+
+  return ApiService.fetchData({
+    url,
+    method: 'get',
+    data,
+  });
+}
+export async function apiGetRatingcompanymaster() {
+  return ApiService.fetchData({
+    url: '/ratingcompanymaster/',
+    method: 'get',
+  });
+}
+
+export async function apiGetvideoformattypdrop(data) {
+  return ApiService.fetchData({
+    url: '/videoformattyp/drop/',
+    method: 'get',
+    data,
+  });
+}
+
+export async function apiGetvideotypdrop(data) {
+  return ApiService.fetchData({
+    url: '/videotypemaster/drop/',
+    method: 'get',
+    data,
+  });
+}
+
+export async function apiGetvideotypeMaster(data) {
+  return ApiService.fetchData({
+    url: '/videotypemaster/',
+    method: 'get',
+    data,
+  });
+}
+const AddVideoType = (row, token) => {
+  return fetch(appConfig.apiPrefix + `/videotypemaster`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      VideoTypeName: row.VideoTypeName,
+      IsActive: row.IsActive,
+    }),
+  });
+};
+
+const UpdateVideoType = (row, token) => {
+  //return fetch(appConfig.apiPrefix + `/videotypemaster/${row.VideoTypeCode}`, {
+  return fetch(appConfig.apiPrefix + `/videotypemaster/${row.VideoTypeCode}`, {
+    method: 'PUT',
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      VideoTypeName: row.VideoTypeName,
+      IsActive: row.IsActive,
+    }),
+  });
+};
+
+export async function apiGetvideoformatMaster(data) {
+  return ApiService.fetchData({
+    url: '/videoformattyp/',
+    method: 'get',
+    data,
+  });
+}
+const AddVideoFormat = (row, token) => {
+  return fetch(appConfig.apiPrefix + `/videoformattyp`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      VideoFormatTypeName: row.VideoFormatTypeName,
+      IsActive: row.IsActive,
+    }),
+  });
+};
+
+const UpdateVideoFormat = (row, token) => {
+  //return fetch(appConfig.apiPrefix + `/videotypemaster/${row.VideoTypeCode}`, {
+  return fetch(
+    appConfig.apiPrefix + `/videoformattyp/${row.VideoFormatTypeCode}`,
+    {
+      method: 'PUT',
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        VideoFormatTypeName: row.VideoFormatTypeName,
+        IsActive: row.IsActive,
+      }),
+    },
+  );
+};
+
+export async function apiGettapetypeMaster(data) {
+  return ApiService.fetchData({
+    url: '/tapetypemaster/',
+    method: 'get',
+    data,
+  });
+}
+const AddTapeType = (row, token) => {
+  return fetch(appConfig.apiPrefix + `/tapetypemaster`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      TapeTypeName: row.TapeTypeName,
+      //TapeTypeShortName: row.TapeTypeShortName,
+      TapeTypeShortName: '',
+      IsActive: row.IsActive,
+    }),
+  });
+};
+
+const UpdateTapeType = (row, token) => {
+  //return fetch(appConfig.apiPrefix + `/videotypemaster/${row.VideoTypeCode}`, {
+  return fetch(appConfig.apiPrefix + `/tapetypemaster/${row.TapeTypeCode}`, {
+    method: 'PUT',
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      TapeTypeName: row.TapeTypeName,
+      TapeTypeShortName: row.TapeTypeShortName,
+      IsActive: row.IsActive,
+    }),
+  });
+};
+
+export async function apiGetContentmasterDrop(
+  data = undefined,
+  locationCode,
+  channelCode,
+  isGroupName,
+) {
+  return ApiService.fetchData({
+    url: `/contentmaster/drop/?LocationCode=${locationCode}&ChannelCode=${channelCode}${isGroupName !== undefined || isGroupName != null
+      ? `&IsGroupName=${isGroupName}`
+      : ''
+      }`,
+    method: 'get',
+    data,
+  });
+}
+export async function apiPosteventplanner(data) {
+  return ApiService.fetchData({
+    url: `/eventplanner/`,
+    method: 'post',
+    data,
+  });
+}
+export async function apiGetContentmasterDropEventWise(EventCode) {
+  return ApiService.fetchData({
+    url: `/contentmaster/getContentDropeventWise/?EventCode=${EventCode}`,
+    method: 'get',
+  });
+}
+
+// export async function apiGetContentmasterDrop(data) {
+//   return ApiService.fetchData({
+//     url: '/globle/getDummycontent/',
+//     method: 'get',
+//     data,
+//   });
+// }
+
+export async function apiGetassettypemasterDrop(data) {
+  return ApiService.fetchData({
+    url: '/assettypemaster/drop/',
+    method: 'get',
+    data,
+  });
+}
+const PostContentSeg = (data, token) => {
+  return new Promise((resolve, reject) => {
+    //console.log(param)
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/contentsegmaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+const PutContentSeg = (data, token, id) => {
+  return new Promise((resolve, reject) => {
+    //console.log(param)
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/contentsegmaster/${id}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const PostContentContract = (data, token) => {
+  return new Promise((resolve, reject) => {
+    //console.log(param)
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/contentcontractmaster/contractadd/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const PutContentContract = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/contentcontractmaster/${param.ContractCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: param,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+export async function apisendnotification(data) {
+  return ApiService.fetchData({
+    url: '/notification/send-notification/',
+    method: 'post',
+    data,
+  });
+}
+
+// export async function apisendnotificationlogin(id) {
+//   return ApiService.fetchData({
+//     url: `/getnotificationonlogin/${id}`,
+//     method: 'get',
+//   });
+// }
+
+export const apiMarkNotificationsAsRead = (id) => {
+  console.log(id);
+  return new Promise((resolve, reject) => {
+    //console.log(param)
+
+    let config = {
+      method: 'get',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/isreadnotification/' + id,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+export const apiFetchNotifications = (id) => {
+  console.log(id);
+  return new Promise((resolve, reject) => {
+    //console.log(param)
+
+    let config = {
+      method: 'get',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/getnotificationonlogin/' + id,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const PostContent = (data, token) => {
+  return new Promise((resolve, reject) => {
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/contentmaster/Contentadd/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const addcontentcontractdetails = (data, token) => {
+  return new Promise((resolve, reject) => {
+    //console.log(param)
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/contentcontractdetails',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const PutContent = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      ContentName: param.ContentName,
+      ShortName: param.ShortName,
+      ERPCode: param.ERPCode || '', // Send NA Vlaue by defoult
+      ContentTypeCode: param.ContentTypeCode,
+      ClassificationCode: param.ClassificationCode,
+      ViewCode: param.Audience || 0,
+      LanguageCode: param.LanguageCode,
+      CensorshipCode: param.CensorshipCode,
+      SlotDuration: param.SlotDuration,
+      GenreCode: param.GenreCode,
+      SubGenreCode: param.SubGenreCode,
+      TxMasterCode: 0,
+      Content_Image: param.Content_Image,
+      IsActive: param.IsActive ? 1 : 0,
+      BlackWhite: param.BlackWhite,
+      InHouseOutHouse: param.InHouseOutHouse ? 1 : 0,
+      FPCReleaseDate: param.FPCReleaseDate,
+      Synopsis: param.Synopsis,
+      GroupName: param.GroupName,
+      IsSubProgram: 0,
+      IsEpRestriction: 0,
+      IsRecorded: param.IsRecorded,
+      AllowOverBooking: param.AllowOverBooking,
+      IgnoreRODPSpots: param.IgnoreRODPSpots,
+      AspectRatio: param.AspectRatio,
+      SD: 0,
+      HD: 0,
+      UHD: 0,
+      IsGeneric: 0,
+      EPGContentName: param.EPGContentName,
+      GenericSynopsis: param.GenericSynopsis,
+      ApprovedStatus: param.IsActive ? 1 : 0,
+      AppRejRemark: param.AppRejRemark,
+      MetaData: param.MetaData,
+      VideoTypeCode: param.VideoTypeCode,
+      DefaultSegDur: param.DefaultSegDur,
+      DefaultSeg: Number(param.DefaultSeg) || 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/contentmaster/${param.ContentCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+const PutContentSynop = (param, token) => {
+  return new Promise((resolve, reject) => {
+    // if (!param.Synopsis) {
+    //   delete param.Synopsis;
+    // }
+    // if (!param.Synopsis) {
+    //   delete param.Synopsis;
+    // }
+    // if (!param.Synopsis) {
+    //   delete param.Synopsis;
+    // }
+    // if (!param.Synopsis) {
+    //   delete param.Synopsis;
+    // }
+    let data = JSON.stringify({
+      ContentName: param.ContentName,
+      ShortName: param.ShortName,
+      ERPCode: param.ERPCode, // Send NA Vlaue by defoult
+      ContentTypeCode: param.ContentTypeCode,
+      ClassificationCode: param.ClassificationCode,
+      ViewCode: param.Audience,
+      LanguageCode: param.LanguageCode,
+      CensorshipCode: param.CensorshipCode,
+      SlotDuration: param.SlotDuration,
+      GenreCode: param.GenreCode,
+      SubGenreCode: param.SubGenreCode,
+      TxMasterCode: 0,
+      Content_Image: param.Content_Image,
+      IsActive: param.IsActive,
+      FPCReleaseDate: param.FPCReleaseDate,
+
+      BlackWhite: param.Colored || 0,
+      InHouseOutHouse: param.InHouse || 0,
+      Synopsis: param.Synopsis || 'NA',
+      GroupName: param.IsGroup || 0,
+      IsSubProgram: 0,
+      IsEpRestriction: 0,
+      IsRecorded: param.Recorded || 0,
+      AllowOverBooking: param.AllowOverBooking || 0,
+      IgnoreRODPSpots: param.IsRODP || 0,
+      AspectRatio: param.AspectRatio,
+      SD: 0,
+      HD: 0,
+      UHD: 0,
+      IsGeneric: 0,
+      EPGContentName: param.EPGContentName || 'NA',
+      GenericSynopsis: param.GenericSynopsis,
+      ApprovedStatus: param.IsActive ? 1 : 0,
+      AppRejRemark: param.AppRejRemark,
+      MetaData: param.MetaData || 'NA',
+      VideoTypeCode: param.VideoType || 0,
+      DefaultSegDur: param.DefaultSegDur || '',
+      DefaultSeg: param.DefaultSeg,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/contentmaster/${param.ContentCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+const PutTxcode = (data, ContentCode, token) => {
+  return new Promise((resolve, reject) => {
+    const mergedData = data.map((item) => ({
+      ContentCode: ContentCode,
+      TxVersionCode: item.value,
+      IsActive: 1,
+    }));
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/contenttxversion/`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: mergedData,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+const Putcontentsuppliermap = (data, ContentCode, token) => {
+  return new Promise((resolve, reject) => {
+    const mergedData = data.map((item) => ({
+      ContentCode: ContentCode,
+      SupplierCode: item.value,
+      IsActive: 1,
+    }));
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/contentsuppliermap/`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: mergedData,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+export async function apiGetContentsegdetailmaster(data) {
+  return ApiService.fetchData({
+    url: '/contentsegdetails/',
+    method: 'get',
+    data,
+  });
+}
+
+const Postcontentsegdetail = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      ContentCode: param.ContentCode,
+      OriginalRepeatCode: param.OriginalRepeatCode,
+      SeasonNo: param.SeasonNo,
+      EpisodeNo: param.EpisodeNo,
+      PartNumber: param.PartNumber,
+      SubContentCode: param.SubContentCode,
+      TapeID: param.TapeID,
+      MaximumSegments: param.MaximumSegments,
+      EpisodeCaption: param.EpisodeCaption,
+      EpisodeDuration: param.EpisodeDuration,
+      EpisodeDurationinMin: param.EpisodeDurationinMin,
+      Remarks: param.Remarks,
+      VideoTypeCode: param.VideoTypeCode,
+      AspectRatioCode: param.AspectRatioCode,
+      AssetTypeCode: param.AssetTypeCode,
+      VideoSizeCode: param.VideoSizeCode,
+      VideoFormatTypeCode: param.VideoFormatTypeCode,
+      TXVersionCode: param.TXVersionCode,
+      ShortSynopsis: param.ShortSynopsis,
+      LongSynopsis: param.LongSynopsis,
+      IsReadyToBroadCast: param.IsReadyToBroadCast,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/contentsegmaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Putcontentsegdetail = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      ContentCode: param.ContentCode,
+      OriginalRepeatCode: param.OriginalRepeatCode,
+      SeasonNo: param.SeasonNo,
+      EpisodeNo: param.EpisodeNo,
+      PartNumber: param.PartNumber,
+      SubContentCode: param.SubContentCode,
+      TapeID: param.TapeID,
+      MaximumSegments: param.MaximumSegments,
+      EpisodeCaption: param.EpisodeCaption,
+      EpisodeDuration: param.EpisodeDuration,
+      EpisodeDurationinMin: param.EpisodeDurationinMin,
+      Remarks: param.Remarks,
+      VideoTypeCode: param.VideoTypeCode,
+      AspectRatioCode: param.AspectRatioCode,
+      AssetTypeCode: param.AssetTypeCode,
+      VideoSizeCode: param.VideoSizeCode,
+      VideoFormatTypeCode: param.VideoFormatTypeCode,
+      TXVersionCode: param.TXVersionCode,
+      ShortSynopsis: param.ShortSynopsis,
+      LongSynopsis: param.LongSynopsis,
+      IsReadyToBroadCast: param.IsReadyToBroadCast,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/contentsegmaster/${param.SegmentCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+export async function apiGetcontentcontractmaster(data) {
+  return ApiService.fetchData({
+    url: '/contentcontractmaster/',
+    method: 'get',
+    data,
+  });
+}
+export async function apiGetcontentcontractmastercontractstatus(data) {
+  return ApiService.fetchData({
+    url: '/contentcontractmaster/contractstatus/',
+    method: 'get',
+    data,
+  });
+}
+export async function apiGetcontentcontractmasterId(id) {
+  return ApiService.fetchData({
+    url: `/contentcontractmaster/${id}`,
+    method: 'get',
+  });
+}
+export async function apiGetcontentcontractdetailsId(id) {
+  return ApiService.fetchData({
+    url: `/contentcontractdetails/${id}`,
+    method: 'get',
+  });
+}
+
+export async function apiGetbrandmaster() {
+  return ApiService.fetchData({
+    url: '/brandmaster/',
+    method: 'get',
+  });
+}
+
+export async function apiGetproductmaster(data) {
+  return ApiService.fetchData({
+    url: '/productmaster/',
+    method: 'get',
+    data,
+  });
+}
+
+const Postproduct = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      ProductName: param.ProductName,
+      ERPCode: param.ERPCode,
+      Remarks: param.Remarks,
+      SubProductCode: param.SubProductCode,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/productmaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Putproduct = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      ProductName: param.ProductName,
+      SubProductCode: param.SubProductCode,
+      ERPCode: param.ERPCode,
+      Remarks: param.Remarks,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/productmaster/${param.ProductCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+export async function apiGetsubproductmaster(data) {
+  return ApiService.fetchData({
+    url: '/subproductmster/',
+    method: 'get',
+    data,
+  });
+}
+export async function apiGetsubproductmasterDrop(data) {
+  return ApiService.fetchData({
+    url: '/subproductmster/drop/',
+    method: 'get',
+    data,
+  });
+}
+const Postsubproduct = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      SubProductName: param.SubProductName,
+      ProductCode: param.ProductCode,
+      ERPCode: param.ERPCode,
+      Remarks: param.Remarks,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/subproductmster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Putsubproduct = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      SubProductName: param.SubProductName,
+      ProductCode: param.ProductCode,
+      ERPCode: param.ERPCode,
+      Remarks: param.Remarks,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/subproductmster/${param.SubProductCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+export async function apiGetAmortisationTypeMaster(data) {
+  return ApiService.fetchData({
+    url: '/amortisationtypemaster/drop/',
+    method: 'get',
+    data,
+  });
+}
+export async function apiGetAmortisationMaster(data) {
+  return ApiService.fetchData({
+    url: '/amortisationtypemaster/',
+    method: 'get',
+    data,
+  });
+}
+const AddAmortisationType = (row, token) => {
+  return fetch(appConfig.apiPrefix + `/amortisationtypemaster`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      AmortisationTypeName: row.AmortisationTypeName,
+      IsActive: row.IsActive,
+    }),
+  });
+};
+
+const UpdateAmortisationType = (row, token) => {
+  //return fetch(appConfig.apiPrefix + `/videotypemaster/${row.VideoTypeCode}`, {
+  return fetch(
+    appConfig.apiPrefix + `/amortisationtypemaster/${row.AmortisationTypeCode}`,
+    {
+      method: 'PUT',
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        AmortisationTypeName: row.AmortisationTypeName,
+        IsActive: row.IsActive,
+      }),
+    },
+  );
+};
+
+export async function apiGetFPCDTATUSED(ID) {
+  return ApiService.fetchData({
+    url: `/fpcmaster/checkprogram/${ID}`,
+    method: 'get',
+  });
+}
+export async function apiGetFPCMasterWithHouseID(
+  LocationCode,
+  ChannelCode,
+  TelecastDate,
+) {
+  return ApiService.fetchData({
+    url: `/usp_pg_fpc_serachwithhouseID?LocationCode=${LocationCode}&ChannelCode=${ChannelCode}&TelecastDate=${TelecastDate}&GenrateFPC=1`,
+    method: 'get',
+  });
+}
+export async function dailyfpcAprovel(LocationCode, ChannelCode, TelecastDate) {
+  return ApiService.fetchData({
+    url: `/dailyfpc?LocationCode=${LocationCode}&ChannelCode=${ChannelCode}&TelecastDate=${TelecastDate}`,
+    method: 'get',
+  });
+}
+export async function UpcommingProgram(LocationCode, ChannelCode, Date) {
+  return ApiService.fetchData({
+    url: `/Dashboard/USP_UpcommingProgram?LocationCode=${LocationCode}&ChannelCode=${ChannelCode}&Date=${Date}`,
+    method: 'get',
+  });
+}
+
+export async function RecentlyAddedContents(LocationCode, ChannelCode, Date) {
+  return ApiService.fetchData({
+    url: `/Dashboard/RecentlyAddedContents?LocationCode=${LocationCode}&ChannelCode=${ChannelCode}&Date=${Date}`,
+    method: 'get',
+  });
+}
+export async function USP_GetMonthFor_FPCNew(LocationCode, ChannelCode, Date) {
+  return ApiService.fetchData({
+    url: `/Dashboard/USP_GetMonthFor_FPCNew?LocationCode=${LocationCode}&ChannelCode=${ChannelCode}&Date=${Date}`,
+    method: 'get',
+  });
+}
+
+export async function USP_GetMonthFor_DailyFPC(
+  LocationCode,
+  ChannelCode,
+  Date,
+) {
+  return ApiService.fetchData({
+    url: `/Dashboard/USP_GetMonthFor_DailyFPC?LocationCode=${LocationCode}&ChannelCode=${ChannelCode}&Date=${Date}`,
+    method: 'get',
+  });
+}
+
+export async function USP_GetMonthFor_FinalLog(
+  LocationCode,
+  ChannelCode,
+  Date,
+) {
+  return ApiService.fetchData({
+    url: `/Dashboard/USP_GetMonthFor_FinalLog?LocationCode=${LocationCode}&ChannelCode=${ChannelCode}&Date=${Date}`,
+    method: 'get',
+  });
+}
+
+export async function USP_GetMonthFor_AsRun(LocationCode, ChannelCode, Date) {
+  return ApiService.fetchData({
+    url: `/Dashboard/USP_GetMonthFor_AsRun?LocationCode=${LocationCode}&ChannelCode=${ChannelCode}&Date=${Date}`,
+    method: 'get',
+  });
+}
+
+const Postdailyfpc = (data, token) => {
+  return new Promise((resolve, reject) => {
+    //console.log(param)
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/dailyfpc/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+export async function apiUSP_PG_FPC_Get_Content(
+  ContentTypeCode,
+  LocationCode,
+  ChannelCode,
+  FPCDate,
+  ContentName,
+) {
+  return ApiService.fetchData({
+    url: `/usp_pg_fpc_get_content?ContentTypeCode=${ContentTypeCode}&LocationCode=${LocationCode}&ChannelCode=${ChannelCode}&FPCDate=${FPCDate}&ContentName=${ContentName}`,
+    method: 'get',
+  });
+}
+export async function apiGetUSP_PG_FPC_Get_Content(
+  ContentTypeCode,
+  LocationCode,
+  ChannelCode,
+  FPCDate,
+  ContentName,
+  token,
+) {
+  const url =
+    appConfig.apiPrefix +
+    `/usp_pg_fpc_get_content?ContentTypeCode=${ContentTypeCode}&LocationCode=${LocationCode}&ChannelCode=${ChannelCode}&FPCDate=${FPCDate}&ContentName=${ContentName}`;
+  const headers = {
+    Authorization: `Bearer ${token}`,
+  };
+
+  return fetch(url, {
+    method: 'GET',
+    headers,
+  });
+}
+
+export async function PostFPC(data) {
+  return ApiService.fetchData({
+    url: '/fpcmaster/',
+    method: 'post',
+    data,
+  });
+}
+export async function VerifyFPC(data) {
+  return ApiService.fetchData({
+    url: '/fpcmaster/validation/',
+    method: 'post',
+    data,
+  });
+}
+
+export async function apiGetCensorshipDrop(data) {
+  return ApiService.fetchData({
+    url: '/censorshipmaster/drop/',
+    method: 'get',
+    data,
+  });
+}
+export async function apiFPCDELETE(LocationCode, ChannelCode, TelecastDate) {
+  return ApiService.fetchData({
+    url: `/fpcmaster/deletefpc/?LocationCode=${LocationCode}&ChannelCode=${ChannelCode}&TelecastDate=${TelecastDate}`,
+    method: 'post',
+  });
+}
+export async function apiexportpayout(LocationCode, ChannelCode, TelecastDate, UploadFilePath = "EDIT") {
+  return ApiService.fetchData({
+    url: `/globle/exportpayout/?LocationCode=${LocationCode}&ChannelCode=${ChannelCode}&TelecastDate=${TelecastDate}&Mode=${UploadFilePath}`,
+    method: 'get',
+  });
+}
+
+const PostFPCSaveAs = (data, token) => {
+  return new Promise((resolve, reject) => {
+    //console.log(param)
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/fpcmaster/checkdate/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+const PostFPCSaveAs2 = (data, token) => {
+  return new Promise((resolve, reject) => {
+    //console.log(param)
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/fpcmaster/checkdate2/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+//Contract data save
+const PostContractDataSave = (data, token) => {
+  return new Promise((resolve, reject) => {
+    //console.log(param)
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/contentcontractmaster/contractadd/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+export async function apiGetContentContractDetails(ContractCode) {
+  return ApiService.fetchData({
+    url: `/contentcontractdetails/${ContractCode}`,
+    method: 'get',
+  });
+}
+
+export async function apiGroupMasterGet() {
+  return ApiService.fetchData({
+    url: `/groupmaster/`,
+    method: 'get',
+  });
+}
+
+export async function apiGetTeamMasterDrop() {
+  return ApiService.fetchData({
+    url: `/teammaster/drop/`,
+    method: 'get',
+  });
+}
+
+export const apiEventMasterCreate = (data, token) => {
+  return new Promise((resolve, reject) => {
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/eventmaster',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+export const apiEventMasterUpdate = (data, eventCode, token) => {
+  return new Promise((resolve, reject) => {
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/eventmaster/' + eventCode,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+export async function apiGetEventMaster(locationCode, channelCode) {
+  return ApiService.fetchData({
+    url: `/eventmaster/?LocationCode=${locationCode}&ChannelCode=${channelCode}`,
+    method: 'get',
+  });
+}
+
+export async function apiGetTeamMapping() {
+  return ApiService.fetchData({
+    url: `/teammapping/`,
+    method: 'get',
+  });
+}
+
+export async function apiGetEventMasterDetails(id) {
+  return ApiService.fetchData({
+    url: `/eventmaster/${id}`,
+    method: 'get',
+  });
+}
+
+const apiCreateTraiInventory = (data, token) => {
+  return new Promise((resolve, reject) => {
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/trainventory/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+export {
+  Poststarcasttype,
+  Putstarcasttype,
+  Poststarcast,
+  Putstarcast,
+  Postgenre,
+  Putgenre,
+  Postsubgenre,
+  Putsubgenre,
+  Postcontenttype,
+  Putcontenttype,
+  Postview,
+  Putview,
+  Postcensorship,
+  Putcensorship,
+  Posttxversion,
+  Puttxversion,
+  PostSupplier,
+  PutSupplier,
+  PostContent,
+  PutContent,
+  PutUpdateAspectRatio,
+  AddAspectRatio,
+  Postfpcorgrep,
+  Putfpcorgrep,
+  PostAwardmaster,
+  PutAwardmaster,
+  Putcommercialtype,
+  Postcommercialtype,
+  Putpromotype,
+  Postpromotype,
+  Putfillertype,
+  Postfillertype,
+  Postcontentseg,
+  Putcontentseg,
+  Postpattern,
+  Putpattern,
+  Postcontentsegdetail,
+  Putcontentsegdetail,
+  Postproduct,
+  Putproduct,
+  Postsubproduct,
+  Putsubproduct,
+  Postcontentepsrestriction,
+  PostContentSeg,
+  PutContentSeg,
+  PostContentContract,
+  PutContentContract,
+  PostFPCSaveAs,
+  PostContractDataSave,
+  Postweekdaysweekendsmaster,
+  Putweekdaysweekendsmaster,
+  PostBusinessType,
+  PutBusinessType,
+  Postpatterndetails,
+  Putpatterndetails,
+  addcontentcontractdetails,
+  Postdailyfpc,
+  PutTxcode,
+  PutContentSynop,
+  AddVideoType,
+  UpdateVideoType,
+  AddVideoFormat,
+  UpdateVideoFormat,
+  UpdateTapeType,
+  AddTapeType,
+  Postscene,
+  Putscene,
+  AddAmortisationType,
+  UpdateAmortisationType,
+  PostFPCSaveAs2,
+  Putcontentsuppliermap,
+  apiCreateTraiInventory,
+};

@@ -1,0 +1,97 @@
+import { Card } from 'components/ui';
+import React, { useEffect, useState } from 'react';
+import Header from './Header';
+import { addDays, format } from 'date-fns';
+import { getWeekRange } from './utils';
+import { apiCallstoreprocedure } from 'services/CommonService';
+import { useSelector } from 'react-redux';
+import { openNotification } from '../GLOBALFUNACTION';
+import Loader from '../Loader';
+import BrandSpotsTable from './BrandSpotsTable';
+
+function BrandSpotsCard() {
+  /* REDUX */
+  const agencyCode = useSelector((state) => state.auth.user.AgencyCode);
+  const userName = useSelector((state) => state.auth.user.userName);
+
+  const channel = useSelector((state) => state.locale.selectedChannel);
+
+  /* STATES */
+  const [dateRange, setDateRange] = useState(getWeekRange(new Date()));
+  const [tableData, setTableData] = useState([]);
+  const [columns, setColumns] = useState([]);
+  const [showLoader, setShowLoader] = useState(false);
+
+  useEffect(() => {
+    console.log(userName);
+    console.log(agencyCode);
+
+
+
+    if (!dateRange[0] || !dateRange[1] || !agencyCode || !channel) return;
+    (async () => {
+      let tableData = [],
+        columns = [];
+      try {
+        setShowLoader(true);
+        const response = await apiCallstoreprocedure(
+          'USP_AG_BrandwiseWeeklyCount',
+          {
+            par_LocationCode: channel.LocationCode,
+            par_ChannelCode: channel.ChannelCode,
+            par_FromDate: format(dateRange[0], 'yyyy-MM-dd'),
+            par_ToDate: format(dateRange[1], 'yyyy-MM-dd'),
+            AgencyCode: agencyCode,
+          },
+        );
+        if (response.status === 200) {
+          tableData = response.data;
+          let days = [];
+          for (
+            let curDate = dateRange[0];
+            curDate <= dateRange[1];
+            curDate = addDays(curDate, 1)
+          ) {
+            days.push({
+              header: format(curDate, 'd MMM'),
+              accessorKey: format(curDate, 'yyyy-MM-dd'),
+              width: '10%',
+            });
+          }
+          columns = [
+            { header: 'Brands', accessorKey: 'BrandName', width: '30%' },
+            ...days,
+          ];
+        } else if (response.status === 204)
+          openNotification('info', 'No brand spots found');
+        else throw new Error(response);
+      } catch (error) {
+        console.error(error);
+        openNotification(
+          'danger',
+          'Something went wrong while fetching brand spots details',
+        );
+      } finally {
+        setTableData(tableData);
+        setColumns(columns);
+        setShowLoader(false);
+      }
+    })();
+  }, [dateRange, agencyCode, channel]);
+
+  return (
+    <>
+      <Card
+        className="h-full"
+        bodyClass="h-full p-3 flex flex-col gap-3"
+        bordered={false}
+      >
+        <Header dateRange={dateRange} setDateRange={setDateRange} />
+        <BrandSpotsTable tableData={tableData} columns={columns} />
+      </Card>
+      <Loader showLoader={showLoader} />
+    </>
+  );
+}
+
+export default BrandSpotsCard;

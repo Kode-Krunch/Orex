@@ -1,0 +1,96 @@
+import { createSlice } from '@reduxjs/toolkit';
+
+export const sessionSlice = createSlice({
+  name: 'auth/session',
+  initialState: {
+    token: '',
+    LoginId: '',
+    Username: '',
+    LastLoginOn: '',
+    signedIn: false,
+    module: [],
+    customerview: true,
+    showEdit: true,
+    ChannelSetting: [],
+    Version: '',
+    MessageAttempt: '',
+    currentRouteKey: '',
+    UserImage: '',
+    ChannelSettingMain: [],
+  },
+  reducers: {
+    onSignInSuccess: (state, action) => {
+      state.signedIn = true;
+      state.token = action.payload;
+    },
+    onSignInSuccessAdmin: (state, action) => {
+      state.signedIn = false;
+      state.token = action.payload;
+    },
+    onSignOutSuccess: (state) => {
+      state.signedIn = false;
+      state.token = '';
+    },
+    setCurrentRouteKey: (state, action) => {
+      state.currentRouteKey = action.payload;
+    },
+    setToken: (state, action) => {
+      state.token = action.payload;
+    },
+    setLoginId: (state, action) => {
+      state.LoginId = action.payload;
+    },
+    setUsername: (state, action) => {
+      state.Username = action.payload;
+    },
+    setModule: (state, action) => {
+      state.module = action.payload;
+    },
+    setcustomerview: (state, action) => {
+      state.customerview = action.payload;
+    },
+    setshowEdit: (state, action) => {
+      state.showEdit = action.payload;
+    },
+    setChannelSetting: (state, action) => {
+      state.ChannelSetting = action.payload;
+    },
+    setUserImage: (state, action) => {
+      state.UserImage = action.payload;
+    },
+    setLastLoginOn: (state, action) => {
+      state.LastLoginOn = action.payload;
+    },
+    setVersion: (state, action) => {
+      state.Version = action.payload;
+    },
+    setChannelSettingMain: (state, action) => {
+      state.ChannelSettingMain = action.payload;
+    },
+
+    setMessageAttempt: (state, action) => {
+      state.MessageAttempt = action.payload;
+    },
+  },
+});
+
+export const {
+  onSignInSuccess,
+  onSignOutSuccess,
+  onSignInSuccessAdmin,
+  setToken,
+  setModule,
+  setLoginId,
+  setUsername,
+  setLastLoginOn,
+  setcustomerview,
+  setshowEdit,
+  setChannelSetting,
+  setChannelSettingMain,
+  setCurrentRouteKey,
+  setVersion,
+  setUserImage,
+  setMessageAttempt,
+} = sessionSlice.actions;
+
+export default sessionSlice.reducer;

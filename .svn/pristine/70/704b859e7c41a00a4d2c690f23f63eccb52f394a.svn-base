@@ -1,0 +1,37 @@
+body {
+  top: 0 !important;
+}
+body > .skiptranslate {
+  display: none !important;
+}
+/* Hide the Google branding */
+.goog-te-banner-frame,
+.goog-te-footer-frame,
+.goog-te-gadget span,
+.goog-te-gadget-simple img {
+  display: none !important;
+}
+
+/* Optional: Adjust the dropdown's appearance */
+.goog-te-gadget {
+  font-size: 0px !important; /* Hide original text */
+}
+
+#google_translate_element {
+  position: relative;
+}
+
+.goog-te-combo {
+  width: 9rem !important;
+  padding-inline: 10px !important;
+  padding-block: 7.5px !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  border-radius: 9999px !important;
+}
+
+.goog-te-combo:focus {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}

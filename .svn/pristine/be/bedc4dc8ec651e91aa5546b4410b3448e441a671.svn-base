@@ -1,0 +1,33 @@
+/* Custom styling for the select dropdown */
+.custom-select {
+    width: 150px; /* Adjust the width as needed */
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 8px;
+    font-size: 14px;
+    background-color: #fff;
+    color: #333;
+    cursor: pointer;
+  }
+  
+  /* Style the dropdown indicator arrow */
+  .custom-select .css-tlfecz-indicatorContainer {
+    color: #333; /* Arrow color */
+  }
+  
+  /* Style the dropdown options */
+  .custom-select .css-1uccc91-singleValue {
+    color: #333;
+  }
+  
+  /* Style the dropdown options when hovered */
+  .custom-select .css-1uccc91-singleValue:hover {
+    background-color: #f0f0f0;
+  }
+  
+  /* Style the dropdown options when selected */
+  .custom-select .css-1uccc91-singleValue--is-selected {
+    background-color: #007bff;
+    color: #fff;
+  }
+  

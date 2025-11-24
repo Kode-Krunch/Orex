@@ -1,0 +1,308 @@
+import { Button, Dialog, Steps, Upload } from 'components/ui';
+import appConfig from 'configs/app.config';
+import Lottie from 'lottie-react';
+import React, { useEffect, useState } from 'react'
+import { FcImageFile } from 'react-icons/fc';
+import { useSelector } from 'react-redux';
+import { apiCallstoreprocedure } from 'services/CommonService';
+import { RED_500 } from 'views/Controls/Dashboard/constants/tw_colors';
+import { FORMATDATE_FOR_EVERY, openNotification } from 'views/Controls/GLOBALFUNACTION';
+import ReportsTable from 'views/Controls/ReportsTable/ReportsTable';
+import ValidJPG from './ValidJPG.json';
+
+
+/* CONSTANTS */
+const steps = ["Uploading", "Validation", "Submission"];
+const defaultGroup = [{
+    value: 'Agency',
+    label: 'Agency',
+}]
+const TooblbarOption = { groupBy: true, manageColumns: true };
+
+const UploadSongFileValidateAndSubmitDialog = ({ setShowLoader, isDialogOpen, setIsDialogOpen, submissionSP, valdationSP, successMessage, fileUploadapi, name, tableName }) => {
+    /* REDUX */
+    const LoginId = useSelector((state) => state.auth.session.LoginId);
+    const channel = useSelector((state) => state.locale.selectedChannel);
+    const token = useSelector((state) => state.auth.session.token);
+
+    /* STATES */
+    const [selectedFile, setSelectedFile] = useState(null);
+    const [ManagedColumn, setManagedColumn] = useState([]);
+    const [ManagedColumnValid, setManagedColumnValid] = useState([]);
+    const [afterValidation_Response, setAfterValidation_Response] = useState(['']);
+    const [isResponseTrue, setisResponseTrue] = useState(false);
+    const [isResponse, setIsResponse] = useState([]);
+    const [step, setstep] = useState(1)
+    const [viewDataColumns, setViewDataColumns] = useState([]);
+    const [viewDataColumnsValid, setViewDataColumnsValid] = useState([]);
+
+    /* USE EFFECTS */
+    useEffect(() => {
+        (async () => {
+            try {
+                if (selectedFile) {
+                    setIsResponse(await getFileResponseClient());
+                }
+            } catch (error) {
+                setSelectedFile(null);
+                setIsResponse([]);
+                openNotification('danger', 'Something went wrong while uploading file');
+            }
+        })();
+    }, [selectedFile]);
+    useEffect(() => {
+        if (!isDialogOpen) {
+            resetData()
+        }
+    }, [isDialogOpen])
+
+    /* HELPER FUNCTIONS */
+    const readFileAsArrayBuffer = (file) => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsArrayBuffer(file);
+            reader.onload = (event) => resolve(event.target.result);
+            reader.onerror = (error) => reject(error);
+        });
+    };
+    const finalSubmision = async () => {
+        setShowLoader(true);
+        try {
+            const response = await apiCallstoreprocedure(submissionSP, {
+                LoginCode: LoginId,
+            });
+            const { status, } = response;
+            if (status == 200) {
+                openNotification('success', successMessage);
+                setSelectedFile(null); setIsResponse([]); setAfterValidation_Response([])
+                setstep(1)
+                setIsDialogOpen(false)
+            }
+        } catch (error) {
+            openNotification('danger', 'Exported file not Valid');
+
+
+        } finally {
+            setShowLoader(false);
+        }
+    };
+    const handleBeforeUploadClient = async (files, fileList) => {
+        const allowedFileType = [
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ];
+        let selectedFile;
+        if (files.length > 0) {
+            selectedFile = files[0];
+        } else {
+            openNotification('danger', 'Please select a file!');
+            return;
+        }
+        if (!allowedFileType.includes(selectedFile.type)) {
+            openNotification('danger', 'Please upload an XLSX file!');
+            return;
+        }
+        setSelectedFile(selectedFile);
+    };
+    const getFileResponseClient = async () => {
+        setShowLoader(true);
+        try {
+            const { LocationCode, ChannelCode } = channel;
+            const arrayBuffer = await readFileAsArrayBuffer(selectedFile);
+            const blob = new Blob([arrayBuffer], { type: selectedFile.type });
+            const formData = new FormData();
+            formData.append('file', blob, selectedFile.name);
+            const response = await fetch(
+                `${appConfig.apiPrefix}/${fileUploadapi}/?LocationCode=${LocationCode}&ChannelCode=${ChannelCode}`,
+                {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        Accept: '*/*',
+                        Authorization: `Bearer ${token}`,
+                    },
+                }
+            );
+            const data = await response.json();
+            if (!Array.isArray(data)) {
+                throw new Error('Invalid response format: Expected an array');
+            }
+            const columns = Object.keys(data[0]).map((column) => ({
+                accessorKey: column,
+                header: column,
+            }));
+            setViewDataColumns(columns);
+            return data.map((row) => ({
+                ...row,
+                GenrateFPC: 1,
+                TelecastDate: FORMATDATE_FOR_EVERY(new Date(row.date)),
+            }));
+        } catch (error) {
+            console.error('Error uploading file:', error);
+            throw error;
+        } finally {
+            setShowLoader(false);
+        }
+    };
+    const fetchWeeklyFPC_Validation = async () => {
+        setShowLoader(true);
+        try {
+
+            const response = await apiCallstoreprocedure(valdationSP, {
+                LoginCode: LoginId,
+            });
+            const { data } = response;
+            if (data == '') {
+                setisResponseTrue(true)
+                setAfterValidation_Response([])
+                return
+            }
+            const columns = Object.keys(data[0]).map((column) => ({
+                accessorKey: column,
+                header: column,
+            }));
+            setViewDataColumnsValid(columns);
+            setAfterValidation_Response(data.map((item) => ({
+                ...item,
+                bgColor: RED_500, fontColor: 'white',
+
+            }))
+            );
+
+        } catch (error) {
+            console.error(`Error fetching ${name} Validation:`, error);
+            setAfterValidation_Response([]);
+        } finally {
+            setShowLoader(false);
+        }
+    };
+    const resetData = () => {
+        setIsDialogOpen(false); setSelectedFile(null); setIsResponse([]); setAfterValidation_Response([]); setstep(1); setisResponseTrue(false)
+    }
+    return (
+        <Dialog
+            isOpen={isDialogOpen}
+            width={1200}
+            style={{
+                content: {
+                    marginTop: '-50px',
+                },
+            }}
+            onClose={resetData}
+            onRequestClose={resetData}
+        >
+            <div className="flex flex-col h-full justify-between">
+
+                <h5 className="mb-2">Import {name} & Verify</h5>
+                <Steps current={step} >
+                    {steps.map((title, index) => (
+                        <Steps.Item key={index} title={title} />
+                    ))}
+                </Steps>
+                <div className="h-[500px] overflow-y-auto">
+                    <div className="mt-4">
+                        {step === 1 && (<>
+                            {isResponse.length == 0 ? <Upload draggable
+                                beforeUpload={handleBeforeUploadClient}
+                                uploadLimit={1}
+                                accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+                                showList={true}
+                            >
+                                <div className="text-center mt-4">
+                                    <div className="text-6xl mb-4 flex justify-center">
+                                        <FcImageFile />
+                                    </div>
+                                    <p className="font-semibold text-gray-800 dark:text-white">
+                                        Drop your file here, or <span className="text-blue-500">browse</span>
+                                    </p>
+                                    <p className="mt-1 opacity-60 dark:text-white">Support: EXEL File Only</p>
+                                </div>
+                            </Upload>
+                                :
+                                <div className="text-center mt-4">
+                                    <ReportsTable
+                                        tableData={isResponse}
+                                        defaultGroupByColumns={defaultGroup}
+                                        originalColumns={viewDataColumns}
+                                        managedColumns={ManagedColumn}
+                                        setManagedColumns={setManagedColumn}
+                                        toolbarOptions={TooblbarOption}
+                                        exportFileName={name}
+                                        tableName={`${tableName}Table`}
+                                        columnsToFormatInINR={[]}
+                                    />
+                                </div>
+                            }
+                        </>)}
+                        {step === 2 && <div className="text-center">
+                            <div className="flex flex-col h-full justify-between ">
+                                <div className="h-[500px] overflow-y-auto">
+                                    {isResponseTrue ? <div className='flex justify-center items-center h-full'>
+                                        <Lottie animationData={ValidJPG} autoplay style={{ height: '300px', width: '300px' }} speed={0.25} />
+                                    </div> :
+                                        <ReportsTable
+                                            tableData={afterValidation_Response}
+                                            originalColumns={viewDataColumnsValid}
+                                            managedColumns={ManagedColumnValid}
+                                            setManagedColumns={setManagedColumnValid}
+                                            toolbarOptions={TooblbarOption}
+                                            exportFileName={`${name} Validation`}
+                                            tableName={`${tableName}Validation`}
+                                            columnsToFormatInINR={[]}
+                                        />}
+                                </div>
+                            </div>
+                        </div>}
+                        {step === 3 && <div className="text-center mt-4">
+                            <ReportsTable
+                                tableData={isResponse}
+                                defaultGroupByColumns={defaultGroup}
+                                originalColumns={viewDataColumns}
+                                managedColumns={ManagedColumn}
+                                setManagedColumns={setManagedColumn}
+                                toolbarOptions={TooblbarOption}
+                                exportFileName={name}
+                                tableName={`${tableName}Table`}
+                                columnsToFormatInINR={[]}
+                            />
+                        </div>}
+                    </div></div>
+                <div className="text-right mt-6">
+                    {step === 1 && <Button
+                        variant="twoTone"
+                        className="ltr:mr-2 rtl:ml-2" size='sm'
+                        onClick={() => { setIsResponse([]); setSelectedFile(null); }}
+                    >
+                        Upload New File
+                    </Button>}
+                    <Button
+                        className="ltr:mr-2 rtl:ml-2" size='sm'
+                        onClick={() => setstep(step - 1)}
+                        disabled={step === 1}
+                    >
+                        Back Step
+                    </Button>
+
+                    <Button
+                        variant="solid" size='sm'
+                        onClick={() => {
+                            if (step == 1) { fetchWeeklyFPC_Validation(); setstep(step + 1); }
+                            if (step == 2) { setstep(step + 1); }
+                            if (step == 3) {
+                                finalSubmision()
+                            }
+                        }}
+                        disabled={
+                            step === 1
+                                ? false
+                                : !selectedFile || afterValidation_Response.length > 0
+                        }
+                    >
+                        {step === steps.length ? "Submit" : 'Next Step'}
+                    </Button>
+                </div>
+            </div>
+        </Dialog >
+    )
+}
+
+export default UploadSongFileValidateAndSubmitDialog

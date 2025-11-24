@@ -1,0 +1,10 @@
+const defaultUpdateFormState = {
+  executiveName: null,
+  clientName: null,
+  clientCity: null,
+  agencyName: null,
+  agencyCity: null,
+  payRoute: null,
+};
+
+export { defaultUpdateFormState };

@@ -1,0 +1,359 @@
+import React, { useEffect, useState } from 'react';
+import {
+  Switcher,
+  Input,
+  FormContainer,
+  Select,
+  FormItemcompact,
+  Checkbox,
+  Button,
+  Card,
+} from 'components/ui';
+import { Field } from 'formik';
+import EpisodeRestrictions from 'views/Controls/EpisodeRestrictions';
+import {
+  apiGetvideotypdrop,
+} from 'services/ProgrammingService';
+import { isNumbers } from 'components/validators';
+import { CLIENT } from 'views/Controls/clientListEnum';
+import { useSelector } from 'react-redux';
+
+const Contentdetail = ({
+  touched,
+  errors,
+  values,
+  detail,
+  setContentdetail,
+  AspectRatio,
+  onDialogClose1,
+}) => {
+  const [VideoTypes, setVideoTypes] = useState([]);
+  const Channel = useSelector((state) => state.locale.selectedChannel);
+  useEffect(() => {
+    (async (values) => {
+      const vt = await apiGetvideotypdrop(values);
+      const formattedOptions = vt.data.map((option) => ({
+        value: option.VideoTypeCode,
+        label: option.VideoTypeName,
+      }));
+      setVideoTypes(formattedOptions);
+    })();
+  }, []);
+
+  return (
+    <div>
+      <FormContainer>
+        <div className="grid grid-cols-2 md:grid-cols-2 gap-2 ">
+          <div className="col-span-1">
+            <FormItemcompact
+              label="Synopsis"
+              invalid={errors.Synopsis && touched.Synopsis}
+              errorMessage={errors.Synopsis}
+            >
+              <Field
+                type="Synopsis"
+                autoComplete="off"
+                name="Synopsis"
+                textArea
+                placeholder="Synopsis"
+                component={Input}
+              />
+            </FormItemcompact>
+          </div>
+          <div className="col-span-1">
+            <FormItemcompact
+              label="Generic Synopsis"
+              invalid={errors.GenericSynopsis && touched.GenericSynopsis}
+              errorMessage={errors.GenericSynopsis}
+            >
+              <Field
+                type="GenericSynopsis"
+                autoComplete="off"
+                name="GenericSynopsis"
+                textArea
+                placeholder="Generic Synopsis"
+                component={Input}
+              />
+            </FormItemcompact>
+          </div>
+          <div className="col-span-1">
+            <FormItemcompact
+              label="EPG Name"
+              invalid={errors.EPGContentName && touched.EPGContentName}
+              errorMessage={errors.EPGContentName}
+            >
+              <Field
+                type="text"
+                autoComplete="off"
+                maxLength="50"
+                name="EPGContentName"
+                placeholder="ContentName"
+                component={Input}
+              />
+            </FormItemcompact>
+          </div>
+          <div className="col-span-1">
+            <FormItemcompact
+              label="Meta Data"
+              invalid={errors.MetaData && touched.MetaData}
+              errorMessage={errors.MetaData}
+            >
+              <Field
+                type="MetaData"
+                autoComplete="off"
+                name="MetaData"
+                maxLength="100"
+                placeholder="Meta Data"
+                component={Input}
+              />
+            </FormItemcompact>
+          </div>
+        </div>
+        <div className="grid grid-cols-8 md:grid-cols-8 gap-2">
+          <div className="col-span-2">
+            <FormItemcompact
+              asterisk
+              label="Video Type"
+              invalid={errors.VideoType && touched.VideoType}
+              errorMessage={errors.VideoType}
+              style={{ width: '250px' }}
+            >
+              <Field size="sm" name="VideoType" style={{ width: '250px' }}>
+                {({ field, form }) => (
+                  <Select
+                    style={{ width: '250px' }}
+                    field={field}
+                    form={form}
+                    options={VideoTypes}
+                    value={VideoTypes.filter(
+                      (option) => option.value == values.VideoType,
+                    )}
+                    onChange={(option) =>
+                      form.setFieldValue(field.name, option?.value)
+                    }
+                  />
+                )}
+              </Field>
+            </FormItemcompact>
+          </div>
+          <div className="col-span-2">
+            <FormItemcompact
+              asterisk
+              label="Aspect Ratio"
+              invalid={errors.AspectRatio && touched.AspectRatio}
+              errorMessage={errors.AspectRatio}
+              style={{ width: '250px' }}
+            >
+              <Field size="sm" name="AspectRatio" style={{ width: '250px' }}>
+                {({ field, form }) => (
+                  <Select
+                    style={{ width: '250px' }}
+                    field={field}
+                    form={form}
+                    options={AspectRatio}
+                    value={AspectRatio.filter(
+                      (option) => option.value == values.AspectRatio,
+                    )}
+                    onChange={(option) =>
+                      form.setFieldValue(field.name, option?.value)
+                    }
+                  />
+                )}
+              </Field>
+            </FormItemcompact>
+          </div>
+          {CLIENT.USA_Forbes != Channel.label && (
+            <div className="col-span-2">
+              <FormItemcompact
+                label="Default Seg Duration"
+                invalid={errors.DefaultSegDur && touched.DefaultSegDur}
+                errorMessage={errors.DefaultSegDur}
+              >
+                <Field size="sm" name="DefaultSegDur" placeholder="Default Seg">
+                  {({ field, form }) => (
+                    <Input
+                      field={field}
+                      form={form}
+                      size="sm"
+                      value={values.DefaultSegDur}
+                      onChange={(e) => {
+                        const inputValue = e.target.value;
+
+                        const formattedValue = inputValue
+                          .split('')
+                          .map((char, index) => {
+                            if (index === 0 && !/^[0-2]$/.test(char)) {
+                              // alert('hh')
+                              return '0';
+                            }
+
+                            if (
+                              index === 1 &&
+                              inputValue[0] === '2' &&
+                              !/^[0-4]$/.test(char)
+                            ) {
+                              return '0';
+                            }
+
+                            if (index === 3 && !/^[0-5]$/.test(char)) {
+                              return '0';
+                            }
+                            if (
+                              index === 4 &&
+                              inputValue[0] === '2' &&
+                              !/^[0-9]$/.test(char)
+                            ) {
+                              return '0';
+                            }
+
+                            if (index === 6 && !/^[0-5]$/.test(char)) {
+                              return '0';
+                            }
+                            if (
+                              index === 7 &&
+                              inputValue[0] === '2' &&
+                              !/^[0-9]$/.test(char)
+                            ) {
+                              return '0';
+                            }
+
+                            if (index === 9 && !/^[0-2]$/.test(char)) {
+                              return '0';
+                            }
+                            if (
+                              index === 10 &&
+                              inputValue[0] === '2' &&
+                              !/^[0-4]$/.test(char)
+                            ) {
+                              return '0';
+                            }
+
+                            if (index === 2 && char !== ':') {
+                              return ':';
+                            }
+                            if (index === 5 && char !== ':') {
+                              return ':';
+                            }
+                            if (index === 8 && char !== ':') {
+                              return ':';
+                            }
+                            return char ? char : '';
+                          })
+                          .join('')
+                          .slice(0, 11);
+                        form.setFieldValue(
+                          field.name,
+
+                          formattedValue,
+                        );
+                      }}
+                    />
+                  )}
+                </Field>
+              </FormItemcompact>
+            </div>
+          )}
+          {CLIENT.USA_Forbes != Channel.label && (
+            <div className="col-span-2">
+              <FormItemcompact
+                label="Default Segment No."
+                invalid={errors.DefaultSeg && touched.DefaultSeg}
+                errorMessage={errors.DefaultSeg}
+              >
+                <Field size="sm" name="DefaultSeg" placeholder="Default Seg No">
+                  {({ field, form }) => (
+                    <Input
+                      field={field}
+                      form={form}
+                      maxLength="2"
+                      size="sm"
+                      value={values.DefaultSeg}
+                      onChange={(e) => {
+                        const inputValue = e.target.value;
+                        if (isNumbers(inputValue)) {
+                          form.setFieldValue(field.name, inputValue);
+                        }
+                      }}
+                    />
+                  )}
+                </Field>
+              </FormItemcompact>
+            </div>
+          )}
+        </div>
+        <div className="grid grid-cols-5 gap-2">
+          <div style={{ marginTop: '-10px' }}>
+            <FormItemcompact
+              className="mb-5"
+              label={CLIENT.ANI_PLUS == Channel.label ? "Is Special Ep" : "Is B&W"}
+              invalid={errors.Colored && touched.Colored}
+              errorMessage={errors.Colored}
+            >
+              <Field name="Colored" component={Switcher} />
+            </FormItemcompact>
+          </div>
+          {CLIENT.USA_Forbes != Channel.label && (
+
+            <div style={{ marginTop: '-10px' }}>
+              <FormItemcompact
+                label="Is Live"
+                invalid={errors.Recorded && touched.Recorded}
+                errorMessage={errors.Recorded}
+              >
+                <Field name="Recorded" component={Switcher} />
+              </FormItemcompact>
+            </div>
+
+          )}
+          <FormItemcompact
+            label=" "
+            invalid={errors.IsGroup && touched.IsGroup}
+            errorMessage={errors.IsGroup}
+          >
+            <Field name="IsGroup" component={Checkbox}>
+              Is Event Name
+            </Field>
+          </FormItemcompact>
+
+          <FormItemcompact
+            label=" "
+            invalid={errors.IsRODP && touched.IsRODP}
+            errorMessage={errors.IsRODP}
+          >
+            <Field name="IsRODP" component={Checkbox}>
+              Ignore RODP Spots
+            </Field>
+          </FormItemcompact>
+          <FormItemcompact
+            label=" "
+            invalid={errors.AllowOverBooking && touched.AllowOverBooking}
+            errorMessage={errors.AllowOverBooking}
+          >
+            <Field name="AllowOverBooking" component={Checkbox}>
+              Allow OverBooking
+            </Field>
+          </FormItemcompact>
+
+        </div>
+      </FormContainer>
+      <Card header="Episode Restrictions">
+        <EpisodeRestrictions
+          setContentdetail={setContentdetail}
+          detail={detail}
+        />
+      </Card>
+      <div className="flex justify-end">
+        <Button
+          size="sm"
+          variant="solid"
+          className="mt-2"
+          onClick={() => onDialogClose1('e', values)}
+        >
+          Ok
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+export default Contentdetail;

@@ -1,0 +1,68 @@
+import './index.css';
+import { Button, Spinner, Steps, Upload } from 'components/ui';
+import { RiDownloadCloud2Line } from 'react-icons/ri';
+import { MdOutlineFileDownload } from 'react-icons/md';
+import { MdCompare } from 'react-icons/md';
+import { IoMdCheckmark } from 'react-icons/io';
+
+function Stepper({ step, handleImport, stepLoaders, handleMatch }) {
+  return (
+    <Steps current={step}>
+      <Steps.Item
+        customIcon={
+          stepLoaders.retrievedDataLoader ? <Spinner /> : <IoMdCheckmark />
+        }
+        title={
+          <Button
+            size="sm"
+            variant="solid"
+            icon={<RiDownloadCloud2Line />}
+            disabled={step !== 0 || stepLoaders.retrievedDataLoader}
+          >
+            Retrieve Data
+          </Button>
+        }
+      />
+      <Steps.Item
+        customIcon={
+          stepLoaders.importDataLoader ? <Spinner /> : <IoMdCheckmark />
+        }
+        title={
+          <Upload
+            onChange={handleImport}
+            uploadLimit={1}
+            showList={false}
+            accept=".asr, .log, .txt"
+          >
+            <Button
+              size="sm"
+              variant="solid"
+              disabled={
+                (step >= 1 ? false : true) || stepLoaders.importDataLoader
+              }
+              icon={<MdOutlineFileDownload />}
+            >
+              {step > 1 ? 'New Import' : 'Import'}
+            </Button>
+          </Upload>
+        }
+      />
+      <Steps.Item
+        customIcon={stepLoaders.matchLoader ? <Spinner /> : <IoMdCheckmark />}
+        title={
+          <Button
+            size="sm"
+            variant="solid"
+            icon={<MdCompare />}
+            onClick={handleMatch}
+            disabled={step !== 2 || stepLoaders.matchLoader}
+          >
+            Match
+          </Button>
+        }
+      />
+    </Steps>
+  );
+}
+
+export default Stepper;

@@ -1,0 +1,21 @@
+.star {
+  cursor: pointer;
+  font-size: 30px;
+}
+
+.filled {
+  color: gold;
+}
+
+.half-filled {
+  position: relative;
+  display: inline-block;
+}
+
+.half-filled::before {
+  content: '★';
+  position: absolute;
+  color: gold;
+  overflow: hidden;
+  width: 50%;
+}

@@ -1,0 +1,468 @@
+import React, { useEffect, useState } from 'react';
+import {
+  Card,
+  FormContainer,
+  FormItemcompact,
+  Switcher,
+  Input,
+  Select,
+  Checkbox,
+  Button,
+  Alert,
+} from 'components/ui';
+
+import { Field, Form, Formik } from 'formik';
+import * as Yup from 'yup';
+import { headerExtraContent } from 'views/Controls/HeaderBox';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  PutContentSynop,
+  PutTxcode,
+  apiGetAspectratiomasterdrop,
+  apiGetContentmaster,
+  apiGetvideotypdrop,
+} from 'services/ProgrammingService';
+import useTimeOutMessage from 'utils/hooks/useTimeOutMessage';
+import { setDialogbox } from 'store/base/commonSlice';
+import { isNumbers } from 'components/validators';
+import { CLIENT } from 'views/Controls/clientListEnum';
+
+const SynopsisDialogbox = ({ GetContents, path }) => {
+  const { TXCode } = useSelector((state) => state.base.common);
+  const { Content } = useSelector((state) => state.base.common);
+  const token = useSelector((state) => state.auth.session.token);
+  const [message, setMessage] = useTimeOutMessage();
+  const dispatch = useDispatch();
+  const [log, setlog] = useState('');
+  const [globalFilter, setGlobalFilter] = useState('');
+  console.log(Content);
+  const [AspectRatio, setAspectRatio] = useState([]);
+  const [videoTypes, setVideoTypes] = useState([]);
+  const Channel = useSelector((state) => state.locale.selectedChannel);
+  useEffect(() => {
+    (async (values) => {
+      const AspectRatio = await apiGetAspectratiomasterdrop(values);
+      const formattedOptions = AspectRatio.data.map((option) => ({
+        value: `${option.AspectRatioCode}`,
+        label: option.AspectRatio,
+      }));
+      setAspectRatio(formattedOptions);
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async (values) => {
+      const VideoTypes = await apiGetvideotypdrop(values);
+      const formattedOptions = VideoTypes.data.map((option) => ({
+        value: option.VideoTypeCode,
+        label: option.VideoTypeName,
+      }));
+      setVideoTypes(formattedOptions);
+    })();
+  }, []);
+
+
+  const EditContent = async (values, token) => {
+    console.log(values);
+
+    try {
+      const resp = await PutContentSynop(values, token);
+      const resp2 = await PutTxcode(
+        values.TxTypeName,
+        values.ContentCode,
+        token,
+      );
+
+      if (resp.status === 200) {
+        setlog('success');
+        if (path == '/EventTeamPlaner' || path == 'EventTeamPlaner') {
+          GetContents(1);
+        } else {
+          GetContents(0);
+
+        }
+        setMessage('Data Updated Successfully');
+        setTimeout(() => dispatch(setDialogbox(false)), 500);
+      } else if (resp.data.msg === 'Entity is Already Exists') {
+
+      }
+    } catch (errors) {
+      setMessage('Somthing Went Wrong');
+      setTimeout(() => dispatch(setDialogbox(false)), 500);
+    }
+  };
+
+  return (
+    <div>
+      {message && (
+        <Alert className="mb-4" type={log} showIcon>
+          {message}
+        </Alert>
+      )}
+      <Formik
+        initialValues={{
+          ContentCode: Content.ContentCode,
+          ContentName: Content.ContentName,
+          ShortName: Content.ShortName,
+          ERPCode: Content.ERPCode,
+          ContentTypeCode: Content.ContentType?.ContentTypeCode,
+          LanguageCode: Content.Language?.LanguageCode,
+          ClassificationCode: Content.ContentClassification?.ClassificationCode,
+          FPCReleaseDate: Content.FPCReleaseDate,
+          SlotDuration: Content.SlotDuration,
+          GenreCode: Content.GenreMaster?.GenreCode,
+          SubGenreCode: Content.SubGenreMaster?.SubGenreCode,
+          CensorshipCode: Content.Censorship?.CensorshipCode,
+          TxTypeName: TXCode?.TXVersion || [],
+          DefaultSeg: Content.DefaultSeg || 0,
+          Audience: Content.View?.ViewCode,
+          Content_Image: Content.Content_Image,
+          IsActive: Content.IsActive,
+          Synopsis: Content.Synopsis || '',
+          GenericSynopsis: Content.GenericSynopsis || '',
+          EPGContentName: Content.EPGContentName || '',
+          MetaData: Content.MetaData || '',
+          VideoType: Content.VideoType?.VideoTypeCode || '',
+          AspectRatio: Content.AspectRatio || '',
+          DefaultSegDur: Content.DefaultSegDur || '',
+          InHouse: Content.InHouseOutHouse,
+          Colored: Content.BlackWhite == 1 ? true : false || '',
+          Recorded: Content.IsRecorded == 1 ? true : false || '',
+          IsGroup: Content.GroupName == 1 ? true : false || '',
+          IsRODP: Content.IgnoreRODPSpots == 1 ? true : false || '',
+          AllowOverBooking: Content.AllowOverBooking == 1 ? true : false || '',
+          AppRejRemark: Content.AppRejRemark,
+        }}
+        //validationSchema={validationSchema}
+        onSubmit={(values, { resetForm, setSubmitting }) => {
+          setTimeout(() => {
+            if (Content.ContentCode) {
+              new Promise((resolve, reject) => {
+                setSubmitting(false);
+                EditContent(values, token)
+                  .then((response) => {
+                    // onDrawerClose(0, 0)
+                    resolve(response);
+                  })
+                  .catch((errors) => {
+                    reject(errors);
+                  });
+              });
+            }
+
+            resetForm();
+          }, 400);
+        }}
+      >
+        {({ values, touched, errors }) => (
+          <Form>
+            <Card
+              headerExtra={headerExtraContent(globalFilter, setGlobalFilter)}
+            >
+              <div className="inline-flex flex-wrap xl:flex gap-2">
+                <FormContainer>
+                  <div className="grid grid-cols-2 md:grid-cols-2 gap-2 ">
+                    <div className="col-span-1">
+                      <FormItemcompact
+                        label="Synopsis"
+                        invalid={errors.Synopsis && touched.Synopsis}
+                        errorMessage={errors.Synopsis}
+                      >
+                        <Field
+                          type="Synopsis"
+                          autoComplete="off"
+                          name="Synopsis"
+                          textArea
+                          placeholder=""
+                          component={Input}
+                        />
+                      </FormItemcompact>
+                    </div>
+                    <div className="col-span-1">
+                      <FormItemcompact
+                        label="Generic Synopsis"
+                        invalid={
+                          errors.GenericSynopsis && touched.GenericSynopsis
+                        }
+                        errorMessage={errors.GenericSynopsis}
+                      >
+                        <Field
+                          type="GenericSynopsis"
+                          autoComplete="off"
+                          name="GenericSynopsis"
+                          textArea
+                          placeholder=""
+                          component={Input}
+                        />
+                      </FormItemcompact>
+                    </div>
+                    <div className="col-span-1">
+                      <FormItemcompact
+                        label="EPG Name"
+                        invalid={
+                          errors.EPGContentName && touched.EPGContentName
+                        }
+                        errorMessage={errors.EPGContentName}
+                      >
+                        <Field
+                          type="text"
+                          autoComplete="off"
+                          name="EPGContentName"
+                          placeholder=""
+                          component={Input}
+                        />
+                      </FormItemcompact>
+                    </div>
+                    <div className="col-span-1">
+                      <FormItemcompact
+                        label="Meta Data"
+                        invalid={errors.MetaData && touched.MetaData}
+                        errorMessage={errors.MetaData}
+                      >
+                        <Field
+                          type="MetaData"
+                          autoComplete="off"
+                          name="MetaData"
+                          placeholder=""
+                          component={Input}
+                        />
+                      </FormItemcompact>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-8 md:grid-cols-8 gap-2">
+                    <div className="col-span-2">
+                      <FormItemcompact
+                        asterisk
+                        label="Video Type"
+                        invalid={errors.VideoType && touched.VideoType}
+                        errorMessage={errors.VideoType}
+                        style={{ width: '250px' }}
+                      >
+                        <Field
+                          size="sm"
+                          name="VideoType"
+                          style={{ width: '250px' }}
+                        >
+                          {({ field, form }) => (
+                            <Select
+                              style={{
+                                width: '250px',
+                              }}
+                              field={field}
+                              form={form}
+                              options={videoTypes}
+                              value={videoTypes.filter(
+                                (option) => option.value === values.VideoType,
+                              )}
+                              onChange={(option) =>
+                                form.setFieldValue(field.name, option?.value)
+                              }
+                            />
+                          )}
+                        </Field>
+                      </FormItemcompact>
+                    </div>
+                    <div className="col-span-2">
+                      <FormItemcompact
+                        asterisk
+                        label="Aspect Ratio"
+                        invalid={errors.AspectRatio && touched.AspectRatio}
+                        errorMessage={errors.AspectRatio}
+                        style={{ width: '250px' }}
+                      >
+                        <Field
+                          size="sm"
+                          name="AspectRatio"
+                          style={{ width: '250px' }}
+                        >
+                          {({ field, form }) => (
+                            <Select
+                              style={{
+                                width: '250px',
+                              }}
+                              field={field}
+                              form={form}
+                              options={AspectRatio}
+                              value={AspectRatio.filter(
+                                (option) => option.value == values.AspectRatio,
+                              )}
+                              onChange={(option) =>
+                                form.setFieldValue(field.name, option?.value)
+                              }
+                            />
+                          )}
+                        </Field>
+                      </FormItemcompact>
+                    </div>
+                    {CLIENT.USA_Forbes != Channel.label && (
+                      <div className="col-span-2">
+                        <FormItemcompact
+                          label="Default Seg Duration"
+                          invalid={
+                            errors.DefaultSegDur && touched.DefaultSegDur
+                          }
+                          errorMessage={errors.DefaultSegDur}
+                        >
+                          <Field size="sm" name="DefaultSegDur" placeholder="">
+                            {({ field, form }) => (
+                              <Input
+                                field={field}
+                                form={form}
+                                size="sm"
+                                value={values.DefaultSegDur}
+                                onChange={(event) => {
+                                  const inputValue = event.target.value;
+                                  // Remove non-digit characters
+                                  const newValue = inputValue.replace(
+                                    /\D/g,
+                                    '',
+                                  );
+                                  // Format the value as ##:##:##:##
+                                  let formattedValue = '';
+                                  for (
+                                    let i = 0;
+                                    i < Math.min(newValue.length, 7);
+                                    i += 2
+                                  ) {
+                                    if (i > 0) formattedValue += ':';
+                                    formattedValue += newValue.substr(i, 2);
+                                  }
+
+                                  form.setFieldValue(
+                                    field.name,
+
+                                    formattedValue,
+                                  );
+                                }}
+                              />
+                            )}
+                          </Field>
+                        </FormItemcompact>
+                      </div>
+                    )}
+
+                    {CLIENT.USA_Forbes != Channel.label && (
+                      <div className="col-span-2">
+                        <FormItemcompact
+                          label="Default Segment No."
+                          invalid={errors.DefaultSeg && touched.DefaultSeg}
+                          errorMessage={errors.DefaultSeg}
+                        >
+                          <Field
+                            size="sm"
+                            name="DefaultSeg"
+                            placeholder="Default Seg No"
+                          >
+                            {({ field, form }) => (
+                              <Input
+                                field={field}
+                                form={form}
+                                maxLength="2"
+                                size="sm"
+                                value={values.DefaultSeg}
+                                onChange={(e) => {
+                                  const inputValue = e.target.value;
+                                  if (isNumbers(inputValue)) {
+                                    form.setFieldValue(field.name, inputValue);
+                                  }
+                                }}
+                              />
+                            )}
+                          </Field>
+                        </FormItemcompact>
+                      </div>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-5 gap-2">
+
+                    <FormItemcompact
+                      invalid={errors.Colored && touched.Colored}
+                      errorMessage={errors.Colored}
+                    >
+                      <div>
+                        <FormItemcompact
+                          label={CLIENT.ANI_PLUS == Channel.label ? "Is Special Ep" : "Is B&W"}
+                          className="mb-2"
+                          invalid={errors.Colored && touched.Colored}
+                          errorMessage={errors.Colored}
+                        >
+                          <Field name="Colored" component={Switcher} />
+                        </FormItemcompact>
+                      </div>
+
+                    </FormItemcompact>
+
+                    {CLIENT.USA_Forbes != Channel.label && (
+                      <FormItemcompact
+                        className="mb-2"
+                        invalid={errors.Recorded && touched.Recorded}
+                        errorMessage={errors.Recorded}
+                      >
+                        <div>
+                          <FormItemcompact
+                            label="Is Live"
+                            invalid={errors.Recorded && touched.Recorded}
+                            errorMessage={errors.Recorded}
+                          >
+                            <Field name="Recorded" component={Switcher} />
+                          </FormItemcompact>
+                        </div>
+                      </FormItemcompact>
+                    )}
+
+                    <FormItemcompact
+                      label=" "
+                      invalid={errors.IsGroup && touched.IsGroup}
+                      errorMessage={errors.IsGroup}
+                    >
+                      <Field name="IsGroup" component={Checkbox}>
+                        Is Event Name
+                      </Field>
+                    </FormItemcompact>
+
+                    <FormItemcompact
+                      label=" "
+                      invalid={errors.IsRODP && touched.IsRODP}
+                      errorMessage={errors.IsRODP}
+                    >
+                      <Field name="IsRODP" component={Checkbox}>
+                        Ignore RODP Spots
+                      </Field>
+                    </FormItemcompact>
+                    <FormItemcompact
+                      label=" "
+                      invalid={
+                        errors.AllowOverBooking && touched.AllowOverBooking
+                      }
+                      errorMessage={errors.AllowOverBooking}
+                    >
+                      <Field name="AllowOverBooking" component={Checkbox}>
+                        Allow OverBooking
+                      </Field>
+                    </FormItemcompact>
+
+                  </div>
+                  <div className="flex justify-end">
+                    <FormItemcompact>
+                      <Button variant="solid" type="submit">
+                        Save
+                      </Button>
+                    </FormItemcompact>
+                  </div>
+                </FormContainer>
+              </div>
+
+              {/* <FormItemcompact>
+                                <Button variant="solid" type="submit">
+                                    Submit
+                                </Button>
+                            </FormItemcompact> */}
+            </Card>
+          </Form>
+        )}
+      </Formik>
+    </div>
+  );
+};
+
+export default SynopsisDialogbox;

@@ -1,0 +1,68 @@
+import { useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { Avatar, Notification, toast } from 'components/ui';
+import { HiOutlineBell } from 'react-icons/hi';
+import { setNotifications } from 'store/locale/localeSlice';
+import appConfig from 'configs/app.config';
+
+const { apiPrefixNotification } = appConfig;
+
+function NotificationListener() {
+  /* REDUX */
+  const userId = useSelector((state) => state.auth.session.LoginId);
+  const notifications = useSelector((state) => state.locale.notifications);
+  const dispatch = useDispatch();
+
+  /* USE EFFECTS */
+  useEffect(() => {
+    if (!userId) return;
+    const socket = new WebSocket(
+      `${apiPrefixNotification}/notification/ws/notification:new/${userId}`,
+    );
+    socket.onopen = () => {
+      console.log('✅ Connected to FastAPI WebSocket: notification:new');
+    };
+
+    socket.onmessage = (message) => {
+      const notification = JSON.parse(message.data);
+      toast.push(
+        <Notification
+          title={notification.notification_metadata.locationLabel || 'Bats'}
+          type={notification.notification_metadata.severity}
+          customIcon={
+            <Avatar
+              shape="circle"
+              className=" bg-yellow-100 text-yellow-600 dark:bg-yellow-500/20 dark:text-yellow-100 "
+              {...(notification.notification_metadata.icon
+                ? { src: notification.notification_metadata.icon }
+                : {
+                  icon: <HiOutlineBell />,
+                })}
+            />
+          }
+          duration={3000}
+          closable={true}
+        >
+          {notification.message}
+        </Notification>,
+      );
+      dispatch(setNotifications([notification, ...notifications]));
+    };
+
+    socket.onclose = () => {
+      console.log('❌ WebSocket disconnected');
+    };
+
+    socket.onerror = (error) => {
+      console.error('⚠️ WebSocket error:', error);
+    };
+
+    return () => {
+      socket.current?.close();
+    };
+  }, [userId, notifications, dispatch]);
+
+  return null;
+}
+
+export default NotificationListener;

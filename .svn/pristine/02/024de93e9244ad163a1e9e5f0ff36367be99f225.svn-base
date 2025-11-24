@@ -1,0 +1,59 @@
+import { eventColorsAg } from 'components/shared/CalendarView';
+import { Avatar, Tag } from 'components/ui';
+import React from 'react';
+import { getRandomColorClass } from 'views/Billing/BillGeneration/dtat';
+
+function UsersList({ users, Search }) {
+
+  return (
+    <div>
+      {users
+        .filter((item) =>
+          item.UserName.toLowerCase().includes(Search.toLowerCase()),
+        )
+        .map((user, key) => (
+          <div
+            className="flex flex-col gap-1 py-2 border-b border-b-gray-700"
+            key={key}
+          >
+            <div className="flex justify-between items-center">
+              <div className="flex items-center ">
+                <Avatar
+                  size="md"
+                  className={`mr-2 dark:${getRandomColorClass()} ${getRandomColorClass()}`}
+                >
+                  <p className="text-base dark:text-gray-200 text-gray-800">
+                    {' '}
+                    {user?.UserName.slice(0, 1)}
+                  </p>
+                </Avatar>
+                <div>
+                  <p className="text-base font-semibold dark:text-gray-200 text-gray-800 capitalize">
+                    {user?.UserName}
+                  </p>{' '}
+                  <p className="text-xs dark:text-gray-400 text-gray-400">
+                    {user?.Email}
+                  </p>
+                </div>
+              </div>
+              {user?.Status && (
+                <Tag
+                  prefix
+                  prefixClass={
+                    user?.Status === 'Offline' ? 'bg-red-500' : 'bg-emerald-500'
+                  }
+                  showCloseButton={false}
+                >
+                  <span className="text-[0.8rem] text-gray-400">
+                    {user?.Status || user?.ChannelName}
+                  </span>
+                </Tag>
+              )}
+            </div>
+          </div>
+        ))}
+    </div>
+  );
+}
+
+export default UsersList;

@@ -1,0 +1,4 @@
+.custom-dropdown .p-dropdown-label {
+  color: black;
+  padding-inline: 0.25rem;
+}

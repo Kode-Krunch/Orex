@@ -1,0 +1,94 @@
+.fs10 {
+  font-size: 11px;
+}
+.fs10 {
+  font-size: 10px;
+}
+.fs11 {
+  font-size: 11px;
+}
+.fs12 {
+  font-size: 12px;
+}
+.fs9 {
+  font-size: 9px;
+}
+.custom-multiselect {
+  height: 30px; /* Adjust the height as needed */
+}
+.MinHight {
+  min-height: 90%;
+  background-color: aqua;
+}
+.custom-row-height .p-datatable-tbody > tr {
+  height: 50%;
+}
+.p-datatable .p-datatable-tbody > tr {
+  color: #495057;
+  transition: box-shadow 0.2s;
+}
+.p-datatable .p-datatable-tbody > tr > td {
+  text-align: left;
+  border: 1px solid #dee2e6;
+  border-width: 0 0 1px 0;
+  padding: 0;
+}
+.row-success {
+  background-color: #dff0d8; /* Green background for 'Org' status */
+}
+.row-danger {
+  background-color: #f2dede; /* Red background for 'Orgc' status */
+}
+.row-info {
+  background-color: #d9edf7; /* Blue background for 'new' status */
+}
+.row-warning {
+  background-color: #fcf8e3; /* Yellow background for 'negotiation' status */
+}
+.p-fieldset .p-fieldset-legend {
+  padding: 10px;
+}
+.fixed-width-fieldset {
+  min-width: 100%;
+}
+.legend-container legend {
+  width: 100%;
+  display: block;
+}
+.p-fieldset .p-fieldset-legend {
+  background-color: white;
+}
+.p-fieldset .p-fieldset-content {
+  padding: 2px;
+}
+.datatable-container {
+  max-height: 25%;
+}
+.selected-row {
+  background-color: #0616fa;
+}
+
+.p-slider {
+  background-color: rgb(107 114 128) !important;
+}
+
+.p-slider > .p-slider-range {
+  background-color: rgb(20 184 166) !important; /* bg-teal-500 */
+}
+
+.p-slider-handle {
+  border-color: rgb(20 184 166) !important; /* bg-teal-500 */
+}
+
+.p-slider:not(.p-disabled) .p-slider-handle:hover {
+  border-color: rgb(20 184 166) !important; /* bg-teal-500 */
+  background-color: rgb(20 184 166) !important; /* bg-teal-500 */
+}
+
+.bgp {
+  background: #e5e5e508;
+  padding: 8px 12px;
+  border-radius: 9px;
+}
+
+ 

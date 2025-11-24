@@ -1,0 +1,378 @@
+import {
+  FormItemcompact,
+  Button,
+  Input,
+  FormContainer,
+  Upload,
+  Tooltip,
+} from 'components/ui';
+import { Field, Form, Formik } from 'formik';
+import * as Yup from 'yup';
+import { Postcurrency, Putcurrency, PutcurrencyImage } from 'services/MasterService';
+import { useSelector } from 'react-redux';
+import React, { forwardRef } from 'react';
+import { useState } from 'react';
+import { FcImageFile } from 'react-icons/fc';
+import { GrClose } from 'react-icons/gr';
+import { isChar, isSymbols } from 'components/validators';
+import { openNotification } from 'views/Controls/GLOBALFUNACTION';
+import { apisendnotification } from 'services/ProgrammingService';
+
+const validationSchema = Yup.object().shape({
+  CurrencyName: Yup.string()
+    .matches(/^[A-Za-z ]+$/, 'Only alphabetic characters are allowed')
+    .min(3, 'Too Short!')
+    .max(50, 'Too Long!')
+    .required('Required'),
+  CurrencySymbol: Yup.string()
+    .matches(/^[A-Za-z \W]+$/, 'Please enter correct data')
+    .min(1, 'Too Short!')
+    .max(4, 'Too Long!')
+    .required('Required'),
+  ShortName: Yup.string()
+    .matches(/^[A-Za-z ]+$/, 'Only alphabetic characters are allowed')
+    .min(1, 'Too Short!')
+    .max(4, 'Too Long!')
+    .required('Required'),
+  Currency_image: Yup.string().required(' Required'),
+  rememberMe: Yup.bool(),
+});
+
+const CurrencyEdit = forwardRef((props, ref) => {
+  const { onDrawerClose, editData, setMessage, setlog, currency } = props;
+  const token = useSelector((state) => state.auth.session.token);
+  const Username = useSelector((state) => state.auth.session.Username);
+  const [previewSource, setPreviewSource] = useState(
+    editData.Currency_image ? editData.Currency_image : '',
+  );
+  const [previewSource2, setPreviewSource2] = useState(
+    editData.Currency_image ? editData.Currency_image : '',
+  );
+  ////console.log(currency)
+
+  const beforeUpload = (file, fileList) => {
+    let valid = true;
+
+    const allowedFileType = ['image/jpeg', 'image/png'];
+    const MAX_FILE_SIZE = 500000;
+
+    if (file) {
+      for (const f of file) {
+        if (!allowedFileType.includes(f.type)) {
+          valid = 'Please upload a .jpeg or .png file!';
+        }
+
+        if (f.size >= MAX_FILE_SIZE) {
+          valid = 'Upload image cannot more then 500kb!';
+        }
+      }
+    }
+
+    return valid;
+  };
+
+  const AddCurrency = async (values, token) => {
+    try {
+      const resp = await Postcurrency(values, token);
+
+      if (resp.status == 200) {
+        openNotification('success', 'Data Inserted Successfully.');
+        await apisendnotification({
+          NotificationId: (Math.random() + 1).toString(36).substring(7),
+          user_ids: [64],
+          message: new Date()?.toDateString() + ' Currancy CREATED',
+          image: '',
+          type: '1',
+          location: 'Currancy CREATED',
+          locationLabel: Username,
+          Status: '1',
+          isGroup: 1,
+          Ispriority: 1,
+          readed: 0,
+        });
+
+        return;
+      }
+      if (resp.status == 204) {
+        openNotification('info', 'Data Already Exists.');
+        return;
+      }
+    } catch (errors) {
+      if (errors.response.status == 500) {
+        openNotification('danger', 'Server Error.');
+        return;
+      }
+    }
+  };
+  const EditCurrency = async (values, token) => {
+    try {
+      const resp = await Putcurrency(values, token);
+      // const resp = await PutcurrencyImage(values, token, previewSource2);
+
+      if (resp.status == 200) {
+        openNotification('success', 'Data Updated Successfully');
+        await apisendnotification({
+          NotificationId: (Math.random() + 1).toString(36).substring(7),
+          user_ids: [64],
+          message: new Date()?.toDateString() + ' Currancy CREATED',
+          image: '',
+          type: '1',
+          location: 'Currancy CREATED',
+          locationLabel: Username,
+          Status: '1',
+          isGroup: 1,
+          Ispriority: 1,
+          readed: 0,
+        });
+        return;
+      }
+      if (resp.status == 204) {
+        openNotification('info', 'Data already Exists');
+        return;
+      }
+    } catch (errors) {
+      if (errors.response.status == 500) {
+        openNotification('danger', 'Server Error.');
+        return;
+      }
+    }
+  };
+
+  return (
+    <div>
+      <Formik
+        innerRef={ref}
+        initialValues={{
+          CurrencyCode: editData.CurrencyCode || '',
+          CurrencyName: editData.CurrencyName || '',
+          Currency_image: previewSource || '',
+          CurrencySymbol: editData.CurrencySymbol || '',
+          ShortName: editData.ShortName || '',
+        }}
+        validationSchema={validationSchema}
+        onSubmit={(values, { resetForm, setSubmitting }) => {
+          setTimeout(() => {
+            if (!editData.CurrencyCode) {
+              new Promise((resolve, reject) => {
+                AddCurrency(values, token)
+                  .then((response) => {
+                    onDrawerClose(0, 0);
+                    resolve(response);
+                  })
+                  .catch((errors) => {
+                    reject(errors);
+                  });
+              });
+            } else {
+              new Promise((resolve, reject) => {
+                setSubmitting(false);
+                EditCurrency(values, token)
+                  .then((response) => {
+                    onDrawerClose(0, 0);
+                    resolve(response);
+                  })
+                  .catch((errors) => {
+                    reject(errors);
+                  });
+              });
+            }
+
+            resetForm();
+          }, 400);
+        }}
+      >
+        {({ values, touched, errors, setFieldValue }) => (
+          <Form>
+            <FormContainer>
+              <div className="grid grid-cols-2 md:grid-cols-2 gap-1">
+                <Field
+                  size="sm"
+                  type="CurrencyCode"
+                  autoComplete="off"
+                  name="CurrencyCode"
+                  placeholder="CurrencyCode name"
+                  component={Input}
+                  hidden
+                />
+
+                <FormItemcompact
+                  asterisk
+                  label="Currency Name"
+                  invalid={errors.CurrencyName && touched.CurrencyName}
+                  errorMessage={errors.CurrencyName}
+                >
+                  <Field
+                    size="sm"
+                    type="text"
+                    maxlength="20"
+                    autoComplete="off"
+                    name="CurrencyName"
+                    placeholder="Currency Name"
+                    component={Input}
+                    value={values.CurrencyName}
+                    onChange={(e) => {
+                      const newValue = e.target.value;
+                      if (isChar(newValue)) {
+                        setFieldValue('CurrencyName', newValue);
+                      }
+                    }}
+                  />
+                </FormItemcompact>
+
+                <FormItemcompact
+                  asterisk
+                  label="Short Name"
+                  invalid={errors.ShortName && touched.ShortName}
+                  errorMessage={errors.ShortName}
+                >
+                  <Field
+                    size="sm"
+                    type="text"
+                    maxlength="4"
+                    autoComplete="off"
+                    name="ShortName"
+                    placeholder="Short Name"
+                    component={Input}
+                    value={values.ShortName}
+                    onChange={(e) => {
+                      const newValue = e.target.value;
+                      if (isChar(newValue)) {
+                        setFieldValue('ShortName', newValue);
+                      }
+                    }}
+                  />
+                </FormItemcompact>
+                <div className="col-span-4">
+                  <FormItemcompact
+                    asterisk
+                    label="Currency Symbol"
+                    invalid={errors.CurrencySymbol && touched.CurrencySymbol}
+                    errorMessage={errors.CurrencySymbol}
+                  >
+                    <Field
+                      size="sm"
+                      type="text"
+                      autoComplete="off"
+                      maxlength="1"
+                      name="CurrencySymbol"
+                      value={values.CurrencySymbol}
+                      placeholder="Currency Symbol"
+                      component={Input}
+                      onChange={(e) => {
+                        const newValue = e.target.value;
+                        if (isSymbols(newValue)) {
+                          setFieldValue('CurrencySymbol', newValue);
+                        }
+                      }}
+                    />
+                  </FormItemcompact>
+                </div>
+                <div className="col-span-4">
+                  <FormItemcompact
+                    asterisk
+                    label="Currency Image"
+                    invalid={errors.Currency_image && touched.Currency_image}
+                    errorMessage={errors.Currency_image}
+                  >
+                    <Field name="Currency_image">
+                      {({ field, form }) => (
+                        <div style={{ display: 'grid' }}>
+                          <Upload
+                            // style={{ display: 'block' }}
+                            uploadLimit={1}
+                            beforeUpload={beforeUpload}
+                            accept=".jpg, .jpeg, .png, .bmp, .svg"
+                            showList={false}
+                            onChange={(files) => {
+                              const reader = new FileReader();
+                              const file = files[0];
+                              if (file && file.size > 0) {
+                                reader.readAsDataURL(file);
+                                reader.onloadend = () => {
+                                  form.setFieldValue(field.name, reader.result);
+                                  setPreviewSource(reader.result);
+                                  setPreviewSource2(file);
+                                };
+                              } else {
+                                form.setFieldValue(field.name, '');
+                              }
+                            }}
+                          >
+                            <div className="border-dashed border-gray-500 border-2 p-3 rounded-lg w-full hover:cursor-pointer mt-1">
+                              {previewSource ? (
+                                <div className="flex items-center justify-center w-full">
+                                  <div className="relative">
+                                    <Tooltip title="Click to upload logo">
+                                      <img
+                                        src={previewSource}
+                                        style={{
+                                          height: '150px',
+                                          width: 'auto',
+                                        }}
+                                        alt="Preview"
+                                        className="hover:opacity-80"
+                                      ></img>
+                                    </Tooltip>
+                                    {/* </Upload> */}
+                                    <Tooltip
+                                      title="Remove Logo"
+                                      className="relative"
+                                      wrapperClass="absolute -top-3 -right-3"
+                                    >
+                                      <Button
+                                        shape="circle"
+                                        size="xs"
+                                        variant="solid"
+                                        color="red-500"
+                                        icon={<GrClose />}
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          form.setFieldValue(field.name, '');
+                                          setPreviewSource('');
+                                          setPreviewSource2('');
+                                        }}
+                                      />
+                                    </Tooltip>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="h-28 flex items-center justify-center w-full">
+                                  <Tooltip
+                                    title="Click to upload logo"
+                                    wrapperClass="flex flex-col items-center justify-center"
+                                  >
+                                    <FcImageFile size={25} />
+                                    <p className="text-xs mt-1 opacity-60 dark:text-white">
+                                      Support: jpeg, png, bmp, svg
+                                    </p>
+                                    <p className=" text-xs mt-1 opacity-60 dark:text-white">
+                                      (Max 1MB)
+                                    </p>
+                                  </Tooltip>
+                                  {/* </Upload> */}
+                                </div>
+                              )}
+                            </div>
+                          </Upload>
+                        </div>
+                      )}
+                    </Field>
+                  </FormItemcompact>
+                </div>
+              </div>
+
+              {/* <FormItemcompact>
+                                <Button variant="solid" type="submit">
+                                    Submit
+                                </Button>
+                            </FormItemcompact> */}
+            </FormContainer>
+          </Form>
+        )}
+      </Formik>
+    </div>
+  );
+});
+
+export default CurrencyEdit;

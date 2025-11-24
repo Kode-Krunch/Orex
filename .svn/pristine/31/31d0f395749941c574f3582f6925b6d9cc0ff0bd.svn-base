@@ -1,0 +1,60 @@
+import { openNotification } from 'views/Controls/GLOBALFUNACTION';
+import { getNTCParentRow } from '../../utils';
+import { insertNTCsBasedOnOffsetTimeAutoCalculation } from './ntcDrag';
+import { getCorrectedDestIndex, isNTCDragValid } from './utils';
+const lodash = require('lodash');
+
+const executeNtcRepeatInsert = (
+  destIndex,
+  schTableData,
+  selectedRows,
+  activeFeatures,
+  channel,
+  isAutoCalculateOffsetTime,
+  repeatInsertType,
+) => {
+  try {
+    let newSchTableData = [...schTableData];
+    let destinationIndex = destIndex;
+    let validNTCs = [...selectedRows];
+    let iterations = 0;
+    while (validNTCs.length > 0) {
+      if (repeatInsertType === 'randomizeInsert')
+        validNTCs = lodash.shuffle(validNTCs);
+      destinationIndex = getCorrectedDestIndex(
+        destinationIndex,
+        newSchTableData,
+        activeFeatures,
+      );
+      /* DRAG VALIDATION */
+      if (
+        !isNTCDragValid(undefined, newSchTableData, destinationIndex, channel)
+      )
+        return false;
+      // Get ntc parent row
+      let ntcParentRow = getNTCParentRow(destinationIndex, newSchTableData);
+      if (isAutoCalculateOffsetTime) {
+        const { newTableData, insertedNTCs } =
+          insertNTCsBasedOnOffsetTimeAutoCalculation(
+            ntcParentRow,
+            validNTCs,
+            newSchTableData,
+            destinationIndex,
+          );
+        if (iterations === 0 && insertedNTCs.length === 0) {
+          openNotification('danger', 'NTCs are out of parent duration');
+          return false;
+        }
+        iterations++;
+        newSchTableData = newTableData;
+        validNTCs = insertedNTCs;
+        destinationIndex = destinationIndex + insertedNTCs.length;
+      }
+    }
+    return { newSchTableData };
+  } catch (error) {
+    throw error;
+  }
+};
+
+export { executeNtcRepeatInsert };

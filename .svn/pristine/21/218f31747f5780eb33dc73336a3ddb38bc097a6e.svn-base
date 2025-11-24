@@ -1,0 +1,2 @@
+"use strict";(self.webpackChunkelstar=self.webpackChunkelstar||[]).push([[5682],{45682:(e,s,r)=>{r.r(s),r.d(s,{default:()=>l});var t=r(2803),a=(r(72791),r(80184));const l=function(e){let{showLoader:s}=e;return(0,a.jsx)(a.Fragment,{children:s?(0,a.jsx)("div",{className:"dialog-overlay flex justify-center items-center z-50",children:(0,a.jsx)(t.$j,{size:"3.25rem"})}):(0,a.jsx)(a.Fragment,{})})}}}]);
+//# sourceMappingURL=5682.372bfc1f.chunk.js.map

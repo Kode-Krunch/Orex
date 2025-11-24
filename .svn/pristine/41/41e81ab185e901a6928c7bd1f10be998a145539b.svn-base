@@ -1,0 +1,391 @@
+import React, { forwardRef, useEffect, useState } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
+import { Field, Form, Formik } from 'formik'
+import * as Yup from 'yup'
+import {
+  AddAgencyPaymentapi,
+  UpdateAgencyPayment,
+  apiGetagencymasterDrop,
+  apiGetclientasperagency,
+  apiGetdealasperagencyclient,
+} from 'services/CreditcontrolService'
+import {
+  FormItemcompact,
+  Button,
+  Input,
+  FormContainer,
+  Select,
+  Card,
+  FormItem,
+  Radio,
+  DatePicker,
+  Alert,
+} from 'components/ui'
+import { apiGetagencyplace } from 'services/MasterService'
+import { convertDateToYMD, validate } from 'components/validators'
+import { useNavigate } from 'react-router-dom'
+import { setContent } from 'store/base/commonSlice'
+import useTimeOutMessage from 'utils/hooks/useTimeOutMessage'
+
+
+const validationSchema = Yup.object().shape({
+  AgencyMaster: Yup.number().required('Agency Required'),
+  ClientMaster: Yup.number().required('Client Required'),
+  AgencyCity: Yup.number().required('Agency City Required'),
+  DealNumber: Yup.number().required('Deal Required'),
+  BankName: Yup.string().matches(/^[A-Za-z ]+$/, 'Only letters allowed').max(20, 'Too Long!'),
+  NetValue: Yup.number().typeError('Must be a number').positive('Must be positive').max(9999999).required(),
+  rememberMe: Yup.bool(),
+})
+
+const mapFormToPayload = (values, Channel) => ({
+  PayId: values.PayId || undefined,
+  LocationCode: Channel.LocationCode,
+  ChannelCode: Channel.ChannelCode,
+  AgencyCode: values.AgencyMaster,
+  PlaceCode: values.AgencyCity,
+  ClientCode: values.ClientMaster,
+  DealNumber: values.DealNumber,
+  PaymentModeCode: values.PaymentModeCode,
+  DDChqNo: values.DDChqNo,
+  ChqueDate: values.ChqueDate,
+  BankName: values.BankName,
+  GrossAmount: values.GrossAmount,
+  Tax: values.Tax,
+  TaxPer: 0,
+  TaxAmt: values.TaxAmt,
+  NetAmount: values.NetValue,
+  RecdAmt: values.ReceivedDDChequeAmount,
+  TDSYN: values.TDSYN,
+  TDSAmt: values.TDSAmt,
+  Remarks: values.Remark,
+  IsActive: 1,
+})
+
+
+const AgencyPaymentEdit = forwardRef(({ s }, ref) => {
+  const navigate = useNavigate()
+  const dispatch = useDispatch()
+  const Channel = useSelector((state) => state.locale.selectedChannel)
+  const token = useSelector((state) => state.auth.session.token)
+  const { Content } = useSelector((state) => state.base.common)
+
+  const [agencyOptions, setAgencyOptions] = useState([])
+  const [cityOptions, setCityOptions] = useState([])
+  const [clientOptions, setClientOptions] = useState([])
+  const [dealOptions, setDealOptions] = useState([])
+  const [message, setMessage] = useTimeOutMessage();
+  const [showLoader, setshowLoader] = useState(false);
+  const [log, setlog] = useState('');
+
+  const fetchOptions = async (apiFn, setter, mapper) => {
+    try {
+      const { data } = await apiFn()
+      setter(data.map(mapper))
+    } catch {
+      setter([])
+    }
+  }
+
+
+  const saveHandler = async (values, isUpdate) => {
+    const payload = mapFormToPayload(values, Channel)
+    const resp = isUpdate
+      ? await UpdateAgencyPayment(payload, token)
+      : await AddAgencyPaymentapi(payload, token, Channel)
+
+    if (resp.data.msg?.toLowerCase().includes('success') || resp.data.msg === 'Updated') {
+      setlog('success')
+      setMessage(isUpdate ? 'Data Updated Successfully' : 'Data Inserted Successfully.')
+    } else {
+      setlog('error')
+      setMessage(resp.data.msg || 'Server Error.')
+    }
+  }
+
+  useEffect(() => {
+    fetchOptions(apiGetagencymasterDrop, setAgencyOptions, (o) => ({ value: o.AgencyCode, label: o.AgencyName }))
+  }, [])
+
+  useEffect(() => {
+    if (Content?.AgencyMaster?.AgencyCode) {
+      const agencyCode = Content.AgencyMaster.AgencyCode
+
+      fetchOptions(() => apiGetagencyplace(agencyCode), setCityOptions, (o) => ({
+        value: o.Place?.PlaceCode,
+        label: o.Place?.PlaceName,
+      }))
+
+      fetchOptions(() => apiGetclientasperagency(agencyCode), setClientOptions, (o) => ({
+        value: o.ClientCode,
+        label: o.ClientName,
+      }))
+    }
+  }, [Content?.AgencyMaster?.AgencyCode])
+
+  useEffect(() => {
+    if (Content?.AgencyMaster?.AgencyCode && Content?.ClientCode) {
+      fetchOptions(
+        () => apiGetdealasperagencyclient(Content.AgencyMaster.AgencyCode, Content.ClientCode),
+        setDealOptions,
+        (o) => ({ value: o.DealNumber, label: o.DealCode })
+      )
+    }
+  }, [Content?.AgencyMaster?.AgencyCode, Content?.ClientCode])
+
+
+  return (
+    <Formik
+      innerRef={ref}
+      enableReinitialize
+      initialValues={{
+        PayId: Content.PayId || '',
+        LocationCode: Content?.locations?.LocationCode,
+        ChannelCode: Content?.Channel?.ChannelCode,
+        AgencyMaster: Content?.AgencyMaster?.AgencyCode || '',
+        AgencyCity: Content?.Place?.PlaceCode || '',
+        ClientMaster: Content.ClientCode || '',
+        DealNumber: Content.DealNumber || '',
+        PaymentModeCode: Content.PaymentModeCode || 2,
+        DDChqNo: Content.DDChqNo || '',
+        ChqueDate: Content.ChqueDate || null,
+        BankName: Content.BankName || '',
+        GrossAmount: Content.GrossAmount || '',
+        Tax: Content.Tax ? Content.Tax : 18,
+        GSTTAX: 18,
+        TaxAmt: Content.TaxAmt || '',
+        NetValue: Content.NetAmount || '',
+        ReceivedDDChequeAmount: Content.RecdAmt || '',
+        TDSYN: Content.TDSYN || 0,
+        TDSAmt: Content.TDSAmt || 0,
+        Remark: Content.Remarks || '',
+      }}
+      validationSchema={validationSchema}
+      onSubmit={async (values, { resetForm }) => {
+        await saveHandler(values, !!Content.PayId)
+        resetForm()
+      }}
+    >
+      {({ values, setFieldValue, errors, touched }) => (
+        <Form>
+          {message && (
+            <Alert className="mb-4" type={log} showIcon>
+              {message}
+            </Alert>
+          )}
+
+          <Card header="Agency Payment Master">
+            <div className="grid grid-cols-2 gap-4">
+              <Card>
+                <FormContainer>
+                  <div className="grid grid-cols-2 gap-4">
+
+                    <FormItem label="Agency" asterisk invalid={!!errors.AgencyMaster && touched.AgencyMaster} errorMessage={errors.AgencyMaster}>
+                      <Field name="AgencyMaster">
+                        {({ field }) => (
+                          <Select
+                            {...field}
+                            options={agencyOptions}
+                            value={agencyOptions.find((o) => o.value === values.AgencyMaster) || null}
+                            onChange={(opt) => {
+                              setFieldValue('AgencyMaster', opt.value)
+                              setFieldValue('AgencyCity', '')
+                              setFieldValue('ClientMaster', '')
+                              setFieldValue('DealNumber', '')
+                              setCityOptions([])
+                              setClientOptions([])
+                              setDealOptions([])
+
+                              if (opt) {
+                                fetchOptions(() => apiGetagencyplace(opt.value), setCityOptions, (o) => ({
+                                  value: o.Place?.PlaceCode,
+                                  label: o.Place?.PlaceName,
+                                }))
+                                fetchOptions(() => apiGetclientasperagency(opt.value), setClientOptions, (o) => ({
+                                  value: o.ClientCode,
+                                  label: o.ClientName,
+                                }))
+                              }
+                            }}
+                          />
+                        )}
+                      </Field>
+                    </FormItem>
+
+                    <FormItem label="Agency City" asterisk invalid={!!errors.AgencyCity && touched.AgencyCity} errorMessage={errors.AgencyCity}>
+                      <Field name="AgencyCity">
+                        {({ field }) => (
+                          <Select
+                            {...field}
+                            options={cityOptions}
+                            value={cityOptions.find((o) => o.value === values.AgencyCity) || null}
+                            onChange={(opt) => setFieldValue('AgencyCity', opt.value)}
+                          />
+                        )}
+                      </Field>
+                    </FormItem>
+
+                    <FormItem label="Client" asterisk invalid={!!errors.ClientMaster && touched.ClientMaster} errorMessage={errors.ClientMaster}>
+                      <Field name="ClientMaster">
+                        {({ field }) => (
+                          <Select
+                            {...field}
+                            options={clientOptions}
+                            value={clientOptions.find((o) => o.value === values.ClientMaster) || null}
+                            onChange={(opt) => {
+                              setFieldValue('ClientMaster', opt.value)
+                              setFieldValue('DealNumber', '')
+                              setDealOptions([])
+                              if (opt) {
+                                fetchOptions(() => apiGetdealasperagencyclient(values.AgencyMaster, opt.value), setDealOptions, (o) => ({
+                                  value: o.DealNumber,
+                                  label: o.DealCode,
+                                }))
+                              }
+                            }}
+                          />
+                        )}
+                      </Field>
+                    </FormItem>
+
+                    <FormItem label="Deal No." asterisk invalid={!!errors.DealNumber && touched.DealNumber} errorMessage={errors.DealNumber}>
+                      <Field name="DealNumber">
+                        {({ field }) => (
+                          <Select
+                            {...field}
+                            options={dealOptions}
+                            value={dealOptions.find((o) => o.value === values.DealNumber) || null}
+                            onChange={(opt) => setFieldValue('DealNumber', opt.value)}
+                          />
+                        )}
+                      </Field>
+                    </FormItem>
+
+
+                    <FormItemcompact label="Bank Name">
+                      <Field name="BankName" component={Input} placeholder="Bank Name" />
+                    </FormItemcompact>
+
+
+                    <FormItemcompact label="Net Value" asterisk>
+                      <Field name="NetValue">
+                        {({ field }) => (
+                          <Input
+                            {...field}
+                            value={values.NetValue}
+                            onChange={(e) => {
+                              const val = Number(e.target.value) || 0
+                              setFieldValue(field.name, val)
+                              setFieldValue('GrossAmount', val + (val * 18) / 100)
+                              setFieldValue('ReceivedDDChequeAmount', val + (val * 18) / 100)
+                              setFieldValue('TaxAmt', (val * 18) / 100)
+                            }}
+                          />
+                        )}
+                      </Field>
+                    </FormItemcompact>
+
+
+                    <FormItemcompact label="TDSYN">
+                      <Field name="TDSYN">
+                        {({ field }) => (
+                          <Radio.Group value={values.TDSYN} onChange={(val) => setFieldValue(field.name, val)}>
+                            <Radio value={1}>Yes</Radio>
+                            <Radio value={0}>No</Radio>
+                          </Radio.Group>
+                        )}
+                      </Field>
+                    </FormItemcompact>
+
+                    {values.TDSYN === 1 && (
+                      <FormItemcompact label="TDS %">
+                        <Field name="TDSAmt" component={Input} />
+                      </FormItemcompact>
+                    )}
+
+
+                    <FormItemcompact label="Payable Amount">
+                      <Field name="GrossAmount" component={Input} disabled />
+                    </FormItemcompact>
+
+                    <Card header="Payment Type" headerClass="bg-sky-600 text-white">
+                      <Field name="PaymentModeCode">
+                        {({ field }) => (
+                          <Radio.Group
+                            value={values.PaymentModeCode}
+                            onChange={(val) => {
+                              setFieldValue(field.name, val)
+                              if (val === 3) {
+                                setFieldValue('DDChqNo', '')
+                                setFieldValue('ChqueDate', null)
+                              }
+                            }}
+                          >
+                            <Radio value={2}>DD</Radio>
+                            <Radio value={1}>Cheque</Radio>
+                            <Radio value={3}>RTGS</Radio>
+                          </Radio.Group>
+                        )}
+                      </Field>
+                      <FormItemcompact label="DD/Chq No.">
+                        <Field name="DDChqNo" component={Input} disabled={values.PaymentModeCode === 3} />
+                      </FormItemcompact>
+                      <FormItemcompact label="DD/Chq Date">
+                        <Field name="ChqueDate">
+                          {({ field }) => (
+                            <DatePicker
+                              name="ChqueDate"
+                              {...field}
+                              value={validate(values.ChqueDate) ? new Date(values.ChqueDate) : ''}
+                              disabled={values.PaymentModeCode === 3}
+                              onChange={(val) => setFieldValue(field.name, convertDateToYMD(val))}
+                            />
+                          )}
+                        </Field>
+                      </FormItemcompact>
+                    </Card>
+
+
+                    <Card header="Payment Terms" headerClass="bg-green-500 text-white">
+                      <FormItemcompact label="GST TAX">
+                        <Field name="Tax" component={Input} disabled />
+                      </FormItemcompact>
+                      <FormItemcompact label="Received DD/Cheque Amount">
+                        <Field name="ReceivedDDChequeAmount" component={Input} />
+                      </FormItemcompact>
+                    </Card>
+
+                    <FormItemcompact label="Remark">
+                      <Field name="Remark" component={Input} textArea placeholder="Remark" />
+                    </FormItemcompact>
+                  </div>
+
+
+                  <FormItem>
+                    <div className="flex gap-2 justify-end">
+                      <Button
+                        type="reset"
+                        onClick={() => {
+                          dispatch(setContent({}))
+                          navigate('/AgencyPayment')
+                        }}
+                      >
+                        Discard
+                      </Button>
+                      <Button variant="solid" type="submit">
+                        Submit
+                      </Button>
+                    </div>
+                  </FormItem>
+                </FormContainer>
+              </Card>
+              <Card />
+            </div>
+          </Card>
+        </Form>
+      )}
+    </Formik>
+  )
+})
+
+export default AgencyPaymentEdit

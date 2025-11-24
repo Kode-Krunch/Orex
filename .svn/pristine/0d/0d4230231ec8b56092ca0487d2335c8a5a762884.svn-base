@@ -1,0 +1,3199 @@
+import appConfig from 'configs/app.config';
+import ApiService from './ApiService';
+import { convertDateToYMD } from 'components/validators';
+const axios = require('axios');
+
+export async function apiGetNotification(id) {
+  return ApiService.fetchData({
+    url: `notification/getnotification/${id}`,
+    method: 'get',
+  });
+}
+export async function apiGet2faremove(id) {
+  return ApiService.fetchData({
+    url: `/2FA/reset?LoginCode=${id}`,
+    method: 'post',
+  });
+}
+export async function apiGetusersettings() {
+  return ApiService.fetchData({
+    url: '/usersettings/',
+    method: 'get',
+  });
+}
+
+export async function apiGetEmployeemaster() {
+  return ApiService.fetchData({
+    url: '/empmaster/',
+    method: 'get',
+  });
+}
+
+export async function apiGetEmployeemasterApproved(e, l, a) {
+  return ApiService.fetchData({
+    url: `/singup/approvfromfront/${e}/${l}/${a}`,
+    method: 'get',
+  });
+}
+
+export async function apiGetEmployeemasterdrop() {
+  return ApiService.fetchData({
+    url: '/empmaster/drop/',
+    method: 'get',
+  });
+}
+export async function apiGetUserApproval() {
+  return ApiService.fetchData({
+    url: '/empmaster/inactive/',
+    method: 'get',
+  });
+}
+export async function apiGetClientEmployees(ClientCode) {
+  return ApiService.fetchData({
+    url: `/clientempmap/${ClientCode}`,
+    method: 'get',
+  });
+}
+export async function apiGetClientmaster() {
+  return ApiService.fetchData({
+    url: '/clientmaster/',
+    method: 'get',
+  });
+}
+
+export async function apiGetCurrencymaster(data) {
+  return ApiService.fetchData({
+    url: '/currencymaster/',
+    method: 'get',
+    data,
+  });
+}
+
+export async function apiPUTDEAL(data) {
+  return ApiService.fetchData({
+    url: `/dealmaster/${data.DealNumber}`,
+    method: 'put',
+    data,
+  });
+}
+export async function apiGetCurrencymasterdrop(data) {
+  return ApiService.fetchData({
+    url: '/currencymaster/drop/',
+    method: 'get',
+    data,
+  });
+}
+
+export async function apiGetExchangeRates(url) {
+  return ApiService.fetchData({
+    url: url,
+    method: 'get',
+  });
+}
+
+export async function apiGetAgencyCity(data) {
+  return ApiService.fetchData({
+    url: '/AgencyCity/',
+    method: 'get',
+    data,
+  });
+}
+export async function apiGetAgencyCityIDCITY(ID) {
+  return ApiService.fetchData({
+    url: `/agencycity/${ID}`,
+    method: 'get',
+  });
+}
+export async function apiGetrightsShowT(data) {
+  return ApiService.fetchData({
+    url: `/rights/showrights/${data}`,
+    method: 'get',
+  });
+}
+
+export async function apiGetrightsShowT2(data) {
+  return ApiService.fetchData({
+    url: `/rights/Employeerightswithcode/${data}`,
+    method: 'get',
+  });
+}
+
+export async function apiGetagencyplace(ID) {
+  return ApiService.fetchData({
+    url: `/agencycity/showAgencyCity/${ID}`,
+    method: 'get',
+  });
+}
+
+export async function apiGetDesignationMaster(data) {
+  return ApiService.fetchData({
+    url: '/designationMaster/',
+    method: 'get',
+    data,
+  });
+}
+
+export async function apiGetPlaceMaster(data) {
+  return ApiService.fetchData({
+    url: '/placemaster/',
+    method: 'get',
+    data,
+  });
+}
+
+export async function apiGetPlaceMasterbyId(data) {
+  return ApiService.fetchData({
+    url: `/placemaster/getplaceasperstate/${data}`,
+    method: 'get',
+    data,
+  });
+}
+
+export async function apiGetStateMaster(data) {
+  return ApiService.fetchData({
+    url: '/statemaster/',
+    method: 'get',
+    data,
+  });
+}
+export async function apiGetStateMasterbyId(data) {
+  return ApiService.fetchData({
+    url: `/statemaster/getstateaspercountry/${data}`,
+    method: 'get',
+    data,
+  });
+}
+
+export async function apiGetCountryMaster(data) {
+  return ApiService.fetchData({
+    url: '/countrymaster/',
+    method: 'get',
+    data,
+  });
+}
+
+export async function apiGetDepartmentmaster(data) {
+  return ApiService.fetchData({
+    url: '/departmentmaster/',
+    method: 'get',
+    data,
+  });
+}
+
+export async function apiGetchannelsettingdetailsbyid(id) {
+  return ApiService.fetchData({
+    url: `/channelsettingdetails/${id}`,
+    method: 'get',
+  });
+}
+
+export async function apiGetEmpbyid(data) {
+  return ApiService.fetchData({
+    url: `/empmaster/${data}`,
+    method: 'get',
+  });
+}
+export async function apiGetRegionMaster(data) {
+  return ApiService.fetchData({
+    url: '/regionmaster/',
+    method: 'get',
+    data,
+  });
+}
+export async function apishowplaceTree(data) {
+  return ApiService.fetchData({
+    url: '/placemaster/showplaceTree/',
+    method: 'get',
+    data,
+  });
+}
+export async function apigetpincode(PinCode) {
+  return ApiService.fetchData({
+    url: `/getdatafromapi/${PinCode}`,
+    method: 'get',
+    // data,
+  });
+}
+export async function getChannelsEmployee(EmployeeCode) {
+  return ApiService.fetchData({
+    url: `/loginlocchnlmapping/${EmployeeCode}`,
+    method: 'get',
+    // data,
+  });
+}
+export async function apiGetEntitymaster(data) {
+  return ApiService.fetchData({
+    url: '/Entitymaster/',
+    method: 'get',
+    data,
+  });
+}
+
+export async function apiGetentitydropfororg(data) {
+  return ApiService.fetchData({
+    url: '/Entitymaster/entitydropfororg/',
+    method: 'get',
+    data,
+  });
+}
+
+export async function apiGetZonemaster(data) {
+  return ApiService.fetchData({
+    url: '/zonemaster/',
+    method: 'get',
+    data,
+  });
+}
+export async function apiGetZonemasterDrop(data) {
+  return ApiService.fetchData({
+    url: '/zonemaster/drop/',
+    method: 'get',
+    data,
+  });
+}
+export async function apiGetchannelsettingmaster(data) {
+  return ApiService.fetchData({
+    url: '/channelsettings/',
+    method: 'get',
+    data,
+  });
+}
+export async function apiGetLocationmaster(data) {
+  return ApiService.fetchData({
+    url: '/locationmaster/',
+    method: 'get',
+    data,
+  });
+}
+
+export async function apiGetempmasterdropmaster(data) {
+  return ApiService.fetchData({
+    url: '/empmaster/drop/',
+    method: 'get',
+    data,
+  });
+}
+
+export async function apiGetRegionmaster(data) {
+  return ApiService.fetchData({
+    url: '/regionmaster/',
+    method: 'get',
+    data,
+  });
+}
+export async function apiGetFormmaster(data) {
+  return ApiService.fetchData({
+    url: '/formmaster/',
+    method: 'get',
+    data,
+  });
+}
+
+export async function apiGetSubModulemaster(data) {
+  return ApiService.fetchData({
+    url: '/submodulemaster/',
+    method: 'get',
+    data,
+  });
+}
+export async function dropmodulewise(data) {
+  return ApiService.fetchData({
+    url: `/submodulemaster/dropmodulewise/${data}`,
+    method: 'get',
+    data,
+  });
+}
+export async function showrightsbyIdAkash(data) {
+  return ApiService.fetchData({
+    url: `/rights/showrights/${data}`,
+    method: 'get',
+    data,
+  });
+}
+export async function apiGetChannelmaster(data) {
+  return ApiService.fetchData({
+    url: '/channelmaster/',
+    method: 'get',
+    data,
+  });
+}
+
+export async function apiGetChannelmasterdrop(id) {
+  return ApiService.fetchData({
+    url: `/channelmaster/drop/${id}`,
+    method: 'get',
+  });
+}
+export async function apiPutchannal(Id, LocationCode, ChannelCode) {
+  return ApiService.fetchData({
+    url: `/loginmaster/setsessionwisechannel/${Id}?LocationCode=${LocationCode}&ChannelCode=${ChannelCode}`,
+    method: 'put',
+  });
+}
+export async function apiGetcontentlocchnmap(id) {
+  return ApiService.fetchData({
+    url: `/contentlocchnmap/${id}`,
+    method: 'get',
+  });
+}
+export async function apiGetMinutReport2(selectedChannel, StartDate, EndDate) {
+  return ApiService.fetchData({
+    url: `/report/GetMinutReport2/?LocationCode=${selectedChannel.LocationCode}&ChannelCode=${selectedChannel.ChannelCode}&FromDate=${StartDate}&Todate=${EndDate}`,
+    method: 'get',
+  });
+}
+export async function apiGetSp_PromoRotation(
+  selectedChannel,
+  StartDate,
+  EndDate,
+  PromoType,
+  PromoCode,
+) {
+  return ApiService.fetchData({
+    url: `/report/Sp_PromoRotation/?LocationCode=${selectedChannel.LocationCode}&ChannelCode=${selectedChannel.ChannelCode}&FromDate=${StartDate}&Todate=${EndDate}&PromoType=${PromoType}&PromoCode=${PromoCode}&Mode=1`,
+    method: 'get',
+  });
+}
+
+export async function apiGetTxProgramReport(
+  selectedChannel,
+  StartDate,
+  EndDate,
+) {
+  return ApiService.fetchData({
+    url: `/report/GetTxProgramReport/?LocationCode=${selectedChannel.LocationCode}&ChannelCode=${selectedChannel.ChannelCode}&FromDate=${StartDate}&Todate=${EndDate}&ContentCode=0`,
+    method: 'get',
+  });
+}
+
+export async function apiGetcepsmapping(id) {
+  return ApiService.fetchData({
+    url: `/cepsmapping/${id}`,
+    method: 'get',
+  });
+}
+
+export async function apiGetGenremaster(data) {
+  return ApiService.fetchData({
+    url: '/genremaster/',
+    method: 'get',
+    data,
+  });
+}
+export async function apiGetPlacemaster(data) {
+  return ApiService.fetchData({
+    url: '/placemaster/',
+    method: 'get',
+    data,
+  });
+}
+export async function apiGetgetrights(LoginId) {
+  return ApiService.fetchData({
+    url: `/rights/getrights/${LoginId}`,
+    method: 'get',
+  });
+}
+export async function apiGetftpsetting(data) {
+  return ApiService.fetchData({
+    url: '/ftpsetting/',
+    method: 'get',
+    data: data,
+  });
+}
+export async function apiGetorganisation(data) {
+  return ApiService.fetchData({
+    url: '/organisationmaster/',
+    method: 'get',
+    data: data,
+  });
+}
+export async function apiGetPlayoutmaster(data) {
+  return ApiService.fetchData({
+    url: '/playoutmaster/',
+    method: 'get',
+    data,
+  });
+}
+const Postplayout = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      PlayoutName: param.PlayoutName,
+      PlaylistFileFormat: param.PlaylistFileFormat,
+      AsrunFileFormat: param.AsrunFileFormat,
+      PlayoutLogo: param.PlayoutLogo,
+      IsActive: (param.IsActive = '1'),
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/playoutmaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Putplayout = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      PlayoutName: param.PlayoutName,
+      PlaylistFileFormat: param.PlaylistFileFormat,
+      AsrunFileFormat: param.AsrunFileFormat,
+      PlayoutLogo: param.PlayoutLogo,
+      IsActive: (param.IsActive = '1'),
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/playoutmaster/${param.PlayoutCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+export async function apiGetMammaster(data) {
+  return ApiService.fetchData({
+    url: '/mammaster/',
+    method: 'get',
+    data,
+  });
+}
+const Postmam = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      MamName: param.MamName,
+      MAMFileFormat: param.MAMFileFormat,
+      ShortName: param.ShortName,
+      IsActive: (param.IsActive = '1'),
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/mammaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Putmam = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      MamName: param.MamName,
+      MAMFileFormat: param.MAMFileFormat,
+      ShortName: param.ShortName,
+      IsActive: (param.IsActive = '1'),
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/mammaster/${param.MamCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+export async function apiGetProvidermaster(data) {
+  return ApiService.fetchData({
+    url: '/providermaster/',
+    method: 'get',
+    data,
+  });
+}
+const Postprovider = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      ProviderName: param.ProviderName,
+      ShortName: param.ShortName,
+      EPGFileFormat: param.EPGFileFormat,
+      ProviderImage: param.ProviderImage,
+      IsActive: (param.IsActive = '1'),
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/providermaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Putprovider = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      ProviderName: param.ProviderName,
+      ShortName: param.ShortName,
+      EPGFileFormat: param.EPGFileFormat,
+      ProviderImage: param.ProviderImage,
+      IsActive: (param.IsActive = '1'),
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/providermaster/${param.ProviderCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+export async function apiGetvideoidformatDrop(id) {
+  return ApiService.fetchData({
+    url: `/videoidformat/drop/${id}`,
+    method: 'get',
+  });
+}
+
+export async function apiGetEventColorMaster(data) {
+  return ApiService.fetchData({
+    url: '/eventcolormaster/',
+    method: 'get',
+    data,
+  });
+}
+export async function apiGetEventColorMasterByLogin(data) {
+  return ApiService.fetchData({
+    url: '/eventcolormasteruserlogin/',
+    method: 'get',
+    data,
+  });
+}
+
+export async function apiGetMoviealbummaster(data) {
+  return ApiService.fetchData({
+    url: '/moviealbummaster/',
+    method: 'get',
+    data,
+  });
+}
+export async function apiGetCountrymaster(data) {
+  return ApiService.fetchData({
+    url: '/countrymaster/',
+    method: 'get',
+    data,
+  });
+}
+export async function apiPostCountrymaster(data) {
+  return ApiService.fetchData({
+    url: '/countrymaster/',
+    method: 'post',
+    data,
+  });
+}
+export async function apiGetCountryDrop() {
+  return ApiService.fetchData({
+    url: '/countrymaster/drop/',
+    method: 'get',
+  });
+}
+export async function apiGetCountryDropTHEN(token) {
+  const url = appConfig.apiPrefix + '/countrymaster/drop/';
+  const headers = {
+    Authorization: `Bearer ${token}`,
+  };
+  return fetch(url, {
+    method: 'GET',
+    headers,
+  });
+}
+
+export async function apiGetStateDrop(token) {
+  const url = appConfig.apiPrefix + '/statemaster/drop/';
+  const headers = {
+    Authorization: `Bearer ${token}`,
+  };
+  return fetch(url, {
+    method: 'GET',
+    headers,
+  });
+}
+
+export async function apiGetPlaceDrop(token) {
+  const url = appConfig.apiPrefix + '/placemaster/drop/';
+  const headers = {
+    Authorization: `Bearer ${token}`,
+  };
+  return fetch(url, {
+    method: 'GET',
+    headers,
+  });
+}
+
+export async function apiGetLanguagemaster(data) {
+  return ApiService.fetchData({
+    url: '/languagemaster/',
+    method: 'get',
+    data,
+  });
+}
+
+export async function apiGetLanguagemasterDrop(data) {
+  return ApiService.fetchData({
+    url: '/languagemaster/drop/',
+    method: 'get',
+    data,
+  });
+}
+export async function apiGetTimeZonemaster(data) {
+  return ApiService.fetchData({
+    url: '/timeZonemaster/',
+    method: 'get',
+    data,
+  });
+}
+export async function apiGetUnitMaster(data) {
+  return ApiService.fetchData({
+    url: '/unitmaster/',
+    method: 'get',
+    data,
+  });
+}
+export async function apiGetModulemaster(data) {
+  return ApiService.fetchData({
+    url: '/modulemaster/',
+    method: 'get',
+    data,
+  });
+}
+export async function apiGetSubmodulemaster(data) {
+  return ApiService.fetchData({
+    url: '/submodulemaster/',
+    method: 'get',
+    data,
+  });
+}
+export async function apiGetDesignationmaster(data) {
+  return ApiService.fetchData({
+    url: '/designationMaster/',
+    method: 'get',
+    data,
+  });
+}
+export async function apiGetBussinessTypemaster(data) {
+  return ApiService.fetchData({
+    url: '/businesstype/',
+    method: 'get',
+    data,
+  });
+}
+const PostBusinesstype = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      BusinessTypeName: param.BusinessTypeName,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/businesstype/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const PutBusinesstype = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      BusinessTypeName: param.BusinessTypeName,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/businesstype/${param.BusinessTypeCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+export async function apiGethouseid(data) {
+  return ApiService.fetchData({
+    url: '/videoidformat/',
+    method: 'get',
+    data,
+  });
+}
+export async function apiorganisationdetailbyid(id) {
+  return ApiService.fetchData({
+    url: `/organisationdetail/${id}`,
+    method: 'get',
+  });
+}
+export async function apiGetchannelsettingdetails(data) {
+  return ApiService.fetchData({
+    url: '/channelsettingdetails/',
+    method: 'get',
+    data,
+  });
+}
+
+export async function apiUSP_GenerateVideoID(
+  LocationCode,
+  ChannelCode,
+  FormName,
+  EventTypeCode,
+  Mode,
+) {
+  return ApiService.fetchData({
+    url: `/globle/USP_GenerateVideoID?LocationCode=${LocationCode}&ChannelCode=${ChannelCode}&FormName=${FormName}&EventTypeCode=${EventTypeCode}&Mode=${Mode}`,
+    method: 'get',
+  });
+}
+export async function apiUSP_Sch_Promo_GetContaintDetails(
+  data,
+  TelecastDate,
+  value,
+) {
+  return ApiService.fetchData({
+    url: `/globle/USP_Sch_Promo_GetContaintDetails?LocationCode=${value.LocationCode}&ChannelCode=${value.ChannelCode}&ContentCode=${data.ContentCode}&TelecastDate=${TelecastDate}&TelecatTime=${data.Start_Time}&EPNo=${data.Ep_No}&SeasonNo=${data.FPC_ID}`,
+    method: 'get',
+  });
+}
+
+const PosttimeZone = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      TimeZoneName: param.TimeZoneName,
+      ShortName: param.ShortName,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/timeZonemaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const PuttimeZone = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      TimeZoneName: param.TimeZoneName,
+      ShortName: param.ShortName,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/timeZonemaster/${param.TimeZoneCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Posteventcolor = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/eventcolormaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: param,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Puteventcolor = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/eventcolormaster/${param.EventCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: param,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Posteventcolorbylogin = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/eventcolormasteruserlogin/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: param,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Puteventcolorbylogin = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/eventcolormasteruserlogin`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: param,
+    };
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+const Postlanguage = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      LanguageName: param.LanguageName,
+      CountryCode: param.CountryCode,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/languagemaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+const Postusersettings = (param, checked, checked2, checked3, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      defaultChannel: param.ChannelCode,
+      defaultLocation: param.LocationCode,
+      AutoSave: checked ? 1 : 0,
+      Promo_Programbase: checked2 ? 1 : 0,
+      Promo_showCombrk: checked3 ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/usersettings`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Putlanguage = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      LanguageName: param.LanguageName,
+      CountryCode: param.CountryCode,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/languagemaster/${param.LanguageCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Postmodule = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      ModuleName: param.ModuleName,
+      IndexNum: param.IndexNum,
+      ModuleImage: 'string',
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/modulemaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Putmodule = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      ModuleName: param.ModuleName,
+      IndexNum: param.IndexNum,
+      ModuleImage: '1.png',
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/modulemaster/${param.ModuleCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const PostSubmodule = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      SubModuleName: param.SubModuleName,
+      IndexNum: param.IndexNum,
+      ModuleCode: param.ModuleCode,
+      SubModuleImage: 'string',
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/submodulemaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const PutSubmodule = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      SubModuleName: param.SubModuleName,
+      IndexNum: param.IndexNum,
+      ModuleCode: param.ModuleCode,
+      IsActive: param.IsActive ? 1 : 0,
+      SubModuleImage: '1.png',
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/submodulemaster/${param.SubModuleCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Postcurrency = (param, token, binaryData) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      CurrencyName: param.CurrencyName,
+      Currency_image: param.Currency_image,
+      CurrencySymbol: param.CurrencySymbol,
+      ShortName: param.ShortName,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/currencymaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Putcurrency = (param, token, binaryData) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      CurrencyName: param.CurrencyName,
+      Currency_image: param.Currency_image,
+      CurrencySymbol: param.CurrencySymbol,
+      ShortName: param.ShortName,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/currencymaster/${param.CurrencyCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+const PutcurrencyImage = (currencyData, token, previewSource) => {
+  return new Promise((resolve, reject) => {
+    // Create FormData
+    let formData = new FormData();
+    formData.append('CurrencyName', currencyData.CurrencyName);
+    formData.append('Currency_image', previewSource); // Assuming previewSource is a File or Blob
+    formData.append('CurrencySymbol', currencyData.CurrencySymbol);
+    formData.append('ShortName', currencyData.ShortName);
+    formData.append('CurrencyCode', currencyData.CurrencyCode);
+
+    // Configure Axios
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: `${appConfig.apiPrefix}/currencymaster/${currencyData.CurrencyCode}`,
+      headers: {
+        Authorization: `Bearer ${token}`, // No need to set 'Content-Type' manually
+      },
+      data: formData,
+    };
+
+    // Make the Axios Request
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Postdesignation = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      DesignationName: param.DesignationName,
+      ShortName: param.ShortName,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/designationMaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Putdesignation = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      DesignationName: param.DesignationName,
+      ShortName: param.ShortName,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/designationMaster/${param.DesignationCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const PostForm = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      FormName: param.FormName,
+      ModuleCode: param.ModuleCode,
+      SubModuleCode: param.SubModuleCode,
+      IndexNum: param.IndexNum,
+      WinFormName: param.WinFormName,
+      FormImage: '1.jpg',
+      IS_MO: 1,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/formmaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const PutForm = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      FormName: param.FormName,
+      ModuleCode: param.ModuleCode,
+      SubModuleCode: param.SubModuleCode,
+      IndexNum: param.IndexNum,
+      WinFormName: param.WinFormName,
+      FormImage: '1.jpg',
+      IS_MO: 1,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/formmaster/${param.FormCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Postzone = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      ZoneName: param.ZoneName,
+      ShortName: param.ShortName,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/zonemaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Putzone = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      ZoneName: param.ZoneName,
+      ShortName: param.ShortName,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/zonemaster/${param.ZoneCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const PostUnit = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      UnitNumber: param.UnitNumber,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/unitmaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const PutUnit = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      UnitNumber: param.UnitNumber,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/unitmaster/${param.UnitCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+const PostMoviealbum = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      MovieAlbumName: param.MovieAlbumName,
+      EPGName: 'null',
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/moviealbummaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const PutMoviealbum = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      MovieAlbumName: param.MovieAlbumName,
+      EPGName: 'null',
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/moviealbummaster/${param.MovieAlbumCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Postchannelsetting = (res, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      LocationCode: res.LocationCode,
+      ChannelCode: res.ChannelCode,
+      FramePerSec: res.FramePerSec,
+      StartTime: res.StartTime,
+      EndTime: res.EndTime,
+      PlayoutCode: res.PlayoutCode,
+      ...(res.ProviderCode && { ProviderCode: res.ProviderCode }),
+      SapWebService: res.SapWebService,
+      TallyIntegrationPath: res.TallyIntegrationPath,
+      IsMultiChannel: res.IsMultiChannel,
+      IsNTCAutoCalc: res.IsNTCAutoCalc,
+      IsNTCGroup: res.IsNTCGroup,
+      ...(res.MamCode && { MamCode: res.MamCode }),
+      IsTRAI_InventoryRule: res.IsTRAI_InventoryRule,
+      IsTapeCounterFlag: res.IsTapeCounterFlag,
+      IsDiscountFlag: res.IsDiscountFlag,
+      SRModificationAllowed: res.SRModificationAllowed,
+      IsDealApproval: res.IsDealApproval,
+      IsRateCardAllowed: res.IsRateCardAllowed,
+      PaperMedia: '' + res.PaperMedia + '',
+      VideoPath1: res.VideoPath1,
+      VideoPath2: res.VideoPath2,
+      VideoPath3: res.VideoPath3,
+      VideoPath4: res.VideoPath4,
+      VideoPath5: res.VideoPath5,
+      ValidLicenseKey: 'NA',
+      ReportPath: 'NA',
+      IsPlayoutIntegrationFlag: 'Y',
+      IsEPGIntegrationFlag: 0,
+      IsMAMIntegrationFlag: 0,
+      IsSAPIntegrationFlag: 0,
+      IsTallyIntegrationFlag: 0,
+      IsBreakPatternAllowed: 0,
+      VideoPath6: '0',
+      VideoPath7: '0',
+      VideoPath8: '0',
+      VideoPath9: '0',
+      VideoPath10: '0',
+      SequenceNo: '0',
+      PaymentCheck: res.PaymentCheck ? 1 : 0,
+      IsActive: 1,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/channelsettings/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+const Putchannelsetting = (res, token, ChannelSettingCode) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      LocationCode: res.LocationCode,
+      ChannelCode: res.ChannelCode,
+      FramePerSec: res.FramePerSec,
+      StartTime: res.StartTime,
+      EndTime: res.EndTime,
+      PlayoutCode: res.PlayoutCode,
+      ProviderCode: res.ProviderCode,
+      SapWebService: res.SapWebService,
+      TallyIntegrationPath: res.TallyIntegrationPath,
+      IsMultiChannel: res.IsMultiChannel,
+      IsNTCAutoCalc: res.IsNTCAutoCalc,
+      IsNTCGroup: res.IsNTCGroup,
+      MamCode: res.MamCode,
+      IsTRAI_InventoryRule: res.IsTRAI_InventoryRule,
+      IsTapeCounterFlag: res.IsTapeCounterFlag,
+      IsDiscountFlag: res.IsDiscountFlag,
+      SRModificationAllowed: res.SRModificationAllowed,
+      IsDealApproval: res.IsDealApproval,
+      IsRateCardAllowed: res.IsRateCardAllowed,
+      PaperMedia: '' + res.PaperMedia + '',
+      VideoPath1: res.VideoPath1,
+      VideoPath2: res.VideoPath2,
+      VideoPath3: res.VideoPath3,
+      VideoPath4: res.VideoPath4,
+      VideoPath5: res.VideoPath5,
+      ValidLicenseKey: 'NA',
+      ReportPath: 'NA',
+      IsPlayoutIntegrationFlag: 'Y',
+      IsEPGIntegrationFlag: 0,
+      IsMAMIntegrationFlag: 0,
+      IsSAPIntegrationFlag: 0,
+      IsTallyIntegrationFlag: 0,
+      IsBreakPatternAllowed: 0,
+      VideoPath6: '0',
+      VideoPath7: '0',
+      VideoPath8: '0',
+      VideoPath9: '0',
+      VideoPath10: '0',
+      SequenceNo: '0',
+      PaymentCheck: res.PaymentCheck ? 1 : 0,
+      IsActive: 1,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/channelsettings/${ChannelSettingCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+const Postchannelsettingdetails = (data, token) => {
+  return new Promise((resolve, reject) => {
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/channelsettingdetails/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const PostEntity = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      EntityName: param.entityname,
+      PermAddress: param.PermAddress,
+      CorpAddress: param.CorpAddress,
+      ContactPerson: param.ContactPerson,
+      Contact: '' + param.Contact + '',
+      IsActive: param.IsActive ? 1 : 0,
+      PANNO: param.PANNO,
+      CINNumber: param.CINNumber,
+      CountryCode: param.CountryCode,
+      StateCode: param.StateCode,
+      PlaceCode: param.PlaceCode,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/Entitymaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const PutEntity = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      EntityName: param.entityname,
+      PermAddress: param.PermAddress,
+      CorpAddress: param.CorpAddress,
+      ContactPerson: param.ContactPerson,
+      Contact: '' + param.Contact + '',
+      IsActive: param.IsActive ? 1 : 0,
+      PANNO: param.PANNO,
+      CINNumber: param.CINNumber,
+      CountryCode: param.CountryCode,
+      StateCode: param.StateCode,
+      PlaceCode: param.PlaceCode,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/Entitymaster/${param.EntityCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Postlocation = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      LocationName: param.LocationName,
+      ShortName: param.ShortName,
+      TimeZoneCode: `${param.TimeZoneCode}`,
+      CurrencyCode: param.CurrencyCode,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/locationmaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Putlocation = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      LocationName: param.LocationName,
+      ShortName: param.ShortName,
+      TimeZoneCode: `${param.TimeZoneCode}`,
+      CurrencyCode: param.CurrencyCode,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/locationmaster/${param.LocationCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Postdepartment = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      DepartmentName: param.DepartmentName,
+      ShortName: param.ShortName,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/departmentmaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Putdepartment = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      DepartmentName: param.DepartmentName,
+      ShortName: param.ShortName,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/departmentmaster/${param.DepartmentCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const PostEmp = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      Emp_FirstName: param.Emp_FirstName,
+      Emp_LastName: param.Emp_LastName,
+      Emp_Code: param.Emp_Code,
+      Emp_Email: param.Emp_Email,
+      Emp_Addr1: param.Emp_Addr1,
+      Emp_Addr2: param.Emp_Addr1 || 'NA',
+      PlaceCode: param.PlaceCode,
+      StateCode: param.StateCode,
+      CountryCode: param.CountryCode,
+      Emp_Contact1: '' + param.Emp_Contact1 + '',
+      Emp_Contact2: '' + param.Emp_Contact1 + '',
+      Emp_Grade: param.Emp_Grade,
+      Emp_DOB: param.Emp_DOB,
+      Emp_DOJ: param.Emp_DOJ,
+      Emp_DOL: param.Emp_DOL || '0000',
+      Emp_BloodGroup: param.Emp_BloodGroup,
+      Emp_Image: param.Emp_Image,
+      DepartmentCode: param.DepartmentCode,
+      DesignationCode: param.DesignationCode,
+      AgencyCode: param.Agency ? param.Agency : 0,
+      ReportingTo: param.ReportingTo || 0,
+      Emp_Description: param.Emp_Description || 'NA',
+      RegionCode: param.RegionCode,
+      IsActive: param.IsActive ? 1 : 0,
+      is2FAAllowed: param.is2FAAllowed ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/empmaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const PutEmp = (param, token) => {
+  return new Promise((resolve, reject) => {
+    if (!param.hasOwnProperty('Emp_DOL')) {
+      delete param.Emp_DOL; // Remove Emp_DOL property if it doesn't exist
+    }
+
+    let data = JSON.stringify({
+      Emp_FirstName: param.Emp_FirstName,
+      Emp_LastName: param.Emp_LastName,
+      Emp_Code: param.Emp_Code,
+      Emp_Email: param.Emp_Email,
+      Emp_Addr1: param.Emp_Addr1,
+      Emp_Addr2: param.Emp_Addr1 || 'NA',
+      PlaceCode: param.PlaceCode,
+      StateCode: param.StateCode,
+      CountryCode: param.CountryCode,
+      Emp_Contact1: '' + param.Emp_Contact1 + '',
+      Emp_Contact2: '' + param.Emp_Contact1 + '',
+      Emp_Grade: param.Emp_Grade,
+      Emp_DOB: param.Emp_DOB,
+      Emp_DOJ: param.Emp_DOJ,
+      // Emp_DOL: param.Emp_DOL,
+      Emp_BloodGroup: param.Emp_BloodGroup,
+      Emp_Image: param.Emp_Image,
+      DepartmentCode: param.DepartmentCode,
+      DesignationCode: param.DesignationCode,
+      AgencyCode: param.Agency ? param.Agency : 0,
+      ReportingTo: param.ReportingTo,
+      Emp_Description: param.Emp_Description || 'NA',
+      RegionCode: param.RegionCode,
+      IsActive: param.IsActive ? 1 : 0,
+      is2FAAllowed: param.is2FAAllowed ? 1 : 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/empmaster/${param.EmployeeCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const logright = (LoginCode, access_token) => {
+  return new Promise((resolve, reject) => {
+    let config = {
+      method: 'get',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/loginmenu/loginmenu/${LoginCode}`,
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+      },
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const ChannelSetting = (LoginCode, access_token) => {
+  return new Promise((resolve, reject) => {
+    let config = {
+      method: 'get',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/channelsettings`,
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+      },
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        resolve({});
+        // resolve({
+        //   data: [
+        //     {
+        //       ChannelSettingCode: 27,
+        //       locations: {
+        //         LocationCode: 1,
+        //         LocationName: 'AUSTRALIA',
+        //       },
+        //       Channel: {
+        //         ChannelCode: 19,
+        //         ChannelName: 'TELSTRA',
+        //         Channel_Image:
+        //           'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAkGBxESEBUQEBIVFREVFhYRGRUVEhAVFhkXFhUYFhoXFRYYHiggGBomGxUXITIhJSorLi8vFyAzODMtNygtLisBCgoKDg0OGxAQGy8lICYrLS0wLi01LS8yLy84LS0tNTA1NS0vLy0wLS8tLS0tLzYtLS0tLS8tLS8wLy8tLy0tLf/AABEIAOEA4QMBEQACEQEDEQH/xAAcAAEAAgIDAQAAAAAAAAAAAAAABQYEBwECAwj/xABEEAABAwIDBQUEBgcGBwAAAAABAAIDBBEFEiEGMUFRYRMicYGRBzKhwSNCYnKSsRRDUmPR4fAkM6KjsvEWJTZTc4Li/8QAGwEBAAMBAQEBAAAAAAAAAAAAAAQFBgMCAQf/xAA6EQACAgEBBQQKAQMDBAMAAAAAAQIDBBEFEiExQRNRYXEiMoGRobHB0eHwBhQjUhUzQnKy0vE1Q2L/2gAMAwEAAhEDEQA/AN4oAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgOHGyAgf8AiQTPMVCz9Ic05XSZstOw8nS2OZ32WB3W29cu014R4kv+lcI71z3e5dX7Pvp7STgY9gL5pQTa5sAyNvOwJJ/ET5L3y4tnB6Se7BfV/vkiHq9ucPjOUzZj+7Y94/EBY+qjyzKYvTUsqtiZti13NPNpfB8TtQ7b0ErsomDXHQdo18Y/E4W+K+wy6pPRM83bFzalvOGq8NH8uJYQbqSVZygCA6TShoLnaALlffCiDsseiR6jFyeiOkFSx/ukH8/MLnjZlOStapa/P3cz7OuUPWR7KSeAgCAIAgCAIAgCAIAgCAIAgCAIAgCAj8cxmCkhM1Q8MYNBzceDWDi7ovM5qK1Z2oosunuQWrKZQxVeMntajNT4ZfuwtcRJOOcjh9Tw05ftKOlK3i+CLOx1YHow0lZ1fSPl4/vgWvEa+moKcEgMjaMrI2AC5/ZYOf8AuV0sshTHVkLGxrs27djxb5t9PFmpdo9pp6x30hyxX7sTSco6u/aPU+VlR35M7nx4LuNzgbNpw4+itZdZPn+F+vUiIaeR9zHG94G8sY91vHKNFyjXKXJE2dsIetJLzaXzMclfDoW3YnbN9K5sM7i6lOmtyYurebObfMcjPxspwe7Ll8ij2tsiOSnZUtJ/93n4+Pv8NwxSBwDmkFpFwQbgg7iDyVwnrxRhmnF6Pmd19PhH4060R6kD43+Spdvy0w2u9r56kjFWthX2yEG4NiOIWJhOVclKD0a6otHFNaMmsOxXNZkmjuB4Hx5Fa7Zm21a1Vfwl0fR/Z/DyK+/FcfShyJUFaIhnKAIAgCAIAgCAIAgCAIAgCAIAgI3H8ZipIHVExsxu4D3nOO5rRxJ/nuXic1Bas7Y9E77FXDn8vE1ps5h02NVZra0WpIjlZFc5Sd/Zt5jcXO46DoIlcXdLelyL3Jths+rsafXfN/X7LobRr62KnhdLIQ2Ng4DloGtHPcAFLnONcd58iippsvsVcFq3+/8As0ntJjklXOZX6NGjGX0Y3l4niePos9fdK2WrP0PBwoYlXZx59X3v7dx22TwkVdWyBxIZq99jY5W7wDwuSB5r3i09pYovkedp5bxcaVkefJebN4UtMyJgjjaGMaLBrQAAPBaCMVFaI/O7LJWSc5vVvqzTntPbGMQd2YAJYwyW/wC4b7+uXIVTZqXa8Dc7Ac3hrf73p5cPrqVElRC6LjsLtuaQiCou6mJ0OpdFfkOLOY4cOSnY2VuejLkUO1tkLK/u1cJ/935/X3m4aedr2h7HBzHDMHNIIIPEEbwrZNNaoxM4ShJxktGiN2hk7rW8zf0H81nP5JYlVCvvevuX5JeFH0myCJWRLEzIcLkezOLa7gd5VtRsbIuo7aOnHkur+nkcJ5MIT3WZuE4ib9lL724E7/unqrfZO1Jb39Nkc1wTfyfj3fusfJx1p2kOX7xJoFaUgHKAIAgCAIAgCAIAgCAIAgCA6vcALnQDUkoDSG0GIy4ziTKaAkU4cWs00DR78zhzIGn/AKjiVWzk7rN1cjWY9Mdn4zsn63X6L98Tc2GUEdPCyCJuWNjQ1o8OJ5k7yeZVhGKitEZe22Vs3OXNmqfaBtGamYwxn6CIkD7bxoXdQNQPM8VS5uR2kt1ckbfYuzljVdpNenL4Lu+r/BUSVCRdmZgmLyUs7aiKxc24IO5zSLFp/jzAXamx1y3kRsvFhlUuqfJ/B95cK/2pSFloacMkI958mcNPRoaL+Z8lPltBteiihp/jUFLWyzVdyWmvxZr+aV8ry5xc+R7rk6lznOPxJPBQG3OXizSRjCuGi4JL2JFlx3YSppqVlSe+bZpmNGsfEH7TQN54b92olWYkowUveVOJtqnIvdPL/F9/2fd3+fOs4fRSTythiF3uOl9AANS5x4NAuSeijwg5PRFnddCmDnPkv3TzfQ2x7PnPzOjpz/YIWmPOW6zTE5nSNPAb9ORbxvazxXJvSPqrh5syO2YwUVK1f3pPXT/GPJL966+2TxaqzyG3ut7o+Z9Vj9r5X9RktrlHgvq/eRcarchx5swhc6DedFWxi5PRc2SOXFlyp48rQ3kAPQL9LoqVVca10SRQzlvSbIvHaDM3tG+80a9QPmFS7a2erIdvD1lz8V91+9CXh37r3JcmemCYh2jcrvfb8RzXbZG0P6mvcm/TXxXf9/yecvH7OWq5MlFckQIAgCAIAgCAIAgCAIAgCAoPtcx8wUopmG0lRdp5iIe/63DfAuUXKs3Y6d5cbGxe0t7R8o/Pp7uZiexnAwyB9a8d+UmNnSNp1I8Xj/AF5xK9Fvd5125kb1ipXJcX5/hfMum1VS6OinkZo5sTyDy0tfy3+S7Xyca5NdxXbPrjZlVwlyckaEWdP0o6kr6DoXL0DzJQG0PZlslltXVDe8ReJhHug/rCOZG7kNeOlrh4+npy9hkdu7U3tcap8P8Ak/p9zY7m3FlYGXKFjGxBa8soWiOOpfaeTMLxxWBMcTeDHEG4HHKNGqFZjcdIcNeZosXbCcd7JergvRXe+Wr8V93zLDP2dLA2mgGUBuUDiBxcTxcTfXqSq3a+dHGq7Cr1mvcu/wA3+Sur38q13W8eP77EQpKxxY6ElgVJnfnPut+LuHpv9FebDw+1u7WXqx+f45+4h5lu7DdXN/IsoW0Kk8a2ZrGOc7cAf9lHyroU0ynPkke6oOc1FFMpKkxvD27xw5jiFgMW+WPZGyPNfuhoLalZFxZdqeUPaHN3EXC/Q6rY2wU48mtTPTi4ycX0PRdDyEAQBAEAQBAEAQBAEAKA+ffaBiLqrEpcmoa4U0Y+4cuni8uPmqnIlv2G22bSqMWOvX0n++WhvXB6BtPTxQN3Rsaz0FifM6q0hHdikY6+122Sm+r1MqaIOaWuALXAtIO4gixBX1pNaM5xk4tSXNGrsf8AZrK1xfRuD2bxG92V46NcdHDxt571V24D11ga/D/kVcko5C0feuT9nNezX2FKxPCamn/v4ZIxzc05fJ47p9VDlTOHrIvqMui//amn5c/dzI8leDudSV9Bc9mPaBWROZC8GqaSGBpv2uugDXD3j0dfxCnU5U1wfEoc/YmNYnZH0Hz16e1dPZ7jbOHYtDMXMY9vaMtnjzNLmE8HZSRodLgkXB1VjC2M+CZkLsW2lKUk9HyfR/vjxM4hdCORWIYMHuL2us4776j+Sos/YkcibshLST568U/t+8CZRlutbrWqMaHZ8377xbk0H8zuUOn+Oy1/uz4eH3f2O089aeiveTcELWNDWiwHBaSmmFMFCC0SK+UnJ7zOKidrGlzjYDil10KYOc3okIQlOW7HmVDFMSdM7kwbm/M9ViNobQnlz7orkvq/H5fO9x8ZVLx7zAJVeStC37ONcKcZuJJHgT/uttsWM44kd7vbXkUWc4u56EorYhhAEAQBAEAQBAEAQBAYmLVQhglmO6ON8n4Wk/JeZPSLZ0pr7SyMO9pHz/sVT9tiVM12pMwkPUsvIb+bVU0LesRt8+XZ4s2u7T6H0WFcGECAIDhzQdDuQFXxvYOhqLkR9jIfrxWbr1Z7p9L9VGsxa59NC2xdtZVHDe3l3S4/Hma3xn2f1kEga0NkiP64EMY0DUmXMfowBxuRyN9FAsxJwfh3mmxtt410NXqpf482/LTmZWB4ec5psO+knItLWEFrWNOhbFxY3hm953CwXyCcnuVe2X2PmTbGMe3zOEf+NfPV+Pe/DlHxZsTCcLp8OgszvSO95xtmeR+TRfQcOpOva+6nZ9Or4t8l1b+xl8nKu2jdrLgl06L8/PyJTCq7tW3OjhoR8x0X3ZmesuvV8JLmvr5MiZFHZS06GerIjhACgKfjmIdo/KD3Gmw6nmsTtbOeTbux9WPLxff9i9w8fs47z5siyVUk3QseDYGLCSYXO8M4Dq7mei1OzdjpJW3rj0j9/sVOVnPVwr95YAFoyrOUAQBAEAQBAEAQBAEAQFe9oMmXDKo/uy38RDfmuV70rZO2ZHXLrXial9lzQcVg6CU/5Th81XYq/uI1G2OGHP2fNG+wrYxIQBAEAQHjUwMkY6N7Q5jgWkHcQd4K+SSktGeoTlXJTi9GiGZLT0cfYUzGi3Ac+b3b3O+KpMzatGIuzq4y+C8/tz8ie4X5k+1uf74LoiGqKhz3ZnG5/rQcgslffZfN2WPVljXXGC0iiT2Yv2j+WXXxvp81d/x5S7ab6afXh9SFtDTcXmWVa4qggMevcRE8jeGuI9Co+XKUaJuPPdfyOlKTsin3ooN1+eI0+h60hHaMzbs7b+GYXXfG07aG9y3l8zxan2ctO5/I2AF+iGXOUAQBAEAQBAEAQBAEAQBAVv2jMvhdSPsA+j2n5LjkL+2yw2U9Myvz+hqT2bS5cUp+pe31ieB8bKuxn/dRqdrR1w5+z5o38FbmGOUAQC6Aw6zEY4/edr+yNT/LzUHL2jRjeu+PcuL/AB7TtVjzs5L2lfrsYkk0HdbyB1PiVlczbF+R6MfRj4c35stKcOEOL4sjSVU6Es9KanfI7KwXPwHUngpGPjWZE9ytav5eZ5ssjXHeky3YbRCJmUaneTzP8FucHChi17keL6vvZRX3O2W8zMU04hAcEL4wUzHMKMJzN1iJ/CeR/isZtLZssaW/D1H8PD7F/h5atW7L1vmRBKqtCeXHZ7FhK3I4/SNH4gOI681stl7QV8Nyb9NfHx+5QZuK6pb0fVfwJoK3IAQBAEAQBAEAQBAEAQBARm0tJ21HURDe+GRo8cpt8bLxYtYNeBIxLOzvhN9JL5nz3gdZ2NTBNuDJGPPgHDN8LqmrluzTN/k1dpVOvvTX77T6WaVeH5wcoDErsQZEO8deDRvP8FBzNoU4q9N8e5cztVRO1+iQFZjUj9G9xvTf6/wWXyttZF3CHorw5+/7aFnVhwhxfFkYSqcmaHAuTYak8AvUYtvRH3lxZL0OAvd3pTlbyHvfyV9h7Css9K70V3dfx8fIgXZ8Y8IcX8Cw0tKyNuVjQB/W88Vp6MeuiO7WtEVdlkrHrJnqu54ILFdoAwlkVnO4uPujw5lUOdtqNbcKeL7+n5+RZY2z3Nb1nBd3UiG7QVAN84PQtbb4C6p47YzFLXe18NF/7Jz2fQ1pp8SyYPignbfc8e835jotNs/PjlQ15SXNfvQqcrGdEu9PkzOljDgWuFwRYg8Qp04RnFxktUyNGTi9VzKPjuFmB9xrG7ceX2SsXtHZ7xZ8PVfL7fvM0eHlK+Oj9Zc/uRscpa4OabOBuCOagQnKElKL0aJkoKScZci/YLX9tEH7ne64dRy/PzW5wMr+opU+vJ+Zl8qjsLHHp08jPUwjhAEAQBAEAQBAEAQBAcEID5x2nw39HrJ4LWDXuy/cd3m/4XBUlsNybR+jYV3bUQs718eT+JuzYDFv0mgieTd7B2L+eZlhc+Is7zVrjz34JmK2rjdhlSj0fFeT/dCwTOs0nkCfQL3ZLdg5dyZXxWrSKPLKXEucbk6lfm9lkrZuc3q3xNFGCitEeZK8nvQ708LpHhjd5/q56LtRRO+xVw5s82TjXFykW3DcMZENBd/Fx3+XILb4OzqsWPDjLq/3kijvyZ2vjy7jPVgRwgKxtDjGphjPRzh/pHzWZ2ttPVuip+b+n39xb4OH/wDZP2L6lcJWc0LdHBK+n3QzMFrOyna76pOR3gf52Pkp2zsjsMiMuj4Pyf7qR8yntaWuvNF+C3RmDGxGkEsbo3cRoeR4FR8nHjfU65dfmdaLXVYpo1w8EEg7xp6LBOLT0ZrovVaouex0RFOXH6zyR4CzfkVrdiVuOPq+rb+n0M9tSSd2i6L8k8rgrQgCAIAgCAIAgCAIAgCA1b7Y8EP0dawfuZPUljj6kebVX5tfKZqP47letjy819fv7yI9lOPiCqNPIbRT2AvuEo0b+L3fHKueJbuy3X1Ju3cLtqe1iuMfl193P3m6CrNmKKbi1GYpCPqnVvhy8lg9pYbxbnH/AIvivLu9hf413aw16rmYBKgElIlNmpQJ7He5pA8bg2+CudhTjHK0fVNL4Mh7Qi3VqujLaFsyjOUBB7R4r2bezYfpHDePqj+JVJtfaHYx7Kt+k/gvu+hYYOL2kt+XJfEqBKyRfGTRYfLNfs23A3kkAeFzxUrGwrsj/bj7ehyuyK6fXZ5VlK+J2WRpafgfA8V4vxrKJbti0PdNsLVrB6mMSuJ2NiYTU9pCx/EtF/EaH4hb3Du7aiM+9fHkzKZNfZ2yj4mTJIGguJsACSegUiUlFNvkjik29Ea0DTNNZg1kebD7xvr4fJYNRlfdpFcZP5s1+qpq1lySNkUdOI2NjbuaA304rdU1KqChHkloZKyx2Tc31PZdDwEAQBAEAQBAEAQBAEAQGLilAyeF8EouyRpaR48R1B18l5lFSWjOtN0qbFZDmnqfPOOYTJSVD4JPeYbhwuMzd7Xt8fgQeSpbIOuWjP0fFyIZVStjyfTu70bk9n21IrYMsh/tMQDXj9obhIOh48j5Kzx7u0jo+aMVtfZzxLdY+pLl4eBYsRomysLD4g8jzXnMxIZNThL2PuZW03Oqe8ik1UDo3FjxYj+rjosJdROmbrmuKNFXONkVKJ4h5BBBsRqD1XiLcWmuaOjimtGWfD9o2Ftpu64cbEtPXTctXibbrlHS/g+/o/dyKa/Z009a+KOMQ2lYBaHvO5kENHrqUytt1xjpTxff0X3PtGzZyetnBfEqsspcS5xu46klZic5Tk5SerZdwgopRXIycKw908mQaNGrnch/FSsHDllW7q5dX3L7nHJyI0Q3nz6IvlPA1jQxgs0aALb1VQqgoQWiRmZzlOTlLmRm1FKH07jbVnfB/P4XVftehWYzfWPH7/AmbOscL0uj4FEJWONMkWLZTF2Rh0Urg0XzNcTYX4gnhz9Vf7HzoVp1WPRc038io2liSm1ZBa9GddpsfEg7GE3Z9Z3PoOnXim1NpKxdlU+HV9/h5HrZ+A4PtLFx6LuMzZHCC0dvIO84WaDwaePify8VJ2RguC7afN8vLv8Ab8vMj7Ty959lDkufn+PmWdXpUBAEAQBAEAQBAEAQBAEAQBAVbbvZRtdD3bNqI7mN3A82O+yfgfO8e+lWLxLXZW0nh2elxg+a+q/eJpmiqqiiqc7bxzxOsWuHq1w4g/z5FVSlKufijc2VU5dO6+MZfuq8TeOye08NdFnZ3ZG2D4ydWnmObTwPzVvTdGxarmYHaGzrMKzdlxi+T7/z+8jMxnDBM3TR490/I9FD2js+OVDhwkuT+nkccXJdMvB8ykzRua4tcLOGhBWLnXKuThJaNGihKM1vRfA8yV5Peh1JQ9aHpS07pHiNgu4/1c8gu1FE7pqEFxZ4ssjXFylyL9hVA2GMMbv3k8zzW4w8WGNUoR9r72ZjIvldPefsMxSjgYuJsvDIObH/AOkrhlR3qJrwfyOtD0ti/FfM1ldYJGy0OCV9PuhY9mtny8iaYdze1p+t1P2fz8N95s3Zjs0ttXDou/8AHz8udPtDaG4nXW+PV935+XmXQBacz5ygCAIAgCAIAgCAIAgCAIAgCAICqbabGx1zc7SI6los2S2jgPqyAbx13jruUe/HVi16lvsva08OW6+MHzXd4r90fxNQyR1eH1OuaGdm48COh3PafRVek6Z9zNvF42fR0lF/vmmbR2T9oUNSBFU2hn0FybRvP2SfdP2T5Eqxpy4z4S4MyG0dg24+s6vSj8V59/mvboWbFcKZONdHjc4b/A8wueds+vKjx4S6P95oqcbKnQ+HFdxVKzBJ4z7hcObO98N4WXv2Xk1P1dV3rj+S8qzqbFz08+B1pMEnkNshaOJeC0eh1KUbMyLX6ui73w/J6tzqK162vlxLdhOEsgbZurjvcd56DkOi1OFg14sdFxb5v96FDk5U73x5dxIqcRggOkzbtI5gj1C8zW9Fo+xejTNXikkzmIMcXg2ygElYRY9u/wBmovXuNn21e5v6rQtWB7LhtpKiznbwze0fe/aPTd4rQYOyFDSd3F93Reff8ijzNqOfoVcF39fwWlXpThAEAQBAEAQBAEAQBAEAQBAEAQBAEBgYxg8FVH2dRGHt3i+9p5tcNWnwXidcZrSSJGNlXY09+qWj+fmav2g9mU8d30ju2Z+w4tbIPPRr/h4KutwpLjDibDB/klNno5C3X3rivuvj5kVhO1lfQOELsxa39TO12g+yTZzfy6LnC+yrg/cydk7Jws9dpHm/+UdPj0fz8S94R7TKOSwnD4HdQXsv0c3X1AUyGbW+fAzeT/GsqvjVpNe5+5/cttDicEwvDNHJ9x7XfAblJjOMuTKS7GupelkGvNNGYvZwF0AQGJPiMLXZHSNzncwG7z4MHePkF5c4rhqdo49so7yi9O/p7+RkRm4vqPEWPovqOTWj0O6+nwIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgMatw+KZuSaNkjeT2tcPK+5eZRjJaNanWm+2mW9XJxfg9CsYh7N8Pk1a18R3/RvNvR+YAeFlHlh1vlwLmn+R5tfrNS819tCEn9k7L3jqnN+9EHH1Dmri8BdJFhD+WT00nUn5PT6M94vZ/WMFmYpK0fZEw/KRfViWLlN/vtOcv5BiS9bGT93/iZ1PsXV/rMVqXDk0vb8S8rosafWbI09tYz9TFgvPR/RElT7GwAfTS1M/8A5qmUj8LSAR0K9rHj1bfmyJPbFz/24wh/0xX11Juiw+GFuWGNkbeTGtaPO29doxjFaJFddfbdLesk5Pxepkr0cggCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgF0AQBALoAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCA1btptXWPxBtBhkhDm3Y7KIzmktmIu4Gwa0epPJQ7bZb+5AvsLCpjju7IXPz4L8kl7LdrpKoSU9U7NUR98EhrS5hNiCABq12h0+sF7x7XLVS5nDauFGlqytei/n+SN9p20ddT10UFJM5gfEw5Q2I3e6R7d7gd9gN655Fk4zUYskbLxaLKHO2Oujffy0XcZXs422kmkdRVzv7QC7I9wDS4gnNG4AAB4sbc9Rw19UXNvdlzOW0tnxhFXU+r1+/kdBtHV/8AEP6H2x/Rs+Xs8sdrfo+ffa/va707SXbbuvA9f0lP+n9ru+lpz4/5aHGA7R1cmPS0j5iadr5wI8sdgGXy6gX08UhZJ2uLfAZGJTHBjao+lw4klTV9dNO+KKaxaXHvBgFg62/KeYVHXkZl90q658te7v8AIkWUYdNUZ2Q56d/PTzO+JVGI04a+SUFpNtMh1texGUcl6yLc/GSlOfDXw+x5orwMhuMI8fb9z1x3G5hHTyRvydowucAGnXTmPFe87PujXXOD01Wr+HeeMLBqc7IzWuj0XxLi3ctCigKttXic0U0bY3lrXNuQA0/WtxCpNp5VtVsYwlomvqXWzcWq2qUpx1afj3FpCvClKpgmKzPqpmPeXMYJCG2aPdeANw5Khw8y2eTOMnqkpcPJl3mYlUMeEoLRvTj5ojaPF6qdzj+lRxAa2eWNGvBvdN7KHVm5N8n/AHVHz0Xu4Eu3ExqIr+05eWr+p7S1Va0t7OqimvwbJCfIh1t/RdnbmRa3LYy8nH6nNVYkk9+px81L6al0gcS0Fws4gEjkbahaKLbim+ZnpJKTSeqPRej4EAQBAEAQBAEAQBAEAQEDttj4oaN8+nae5GDxkdu04gauPRpXO2e5HUl4WM8i5Q6c35fvA1ZsVs9irh+n0bomukztzykFzru7zgHNO9wOvioVNdnrxL/OysRf2LU+GnBeRj4tRV+F1keITiMvfI55MR7jj9djgGgNzAnhzPBfJxnVJTZ7psx8yl0Q10S6/B+wz/aHXRz4lQzRG7JIqd7T0M7jqOa9XNO2LXcjls6uVeNZCXNOXyJ32pbIud/zGkBErLOlDdCQ3UStt9Zttegvw16ZFWvpxIeys5L+xZyfLX5eTKlsZib6nHIJ5bdo8nNbQEtp3MvbhfLfzXGqTlamyyzaVTgyhHkv/LUmdmP+pp/v1PzXSv8A337SLlf/ABkfKJN4bQvmqpWRyGNwzuzDNuDwLaEcx6LPY1E7smcYS3Xx4+075F8KceEpx3lw4ewl5dkpn27SqLgOYe63hdysZbItn69uvvf1IK2tVD1KtPcvoYu2cAjFPG33Wsc0X6Fu9RtsVqtVwXJJr5HbZNjs7Sb5t/cyRtt+4/zP/ldv9dX+Hx/Bx/0T/wDfw/JibTPfMyGrawhpaQbd7KQ6+p5LltFzuhXkJcNPPTid9nqNMrMdvjr5a8DNbts239yb/fFr+i7rbsdPU4+ZH/0SWvr/AAPDZCGR00tRl0LXWuCAXOcHWHMaLlsquyVs7tODT97ep02pOuNUKteTXuS0Itk9OHuFRTFp5Rue2x43a52nkoasx1Jq6rR+Gv1ZNdd7inTZqvHR/JHhiDqZ+UU0cgdfUOIdfwAvquV7x56KiLT8TpSr4au6Sa8OBsTCGOEEYffMGNBvvvYb1rsVSVMFLnojK5Li7puPLVmYu5wCAIAgCAIAgCAIAgCAIDiyAWQCyAWQCyAWQCyAWQHKA4sgFkAsgGVNALIBZALIDkIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCAIAgCA//9k=',
+        //       },
+        //       ValidLicenseKey: 'NA',
+        //       IsMultiChannel: 0,
+        //       IsNTCAutoCalc: 1,
+        //       IsNTCGroup: 1,
+        //       StartTime: '00:00:00',
+        //       EndTime: '23:59:59:23',
+        //       ReportPath: 'NA',
+        //       FramePerSec: '24',
+        //       IsPlayoutIntegrationFlag: 'Y',
+        //       Playout: {
+        //         PlayoutCode: 16,
+        //         PlayoutName: 'PLAY DECK',
+        //       },
+        //       IsTRAI_InventoryRule: 0,
+        //       IsEPGIntegrationFlag: 0,
+        //       IsMAMIntegrationFlag: 0,
+        //       IsSAPIntegrationFlag: 0,
+        //       IsTallyIntegrationFlag: 0,
+        //       IsBreakPatternAllowed: 0,
+        //       IsTapeCounterFlag: 1,
+        //       VideoPath1: '',
+        //       VideoPath2: '',
+        //       VideoPath3: '',
+        //       VideoPath4: '',
+        //       VideoPath5: '',
+        //       VideoPath6: '0',
+        //       VideoPath7: '0',
+        //       VideoPath8: '0',
+        //       VideoPath9: '0',
+        //       VideoPath10: '0',
+        //       ProviderCode: 4,
+        //       SapWebService: '',
+        //       TallyIntegrationPath: '',
+        //       MamCode: 4,
+        //       SequenceNo: '0',
+        //       IsDiscountFlag: 0,
+        //       IsRateCardAllowed: 1,
+        //       SRModificationAllowed: 0,
+        //       IsDealApproval: 1,
+        //       PaperMedia: 'false',
+        //       IsActive: 1,
+        //       AddedBy: 3,
+        //       AddedOn: '2024-08-29T20:19:44.193000',
+        //     },
+        //   ],
+        // });
+      });
+  });
+};
+const PostRegion = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      RegionName: param.RegionName,
+      ShortName: param.ShortName,
+      ZoneCode: param.ZoneCode,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/regionmaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const PutRegion = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      RegionName: param.RegionName,
+      ShortName: param.ShortName,
+      ZoneCode: param.ZoneCode,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/regionmaster/${param.RegionCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Postcontentlocchnmap = (data, token) => {
+  return new Promise((resolve, reject) => {
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/contentlocchnmap/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Postcepsmapping = (data, token) => {
+  return new Promise((resolve, reject) => {
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/cepsmapping/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Postchannel = (param, token, previewSource) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      ChannelName: param.ChannelName,
+      ShortName: param.ShortName,
+      Channel_Image: previewSource,
+      ChannelGenre: param.ChannelGenre,
+      // ChannelContentType: param.ChannelContentType,
+      VideoTypeCode: param.VideoTypes,
+      StateCode: param.State,
+      GSTN_id: param.GSTN_id,
+      SACCode: param.SACCode,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/channelmaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Putchannel = (param, token, previewSource) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      ChannelName: param.ChannelName,
+      ShortName: param.ShortName,
+      Channel_Image: previewSource,
+      ChannelGenre: param.ChannelGenre,
+      VideoTypeCode: param.VideoTypes,
+      StateCode: param.State,
+      GSTN_id: param.GSTN_id,
+      SACCode: param.SACCode,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/channelmaster/${param.ChannelCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Postplace = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      PlaceName: param.PlaceName,
+      ShortName: param.ShortName,
+      ZoneCode: param.ZoneCode || '0',
+      StateCode: param.StateCode,
+      CountryCode: param.CountryCode,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/placemaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Putplace = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      PlaceName: param.PlaceName,
+      ShortName: param.ShortName,
+      ZoneCode: param.ZoneCode || '0',
+      StateCode: param.StateCode,
+      CountryCode: param.CountryCode,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/placemaster/${param.PlaceCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Poststate = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      StateName: param.StateName,
+      StateShortName: param.StateShortName,
+      CountryCode: param.CountryCode,
+      StateTinNo: param.StateTinNo,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/statemaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Putstate = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      StateName: param.StateName,
+      StateShortName: param.StateShortName,
+      CountryCode: param.CountryCode,
+      StateTinNo: param.StateTinNo,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/statemaster/${param.StateCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const PostRights = (data, token) => {
+  return new Promise((resolve, reject) => {
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/rights/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Postftpsetting = (param, token) => {
+  return new Promise((resolve, reject) => {
+    //alert("hhhh");
+    let data = JSON.stringify({
+      SettingDesc: param.SettingDesc,
+      FTPLocation: param.FTPLocation,
+      FTP_UserID: param.FTP_UserID,
+      FTP_PWD: param.FTP_PWD,
+      FTP_Port: param.FTP_Port,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/ftpsetting/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Putftpsetting = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      SettingDesc: param.SettingDesc,
+      FTPLocation: param.FTPLocation,
+      FTP_UserID: param.FTP_UserID,
+      FTP_PWD: param.FTP_PWD,
+      FTP_Port: param.FTP_Port,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/ftpsetting/${param.FTPSettingCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+const CreateLogin = (param, token, channel) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      LoginName: param.LoginName,
+      Password: param.Password,
+      EmployeeCode: param.EmployeeCode,
+      DefaultLocChnlCode: param.DefaultLocChnlCode,
+      RegisteredMobileNo: param.RegisteredMobileNo,
+      MPIN: param.MPIN,
+      TPIN: param.TPIN,
+      IsFinalize: param.IsFinalize,
+      IsActive: param.IsActive,
+      IsAdmin: param.IsAdmin,
+      SuperAdmin: param.SuperAdmin,
+      AddedBy: param.AddedBy,
+      LocationCode: channel.LocationCode,
+      ChannelCode: channel.ChannelCode,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/loginmaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+const UpdateLogin = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      LoginName: param.LoginName,
+      Password: param.Password,
+      EmployeeCode: param.EmployeeCode,
+      DefaultLocChnlCode: param.DefaultLocChnlCode,
+      RegisteredMobileNo: param.RegisteredMobileNo,
+      MPIN: param.MPIN,
+      TPIN: param.TPIN,
+      IsFinalize: param.IsFinalize,
+      IsActive: param.IsActive,
+      IsAdmin: param.IsAdmin,
+      SuperAdmin: param.SuperAdmin,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/loginmaster/${param.LoginCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+const loginlocchnlmapping = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/loginlocchnlmapping/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      // data: data,
+      data: param,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Postorganisation = (param, token) => {
+  return new Promise((resolve, reject) => {
+    //alert("hhhh");
+    let data = JSON.stringify({
+      OrganisationName: param.OrganisationName,
+      PermAddress: param.PermAddress,
+      CorpAddress: param.CorpAddress,
+      ContactPerson: param.ContactPerson,
+      CountryCode: param.CountryCode,
+      StateCode: param.StateCode,
+      PlaceCode: param.PlaceCode,
+      Contact: '' + param.Contact + '',
+      PANNO: '' + param.PANNO + '',
+      ServiceTaxNo: '' + param.ServiceTaxNo + '',
+      CINNumber: '' + param.CINNumber + '',
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/organisationmaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+export async function apipostcopyrights(data) {
+  return ApiService.fetchData({
+    url: `/rights/copyrights/?From=${data.From}&to=${data.to}`,
+    method: 'get',
+  });
+}
+const Putorganisation = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      OrganisationName: param.OrganisationName,
+      PermAddress: param.PermAddress,
+      CorpAddress: param.CorpAddress,
+      ContactPerson: param.ContactPerson,
+      CountryCode: param.CountryCode,
+      StateCode: param.StateCode,
+      PlaceCode: param.PlaceCode,
+      Contact: '' + param.Contact + '',
+      PANNO: '' + param.PANNO + '',
+      ServiceTaxNo: '' + param.ServiceTaxNo + '',
+      CINNumber: '' + param.CINNumber + '',
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url:
+        appConfig.apiPrefix + `/organisationmaster/${param.OrganisationCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Posthouseid = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      LocationCode: param.LocationCode,
+      ChannelCode: param.ChannelCode,
+      FormName: param.FormName,
+      EventTypeCode: param.EventTypeCode,
+      Initial: param.Initial,
+      Seperator: param.Seperator,
+      NoOfDigit: param.NoOfDigit,
+      CurrentCount: param.CurrentCount,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/videoidformat/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Puthouseid = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let data = JSON.stringify({
+      LocationCode: param.LocationCode,
+      ChannelCode: param.ChannelCode,
+      FormName: param.FormName,
+      EventTypeCode: param.EventTypeCode,
+      Initial: param.Initial,
+      Seperator: param.Seperator,
+      NoOfDigit: param.NoOfDigit,
+      CurrentCount: param.CurrentCount,
+      IsActive: param.IsActive ? 1 : 0,
+    });
+
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/videoidformat/${param.Id}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+const Postorganisationdetail = (data, token) => {
+  return new Promise((resolve, reject) => {
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/organisationdetail/`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+// const clientadd = (data, token) => {
+//     return new Promise((resolve, reject) => {
+//         let config = {
+//             method: 'post',
+//             maxBodyLength: Infinity,
+//             url: appConfig.apiPrefix + `/clientmaster/Clientadd`,
+//             headers: {
+//                 'Content-Type': 'application/json',
+//                 Authorization: `Bearer ${token}`,
+//             },
+
+//             data: data,
+//         }
+
+//         axios
+//             .request(config)
+//             .then((response) => {
+//                 resolve(response)
+//             })
+//             .catch((errors) => {
+//                 reject(errors)
+//             })
+//     })
+// }
+
+const clientadd = (data, token) => {
+  return fetch(appConfig.apiPrefix + '/clientmaster/Clientadd/', {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+};
+
+export async function apiGetclientcitymasterdropmaster(ID) {
+  return ApiService.fetchData({
+    url: `/clientcity/${ID}`,
+    method: 'get',
+  });
+}
+const clientcityUpdate = (data, token) => {
+  return fetch(appConfig.apiPrefix + '/clientcity/', {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+};
+const clientupdate = (ClientCode, data, token) => {
+  return fetch(appConfig.apiPrefix + `/clientmaster/${ClientCode}`, {
+    method: 'PUT',
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+};
+const loginupdate = (LoginCode, data, token) => {
+  return fetch(appConfig.apiPrefix + `/empmaster/updatepassword/${LoginCode}`, {
+    method: 'PUT',
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+};
+const clientdetails = (ClientCode, token) => {
+  return fetch(appConfig.apiPrefix + `/clientmaster/${ClientCode}`, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+};
+
+export async function apiGetclientempmap(data) {
+  return ApiService.fetchData({
+    url: '/clientempmap/',
+    method: 'get',
+    data,
+  });
+}
+
+const Postclientempmap = (param, token) => {
+  return new Promise((resolve, reject) => {
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/clientempmap/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: param,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const clientcitydetails = (ClientCode, token) => {
+  return fetch(appConfig.apiPrefix + `/clientcity/${ClientCode}`, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+};
+export async function apiGetSongcategoryDrop(data) {
+  return ApiService.fetchData({
+    url: '/songcategory/drop/',
+    method: 'get',
+    data,
+  });
+}
+export async function apiGetSongtypeDrop(data) {
+  return ApiService.fetchData({
+    url: '/songtypemaster/drop/',
+    method: 'get',
+    data,
+  });
+}
+export async function apiGetEntityMappingDrop() {
+  return ApiService.fetchData({
+    url: '/entitymapping/drop/',
+    method: 'get',
+  });
+}
+
+export async function apiGetEntityMappingDropByid(id) {
+  return ApiService.fetchData({
+    url: `/entitymapping/enid=${id}`,
+    method: 'get',
+  });
+}
+
+const addEntityMapping = (data, token) => {
+  return fetch(appConfig.apiPrefix + '/entitymapping/', {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+};
+export async function apiGetuserformaccess(date) {
+  return ApiService.fetchData({
+    url: `/userformaccess/?date=${date == null ? convertDateToYMD(new Date()) : date
+      }`,
+    method: 'get',
+  });
+}
+
+async function apiGetNotifications(page, limit, type = 'all') {
+  let url = `/notification/get_notifications?type=${type}`
+  if (page) url += `&page=${page}`
+  if (limit) url += `&limit=${limit}`
+  return ApiService.fetchData({
+    url,
+  });
+}
+
+const Postcountryname = (data, token) => {
+  return new Promise((resolve, reject) => {
+    let config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + '/countrymaster/',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+
+const Putcountryame = (data, token) => {
+  return new Promise((resolve, reject) => {
+    let config = {
+      method: 'put',
+      maxBodyLength: Infinity,
+      url: appConfig.apiPrefix + `/countrymaster/${data.CountryCode}`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      data: data,
+    };
+
+    axios
+      .request(config)
+      .then((response) => {
+        resolve(response);
+      })
+      .catch((errors) => {
+        reject(errors);
+      });
+  });
+};
+export {
+  PostEntity,
+  PutEntity,
+  Postlocation,
+  Putlocation,
+  Putdepartment,
+  Postdepartment,
+  PostEmp,
+  PutEmp,
+  Postzone,
+  Putzone,
+  PuttimeZone,
+  PosttimeZone,
+  PostRegion,
+  PutRegion,
+  Postlanguage,
+  Putlanguage,
+  Postmodule,
+  Putmodule,
+  PostSubmodule,
+  PutSubmodule,
+  Postcurrency,
+  Putcurrency,
+  Postdesignation,
+  Putdesignation,
+  Postchannel,
+  Putchannel,
+  PutForm,
+  PostForm,
+  Postplace,
+  Putplace,
+  Putstate,
+  Poststate,
+  PostRights,
+  Postftpsetting,
+  Putftpsetting,
+  CreateLogin,
+  logright,
+  loginlocchnlmapping,
+  Postorganisation,
+  Putorganisation,
+  Postcontentlocchnmap,
+  Postcepsmapping,
+  Postchannelsetting,
+  Posthouseid,
+  Puthouseid,
+  Postorganisationdetail,
+  clientadd,
+  clientdetails,
+  clientcitydetails,
+  clientcityUpdate,
+  clientupdate,
+  Postchannelsettingdetails,
+  Putchannelsetting,
+  Posteventcolor,
+  Puteventcolor,
+  ChannelSetting,
+  PostMoviealbum,
+  PutMoviealbum,
+  Postusersettings,
+  addEntityMapping,
+  // Postchannelsettingdetails,
+  // Putchannelsettingdetails
+  UpdateLogin,
+  Postplayout,
+  Putplayout,
+  Putmam,
+  Postmam,
+  Postprovider,
+  Putprovider,
+  Puteventcolorbylogin,
+  Posteventcolorbylogin,
+  loginupdate,
+  Postclientempmap,
+  PostBusinesstype,
+  PutBusinesstype,
+  PostUnit,
+  PutUnit,
+  PutcurrencyImage,
+  apiGetNotifications,
+  Postcountryname,
+  Putcountryame,
+};

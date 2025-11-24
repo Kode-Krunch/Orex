@@ -1,0 +1,48 @@
+import { CLIENT } from 'views/Controls/clientListEnum';
+import { featuresEnum } from '../../enums';
+
+const { USA_Forbes, BeIN_Sports, ASIANET, FOOD_INDIA, FOOD_USA } = CLIENT;
+
+const {
+  FPC_TIME,
+  BREAK_PATTERN,
+  SAVE_AS_FPC_DATE,
+  FPC_VERIFY,
+  OPEN_PLAYLIST_FINAL,
+  VERIFY_BUTTON,
+  FPC_ALLOWED_TO_SAVE,
+} = featuresEnum;
+
+const isFPCNameChannelWise = ({ channel }) => {
+  if (channel.label === CLIENT.USA_Forbes) {
+    return 'Templates';
+  }
+  return 'Contents';
+};
+
+const isFeatureAllowedForChannel = (feature, channel) => {
+  const { label: channelLabel } = channel;
+  let result = true;
+  if (feature === BREAK_PATTERN) {
+    result = [USA_Forbes, BeIN_Sports, FOOD_INDIA, FOOD_USA].includes(
+      channelLabel,
+    );
+  } else if (feature === VERIFY_BUTTON) {
+    result = ![ASIANET].includes(
+      channelLabel,
+    );
+  } else if (FPC_TIME)
+    result = ![USA_Forbes, BeIN_Sports,].includes(channelLabel);
+  else if (SAVE_AS_FPC_DATE)
+    result = ![USA_Forbes, BeIN_Sports,].includes(channelLabel);
+  else if (FPC_VERIFY)
+    result = [USA_Forbes, BeIN_Sports,].includes(channelLabel);
+  else if (OPEN_PLAYLIST_FINAL)
+    result = [USA_Forbes, BeIN_Sports,].includes(channelLabel);
+  else if (VERIFY_BUTTON)
+    result = ![USA_Forbes, BeIN_Sports, ASIANET].includes(channelLabel)
+  else if (FPC_ALLOWED_TO_SAVE)
+    result = [USA_Forbes, BeIN_Sports,].includes(channelLabel);
+  return result;
+};
+export { isFPCNameChannelWise, isFeatureAllowedForChannel };

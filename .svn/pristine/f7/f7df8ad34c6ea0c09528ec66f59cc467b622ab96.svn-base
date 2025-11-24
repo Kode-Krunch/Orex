@@ -1,0 +1,45 @@
+import { PLAYLIST_SUMMARY_ICONS } from './constant';
+const { apiCallstoreprocedure } = require('services/CommonService');
+const { openNotification } = require('views/Controls/GLOBALFUNACTION');
+
+const getPlaylistSummaryData = async (channel, date) => {
+  let playlistSummary = [];
+  try {
+    const response = await apiCallstoreprocedure('USP_PlaylistSummary', {
+      par_LocationCode: channel.LocationCode,
+      par_Channelcode: channel.ChannelCode,
+      par_TelecastDate: date,
+    });
+    if (response.status === 200) {
+      response.data.forEach(
+        (item) =>
+          item.FieldType != 'SpotCountInLog' &&
+          item.FieldType != 'LastMinSpots' &&
+          item.FieldType != 'DroppedSpots' &&
+          playlistSummary.push({
+            name: item.FieldType,
+            count: item.FieldValue,
+            title: PLAYLIST_SUMMARY_ICONS[item.FieldType].title,
+            description: PLAYLIST_SUMMARY_ICONS[item.FieldType].description,
+            icon: PLAYLIST_SUMMARY_ICONS[item.FieldType].icon,
+            iconBorderColor:
+              PLAYLIST_SUMMARY_ICONS[item.FieldType].iconBorderColor,
+            color: PLAYLIST_SUMMARY_ICONS[item.FieldType].color,
+          }),
+      );
+    } else if (response.status === 204) {
+      openNotification('info', 'No playlist summary to show');
+    } else {
+      openNotification(
+        'error',
+        'Something went wrong while fetching playlist summary',
+      );
+    }
+    return playlistSummary;
+  } catch (error) {
+    openNotification('Something went wrong while fetching playlist summary');
+    return playlistSummary;
+  }
+};
+
+export { getPlaylistSummaryData };

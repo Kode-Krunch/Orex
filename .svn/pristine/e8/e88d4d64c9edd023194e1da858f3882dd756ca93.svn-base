@@ -1,0 +1,33 @@
+export const CLIENT = {
+  LOCAL: 'LOCAL',
+  INDIA_SPORTS: 'INDIA SPORTS TV',
+  USA_Forbes: 'Forbes',
+  FOOD_INDIA: 'India Food Food',
+  FOOD_USA: 'USA Food Food INT',
+  SWAMI: 'INDIA SWAMI FILMS',
+  GEC: 'GEC CHANNEL',
+  USA_GEC: 'USA GEC CHANNEL',
+  INDIA_GEC: 'INDIA GEC CHANNEL',
+  NEWS: 'NEWS CHANNEL',
+  USA_NEWS: 'NEWS CHANNEL USA',
+  BeIN_Sports: 'BeIN Sports',
+  MASST_INDIA: 'INDIA MASST',
+  ASIANET: 'INDIA ASIANET CINEMA',
+  INDIAMYMOVIES: 'INDIA MY MOVIES',
+  ANI_PLUS: 'SINGAPORE ANI PLUS',
+  SATHIYAM_TV: 'INDIA SATHIYAM TV',
+  VIJAY_TAKKER: 'INDIA VIJAY TAKKER',
+  Cricbuzz1: 'INDIA Cricbuzz 1',
+  Cricbuzz2: 'INDIA Cricbuzz 2',
+  Cricbuzz3: 'INDIA Cricbuzz 3',
+  NEWS_INDIA: 'NEWS CHANNEL INDIA',
+  INDIA_MUSIC: 'INDIA MUSIC TV',
+
+};
+
+export const CLIENTWiseUploadPath = {
+  USA_Forbes: '/playlist',
+  ASIANET: '/video/volume1/playlist',
+  //VIJAY_TAKKER: '/video/volume1/playlist',
+  VIJAY_TAKKER: '/video_asianet/vijaytakkerfast/playlist',
+};

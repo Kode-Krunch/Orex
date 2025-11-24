@@ -1,0 +1,123 @@
+import { useMemo } from 'react';
+import isPlainObject from 'lodash/isPlainObject';
+import appConfig from 'configs/app.config';
+import {
+  setChannelSetting,
+  setCurrentRouteKey,
+  setLoginId,
+  setModule,
+  setToken,
+  setUsername,
+  setVersion,
+  setcustomerview,
+} from 'store/auth/sessionSlice';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  SetMAXSegment,
+  SetSegcaption,
+  SetSegcaption1,
+  SetSegcaption2,
+} from 'store/auth/userSlice';
+import { setselectedChannel } from 'store/locale/localeSlice';
+import {
+  setContent,
+  setDialogbox,
+  setDialogboxName,
+  setGroupid,
+  setTXCode,
+} from 'store/base/commonSlice';
+import {
+  setDatainF,
+  setDatainN,
+  setDatainPromo,
+  setDatainS,
+  setdatestore,
+  setdatestoreC,
+  setdatestoreF,
+  setdatestoreS,
+  settimestore,
+  settimestoreC,
+  settimestoreF,
+  settimestoreS,
+} from 'store/auth/scheduling';
+import { resetStore } from 'store/action';
+
+const getRouteInfo = (navTree, key) => {
+  if (navTree.key === key) {
+    return navTree;
+  }
+  let activedRoute;
+  let isIncludeActivedRoute = false;
+  for (let p in navTree) {
+    if (
+      p !== 'icon' &&
+      navTree.hasOwnProperty(p) &&
+      typeof navTree[p] === 'object'
+    ) {
+      if (isPlainObject(navTree[p]) && navTree[p].subMenu.length > 0) {
+        // console.log(navTree[p].subMenu);
+        if (navTree[p].subMenu.some((el) => el.key === key)) {
+          isIncludeActivedRoute = true;
+        }
+      }
+
+      activedRoute = getRouteInfo(navTree[p], key);
+
+      if (activedRoute) {
+        if (isIncludeActivedRoute) {
+          activedRoute.parentKey = navTree[p].key;
+        }
+
+        return activedRoute;
+      }
+    }
+  }
+  return activedRoute;
+};
+
+const findNestedRoute = (navTree, key) => {
+  let found = navTree.find((node) => {
+    return node.key === key;
+  });
+  if (found) {
+    return true;
+  }
+  return navTree.some((c) => findNestedRoute(c.subMenu, key));
+};
+
+const getTopRouteKey = (navTree, key) => {
+  let foundNav = {};
+  navTree.forEach((nav) => {
+    if (findNestedRoute([nav], key)) {
+      foundNav = nav;
+    }
+  });
+  return foundNav;
+};
+
+function useMenuActive(navTree, key) {
+  // setVersion
+  const dispatch = useDispatch();
+  // dispatch(setVersion(appConfig.version))
+  const Version = useSelector((state) => state.auth.session.Version);
+
+  // appConfig.version
+
+  if (appConfig.version != Version) {
+    dispatch(resetStore());
+    dispatch(setVersion(appConfig.version));
+  }
+  const activedRoute = useMemo(() => {
+    const route = getRouteInfo(navTree, key);
+    return route;
+  }, [navTree, key]);
+
+  const includedRouteTree = useMemo(() => {
+    const included = getTopRouteKey(navTree, key);
+    return included;
+  }, [navTree, key]);
+
+  return { activedRoute, includedRouteTree };
+}
+
+export default useMenuActive;

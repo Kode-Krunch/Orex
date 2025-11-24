@@ -1,0 +1,82 @@
+import { Button, Dialog, Input } from 'components/ui';
+import React, { useContext, useEffect, useState } from 'react';
+import {
+  autoCompleteTime,
+  getFormattedTime,
+  openNotification,
+} from 'views/Controls/GLOBALFUNACTION';
+import SchedulerContext from 'views/Scheduling/Scheduler/context/SchedulerContext';
+import { operationTypesEnum } from 'views/Scheduling/Scheduler/enum';
+
+function ManageStartTimeDialog({ isOpen, setIsOpen }) {
+  /* CONTEXT */
+  const { startTime, executeOperation } = useContext(SchedulerContext);
+
+  /* STATES */
+  const [startTimeInputValue, setStartTimeInputValue] = useState('');
+
+  /* USE EFFECTS */
+  useEffect(() => {
+    try {
+      setStartTimeInputValue(startTime);
+    } catch (error) {
+      console.error(error);
+    }
+  }, [startTime]);
+
+  /* EVENT HANDLERS */
+  const handleApply = () => {
+    try {
+      executeOperation({
+        operation: operationTypesEnum.MANAGE_START_TIME,
+        startTimeValue: startTimeInputValue,
+      });
+      handleClose();
+      openNotification('success', 'Start time updated successfully');
+    } catch (error) {
+      openNotification(
+        'danger',
+        'Something went wrong while applying new start time',
+      );
+      console.error(error);
+    }
+  };
+
+  const handleClose = () => setIsOpen(false);
+
+  return (
+    <Dialog isOpen={isOpen} onClose={handleClose} onRequestClose={handleClose}>
+      <h5 className="mb-4">Manage Start Time</h5>
+      <div>
+        <p className="mb-1 text-white">
+          Start Time <span className="text-red-500">*</span>
+        </p>
+        <Input
+          size="sm"
+          value={startTimeInputValue}
+          onChange={(event) =>
+            setStartTimeInputValue(getFormattedTime(event, startTimeInputValue))
+          }
+          onBlur={() =>
+            setStartTimeInputValue(autoCompleteTime(startTimeInputValue))
+          }
+          placeholder="HH:MM:SS:FF"
+        />
+        {startTimeInputValue.length > 0 && startTimeInputValue.length < 11 && (
+          <p className="text-xs font-semibold mt-1">HH:MM:SS:FF</p>
+        )}
+      </div>
+      <div className="text-right mt-6">
+        <Button
+          variant="solid"
+          disabled={startTimeInputValue.length !== 11}
+          onClick={handleApply}
+        >
+          Apply
+        </Button>
+      </div>
+    </Dialog>
+  );
+}
+
+export default ManageStartTimeDialog;

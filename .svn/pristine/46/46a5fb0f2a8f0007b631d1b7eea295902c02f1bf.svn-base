@@ -1,0 +1,194 @@
+import { Button, Card } from 'components/ui';
+import React, { memo, useState } from 'react';
+import SelectXs from '../../Controls/SelectXs/SelectXs';
+import { PiListBold } from 'react-icons/pi';
+import { IoMdInformationCircleOutline } from 'react-icons/io';
+import DealDetailsDialog from 'views/Controls/DealDetailsDialog/DealDetailsDialog';
+import { openNotification } from 'views/Controls/GLOBALFUNACTION';
+import { apiGetdealdetailId } from 'services/DealServices';
+
+function DealDetails({
+  dealDetails,
+  dealSelectorOptions,
+  selectedDeal,
+  setSelectedDeal,
+  selectedCategory,
+  setSelectedCategory
+}) {
+  /* STATES */
+  const [isDealDetailsDialogOpen, setIsDealDetailsDialogOpen] = useState(false);
+  const [dealCategoryOptions, setDealCategoryOptions] = useState([]);
+
+  /* HELPER FUNCTIONS */
+  const setDealCategoryOptionsFn = async (Id) => {
+    try {
+      let options = [];
+      const response = await apiGetdealdetailId(Id);
+
+      console.log(response);
+
+      if (response.status === 200)
+        options = response.data.map((option) => ({
+          value: option.DealLineItemNo,
+          label: `${option.DealLineItemNo}|${option.DealLineItemTypeName}|${option.TimeBandName ? option.TimeBandName : option.ContentName} `,
+          ...option
+        }));
+
+
+      else if (response.status === 204)
+        openNotification('info', 'No deals category found');
+      else throw new Error(response);
+      console.log(options);
+      setDealCategoryOptions(options);
+    } catch (error) {
+      openNotification('danger', 'Something went wrong while fetching deals');
+      throw error;
+    }
+  };
+  return (
+    <>
+      <Card
+        className="h-full col-span-1"
+        bordered={false}
+        bodyClass="pt-2 pb-3 px-0 h-full flex flex-col"
+      >
+        <div className="flex items-center justify-between mb-3 pb-2 px-3 border-b border-dashed border-b-gray-600">
+          <h5>Deal Master</h5>
+          <Button
+            size="sm"
+            variant="solid"
+            icon={<PiListBold />}
+            className={`!px-2 transition-all ${!dealDetails ? 'invisible' : ''
+              }`}
+            disabled={!dealDetails}
+          >
+            Bookings
+          </Button>
+        </div>
+        <div className="px-3 mb-5">
+          <p
+            className={`text-gray-200 flex items-center gap-1 ${!dealDetails && 'mb-1'
+              }`}
+          >
+            Deal Number
+            {dealDetails && (
+              <Button
+                shape="circle"
+                variant="plain"
+                size="xs"
+                className="mb-0.5"
+                onClick={() => setIsDealDetailsDialogOpen(true)}
+                icon={
+                  <IoMdInformationCircleOutline className="text-gray-300" />
+                }
+              />
+            )}
+          </p>
+          <SelectXs
+            placeholder="Search Deal"
+            options={dealSelectorOptions}
+            onChange={(option) => { setSelectedDeal(option); setDealCategoryOptionsFn(option.value); setSelectedCategory(null) }}
+            value={selectedDeal}
+            blurInputOnSelect={true}
+          ></SelectXs>
+        </div>
+        {dealDetails && (
+          <>
+            <div className="px-3 flex flex-col gap-5 grow h-0 overflow-hidden hover:overflow-auto transition-all">
+              <div>
+                <p className="mb-1">Executive Name</p>
+                <p className="text-gray-200 font-semibold">
+                  {dealDetails.Emp_FirstName} {dealDetails.Emp_LastName}
+                </p>
+              </div>
+              <div>
+                <p className="mb-1">Agency Name</p>
+                <p className="text-gray-200 font-semibold">
+                  {dealDetails.AgencyName}
+                </p>
+              </div>
+              <div>
+                <p className="mb-1">Agency City</p>
+                <p className="text-gray-200 font-semibold">
+                  {dealDetails.AgencyPlaceName}
+                </p>
+              </div>
+              <div>
+                <p className="mb-1">Client Name</p>
+                <p className="text-gray-200 font-semibold">
+                  {dealDetails.ClientName}
+                </p>
+              </div>
+              <div>
+                <p className="mb-1">Client City</p>
+                <p className="text-gray-200 font-semibold">
+                  {dealDetails.ClientPlaceName}
+                </p>
+              </div>
+              <div>
+                <p className="mb-1">Payroute</p>
+                <p className="text-white">{dealDetails.PayRouteName}</p>
+              </div>
+
+              <div>
+                <p
+                  className={`text-gray-200 flex items-center gap-1 ${!dealDetails && 'mb-1'
+                    }`}
+                >
+                  Deal Category
+                  {dealDetails && (
+                    <Button
+                      shape="circle"
+                      variant="plain"
+                      size="xs"
+                      className="mb-0.5"
+                      onClick={() => setIsDealDetailsDialogOpen(true)}
+                    />
+                  )}
+                </p>
+                <SelectXs
+                  placeholder="Search Deal Category"
+                  options={dealCategoryOptions}
+                  onChange={(option) => setSelectedCategory(option)}
+                  value={selectedCategory}
+                  blurInputOnSelect={true}
+                ></SelectXs>
+              </div>
+              <div className="grid grid-cols-2 gap-4" >
+                {selectedCategory && <>
+                  <div>
+                    <p className="mb-1">Spot Type</p>
+                    <p className="text-white">{selectedCategory.SpotTypeName}</p>
+                  </div>
+                  <div>
+                    {/* <p className="mb-1"> {selectedCategory?.DealLineItemTypeCode === 1 ? 'Spot Amount' : 'Spot Rate'}</p>
+                    <p className="text-white">{selectedCategory?.DealLineItemTypeCode == 1 ? selectedCategory?.Rate : selectedCategory?.DealLineItemTypeCode == 2 ? selectedCategory?.Rate : selectedCategory?.DealLineItemTypeCode == 3 ? selectedCategory?.Rate : selectedCategory?.DealLineItemTypeCode == 4 ? selectedCategory?.Rate : selectedCategory?.DealLineItemTypeCode == 5 ? selectedCategory?.Rate : selectedCategory?.DealLineItemTypeCode == 6 ? selectedCategory?.Rate : 0}</p> */}
+                    <p className="mb-1">Spot Rate</p>
+                    <p className="text-white">
+                      {([1, 2, 3, 4, 5, 6].includes(selectedCategory?.DealLineItemTypeCode))
+                        ? selectedCategory?.Rate
+                        : 0}
+                    </p>
+
+                  </div>
+                </>}
+              </div>
+
+            </div>
+
+            {isDealDetailsDialogOpen && (
+              <DealDetailsDialog
+                isDialogOpen={isDealDetailsDialogOpen}
+                setIsDialogOpen={setIsDealDetailsDialogOpen}
+                dealNumber={dealDetails.DealNumber}
+                dealCode={dealDetails.DealCode}
+              />
+            )}
+          </>
+        )}
+      </Card>
+    </>
+  );
+}
+
+export default memo(DealDetails);

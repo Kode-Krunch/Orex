@@ -1,0 +1,332 @@
+import {
+  featuresEnum,
+  pagesEnum,
+  rowDataTypesEnum,
+  tableTypesEnum,
+} from 'views/Scheduling/Scheduler/enum';
+
+const isRowDragDisabled = (
+  page,
+  activeFeatures,
+  row,
+  index,
+  tableType,
+  secondaryTableSelectedRows,
+) => {
+  try {
+    if (
+      secondaryTableSelectedRows.length > 0 &&
+      tableType === tableTypesEnum.SCHEDULING
+    )
+      return true;
+    else if (page === pagesEnum.COMMERCIAL) {
+      if (row.F_C_S_P !== rowDataTypesEnum.COMMERCIAL) return true;
+    } else if (page === pagesEnum.PROMO) {
+      if (row.F_C_S_P !== rowDataTypesEnum.PROMO) return true;
+    } else if (page === pagesEnum.SONG) {
+      if (row.F_C_S_P !== rowDataTypesEnum.SONG) return true;
+    } else if (page === pagesEnum.NTC) {
+      if (row.F_C_S_P !== rowDataTypesEnum.NTC) return true;
+    } else if (page === pagesEnum.FINAL_LOG) {
+      if (
+        (!activeFeatures[featuresEnum.MANAGE_SEGMENT] &&
+          (row.F_C_S_P === rowDataTypesEnum.SEGMENT ||
+            row.F_C_S_P === rowDataTypesEnum.CONTENT_TERMINATION)) ||
+        (activeFeatures[featuresEnum.MANAGE_SEGMENT] &&
+          tableType === tableTypesEnum.SCHEDULING &&
+          index === 1) ||
+        row.F_C_S_P === rowDataTypesEnum.LIVE
+      )
+        return true;
+    }
+    return false;
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+const isRowSelected = (selectedRows, row) => {
+  try {
+    return selectedRows
+      .map((selectedRow) => selectedRow.rowId)
+      .includes(row.rowId);
+  } catch (error) {
+    throw error;
+  }
+};
+
+const isRowLeftClicked = (
+  tableType,
+  leftClickedSchTableRow,
+  leftClickedSecTableRow,
+  selectedRows,
+  row,
+) => {
+  try {
+    return (
+      (tableType === tableTypesEnum.SCHEDULING &&
+        leftClickedSchTableRow &&
+        row.rowId === leftClickedSchTableRow.rowId &&
+        !isRowSelected(selectedRows, row)) ||
+      (tableType === tableTypesEnum.SECONDARY &&
+        leftClickedSecTableRow &&
+        row.rowId === leftClickedSecTableRow.rowId &&
+        !isRowSelected(selectedRows, row))
+    );
+  } catch (error) {
+    throw error;
+  }
+};
+
+const isColumnWarningColumn = (cellWarning, column) => {
+  try {
+    for (let index = cellWarning.length - 1; index >= 0; index--) {
+      const curCellWarning = cellWarning[index];
+      if (curCellWarning.cell === column.accessorKey) {
+        return true;
+      }
+    }
+    return false;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const getFontColor = (
+  tableType,
+  leftClickedSchTableRow,
+  leftClickedSecTableRow,
+  selectedRows,
+  row,
+  column,
+) => {
+  try {
+    if (
+      Array.isArray(row.cellWarning) &&
+      isColumnWarningColumn(row.cellWarning, column)
+    ) {
+      for (let index = row.cellWarning.length - 1; index >= 0; index--) {
+        const cellWarning = row.cellWarning[index];
+        if (cellWarning.cell === column.accessorKey) {
+          return cellWarning.fontColor;
+        }
+      }
+    } else if (
+      isRowLeftClicked(
+        tableType,
+        leftClickedSchTableRow,
+        leftClickedSecTableRow,
+        selectedRows,
+        row,
+      )
+    ) {
+      return 'rgb(229 231 235)';
+    } else if (isRowSelected(selectedRows, row)) {
+      return 'rgb(229 231 235)';
+    }
+    return row.EventDefaultFrontColor;
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+const getBgColor = (
+  tableType,
+  leftClickedSchTableRow,
+  leftClickedSecTableRow,
+  selectedRows,
+  row,
+  column,
+) => {
+  try {
+    if (
+      Array.isArray(row.cellWarning) &&
+      isColumnWarningColumn(row.cellWarning, column)
+    ) {
+      for (let index = row.cellWarning.length - 1; index >= 0; index--) {
+        const cellWarning = row.cellWarning[index];
+        if (cellWarning.cell === column.accessorKey) {
+          return cellWarning.bgColor;
+        }
+      }
+    } else if (
+      isRowLeftClicked(
+        tableType,
+        leftClickedSchTableRow,
+        leftClickedSecTableRow,
+        selectedRows,
+        row,
+      )
+    ) {
+      return 'rgba(148, 163, 184, 0.9)';
+    } else if (isRowSelected(selectedRows, row)) {
+      return 'rgb(71 85 105)';
+    }
+    if (
+      tableType === tableTypesEnum.SCHEDULING &&
+      row.customCellColor &&
+      column.accessorKey in row.customCellColor
+    )
+      return row.customCellColor[column.accessorKey];
+    else return row.EventDefaultBackColor;
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+const getBorderColor = (selectedRows, row) => {
+  try {
+    if (isRowSelected(selectedRows, row)) {
+      return 'rgb(156 163 175)';
+    }
+    return 'rgb(107 114 128)';
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+const getUpdatedSelectedRows = (
+  selectedRows,
+  clickedRow,
+  tableType,
+  schedulingTableData,
+  secondaryTableData,
+  secondaryTableSelectedRows,
+) => {
+  try {
+    let newSelectedRows = [...selectedRows];
+    let tableData =
+      tableType === tableTypesEnum.SCHEDULING
+        ? schedulingTableData
+        : secondaryTableData;
+    let isClickedRowNTCCompatible = isRowNTCCompatible(clickedRow);
+    if (isRowSelected(newSelectedRows, clickedRow)) {
+      if (
+        isClickedRowNTCCompatible &&
+        tableType === tableTypesEnum.SCHEDULING
+      ) {
+        let ntcRowsIdForClickedRow = getNTCRowsForParentRow(
+          clickedRow,
+          tableData,
+        ).map((row) => row.rowId);
+        newSelectedRows = newSelectedRows.filter(
+          (selectedRow) =>
+            !ntcRowsIdForClickedRow.includes(selectedRow.rowId) &&
+            selectedRow.rowId !== clickedRow.rowId,
+        );
+      } else {
+        newSelectedRows = newSelectedRows.filter(
+          (selectedRow) => selectedRow.rowId !== clickedRow.rowId,
+        );
+      }
+    } else {
+      newSelectedRows.push(clickedRow);
+      if (
+        isClickedRowNTCCompatible &&
+        tableType === tableTypesEnum.SCHEDULING &&
+        secondaryTableSelectedRows.length === 0
+      ) {
+        newSelectedRows.push(...getNTCRowsForParentRow(clickedRow, tableData));
+      }
+    }
+    return newSelectedRows;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const isRowNTCCompatible = (row) => {
+  try {
+    return (
+      row.F_C_S_P !== rowDataTypesEnum.COMMERCIAL &&
+      row.F_C_S_P !== rowDataTypesEnum.CONTENT_TERMINATION &&
+      row.F_C_S_P !== rowDataTypesEnum.NTC
+    );
+  } catch (error) {
+    throw error;
+  }
+};
+
+const getNTCRowsForParentRow = (parentRow, tableData) => {
+  try {
+    let index = parentRow.rowIndex + 1;
+    let ntcRows = [];
+    while (tableData[index].F_C_S_P === rowDataTypesEnum.NTC) {
+      ntcRows.push(tableData[index]);
+      index++;
+    }
+    return ntcRows;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const getUpdatedSelectedRowsForShiftClick = (
+  row,
+  selectedRows,
+  tableData,
+  tableType,
+  isManageSegmentActive,
+) => {
+  try {
+    if (selectedRows.length === 0) return [row];
+    let lastSelectedRow = selectedRows[selectedRows.length - 1];
+    let newSelectedRows = [];
+    if (row.rowIndex < lastSelectedRow.rowIndex) {
+      newSelectedRows = tableData
+        .slice(row.rowIndex, lastSelectedRow.rowIndex + 1)
+        .reverse();
+      let firstRow = newSelectedRows[0];
+      if (
+        tableType === tableTypesEnum.SCHEDULING &&
+        isRowNTCCompatible(firstRow)
+      ) {
+        newSelectedRows = [
+          ...getNTCRowsForParentRow(firstRow, tableData),
+          ...newSelectedRows,
+        ];
+      }
+    } else {
+      newSelectedRows = tableData.slice(
+        lastSelectedRow.rowIndex,
+        row.rowIndex + 1,
+      );
+      let lastRow = newSelectedRows[newSelectedRows.length - 1];
+      if (
+        tableType === tableTypesEnum.SCHEDULING &&
+        isRowNTCCompatible(lastRow)
+      ) {
+        newSelectedRows = [
+          ...newSelectedRows,
+          ...getNTCRowsForParentRow(lastRow, tableData),
+        ];
+      }
+    }
+    if (isManageSegmentActive)
+      newSelectedRows = newSelectedRows.filter(
+        (row) =>
+          (row.F_C_S_P === rowDataTypesEnum.CONTENT_TERMINATION ||
+            row.F_C_S_P === rowDataTypesEnum.SEGMENT) &&
+          row.rowIndex !== 0 &&
+          row.rowIndex !== 1,
+      );
+    else
+      newSelectedRows = newSelectedRows.filter(
+        (row) =>
+          row.F_C_S_P !== rowDataTypesEnum.CONTENT_TERMINATION &&
+          row.F_C_S_P !== rowDataTypesEnum.SEGMENT,
+      );
+    return newSelectedRows;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export {
+  isRowDragDisabled,
+  getFontColor,
+  getBgColor,
+  getBorderColor,
+  getUpdatedSelectedRows,
+  getUpdatedSelectedRowsForShiftClick,
+};

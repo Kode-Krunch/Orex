@@ -1,0 +1,532 @@
+import { useContext, useEffect, useState } from 'react';
+import {
+  useReactTable,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getFacetedRowModel,
+  getFacetedUniqueValues,
+  getFacetedMinMaxValues,
+  getPaginationRowModel,
+  getSortedRowModel,
+  flexRender,
+} from '@tanstack/react-table';
+import { rankItem } from '@tanstack/match-sorter-utils';
+import { Table } from 'components/ui';
+import ColumnFilterDropDown from './components/DropDowns/ColumnFilterDropDown';
+import { mainTableEnums } from '../../enums/MainTableEnums';
+import MainTablePagination from './components/MainTablePagination';
+import MainTableToolbar from './components/MainTableToolbar';
+import ReportsTableContext from '../../context/ReportsTableContext';
+import classNames from 'classnames';
+import { reportsTableEnum } from '../../enums/ReportsTableEnums';
+import IndeterminateCheckbox from './components/IndeterminateCheckbox';
+
+/* CONSTANTS */
+const { Tr, Th, Td, THead, TBody, Sorter } = Table;
+
+function MainTable({
+  tableData,
+  managedColumns,
+  setManagedColumns,
+  exportFileName,
+  setSelectedRows,
+  paginationState,
+  setPaginationState,
+  rowSelection,
+  setRowSelection,
+}) {
+  /* CONTEXTS */
+  const {
+    selectedFilters,
+    toolbarOptions,
+    externalGlobalFilter,
+    setExternalGlobalFilter,
+    tableType,
+  } = useContext(ReportsTableContext);
+
+  /* STATES */
+  //ReactTable States
+  const [columnFilters, setColumnFilters] = useState([]);
+  const [globalFilter, setGlobalFilter] = useState('');
+  // MainTable States
+  const [filteredTableData, setFilteredTableData] = useState(tableData);
+
+  /* USE EFFECTS */
+  useEffect(() => {
+    try {
+      if (selectedFilters.length === 0) {
+        setFilteredTableData(tableData);
+      } else {
+        let filteredData = [...tableData];
+        selectedFilters.forEach((curFilter) => {
+          const columnKey = curFilter.columnKey;
+          const filter = curFilter.filter;
+          const searchValue = curFilter.searchValue.toLowerCase();
+
+          filteredData = filteredData.filter((row) => {
+            const cellValue = row[columnKey].toLowerCase();
+            switch (filter) {
+              case mainTableEnums.filterOptions.STARTS_WITH:
+                return cellValue.startsWith(searchValue);
+              case mainTableEnums.filterOptions.CONTAINS:
+                return cellValue.includes(searchValue);
+              case mainTableEnums.filterOptions.NOT_CONTAINS:
+                return !cellValue.includes(searchValue);
+              case mainTableEnums.filterOptions.ENDS_WITH:
+                return cellValue.endsWith(searchValue);
+              case mainTableEnums.filterOptions.EQUALS:
+                return cellValue === searchValue;
+              case mainTableEnums.filterOptions.NOT_EQUALS:
+                return cellValue !== searchValue;
+              default:
+                return false;
+            }
+          });
+        });
+        setFilteredTableData(filteredData);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }, [selectedFilters, tableData]);
+
+  const table = useReactTable({
+    data: filteredTableData,
+    columns: managedColumns,
+    filterFns: {
+      fuzzy: fuzzyFilter,
+    },
+    state: {
+      columnFilters,
+      globalFilter:
+        typeof externalGlobalFilter === 'string'
+          ? externalGlobalFilter
+          : globalFilter,
+      rowSelection,
+      ...(paginationState && { pagination: paginationState }),
+    },
+    enableRowSelection: (row) => row.original.disableSelection !== true,
+    onRowSelectionChange: handleRowSelection,
+    onColumnFiltersChange: setColumnFilters,
+    onGlobalFilterChange:
+      typeof externalGlobalFilter === 'string'
+        ? setExternalGlobalFilter
+        : setGlobalFilter,
+    globalFilterFn: fuzzyFilter,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getFacetedRowModel: getFacetedRowModel(),
+    getFacetedUniqueValues: getFacetedUniqueValues(),
+    getFacetedMinMaxValues: getFacetedMinMaxValues(),
+    debugHeaders: true,
+    debugColumns: false,
+  });
+
+  /* HELPER FUNCTIONS */
+  function fuzzyFilter(row, columnId, value, addMeta) {
+    const itemRank = rankItem(row.getValue(columnId), value);
+    addMeta({
+      itemRank,
+    });
+    return itemRank.passed;
+  }
+
+  const getSerialNumber = (table, index) => {
+    try {
+      const currentPage = table.getState().pagination.pageIndex;
+      const pageSize = table.getState().pagination.pageSize;
+      return currentPage * pageSize + index + 1;
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  function handleRowSelection(updater) {
+    try {
+      const newRowSelection =
+        updater instanceof Function ? updater(rowSelection) : updater;
+      setRowSelection(newRowSelection);
+      const selectedRowIds = Object.keys(newRowSelection);
+      const newSelectedRows = selectedRowIds.map((id) => {
+        const original = table.getRowModel().rowsById[id]?.original || {};
+        return { ...original, rowIndex: id };
+      });
+      setSelectedRows([...newSelectedRows]);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  return (
+    <div className="h-full flex flex-col grow">
+      <MainTableToolbar
+        globalFilter={globalFilter}
+        setGlobalFilter={setGlobalFilter}
+        toolbarOptions={toolbarOptions}
+        managedColumns={managedColumns}
+        setManagedColumns={setManagedColumns}
+      />
+      <div className="grow mt-4 flex flex-col">
+        <div className="grow overflow-auto grid grid-cols-1 pb-2">
+          <Table hoverable={false}>
+            <THead>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <Tr key={headerGroup.id}>
+                  {tableType === reportsTableEnum.tableTypes.DEFAULT && (
+                    <>
+                      <Th className="border-none dark:!border-gray-600 dark:border">
+                        <div
+                          className="capitalize py-1 text-center dark:!text-white text-black"
+                          style={{ textWrap: 'nowrap', minWidth: '3rem' }}
+                        >
+                          Sr
+                        </div>
+                      </Th>
+                      {headerGroup.headers.map((header, index) => {
+                        if (header.column.columnDef.accessorKey === 'action') {
+                          return (
+                            <Th
+                              key={header.column.columnDef.accessorKey}
+                              className="border-none dark:!border-gray-600 dark:border"
+                            >
+                              <div
+                                className="capitalize py-1 text-center"
+                                style={{ textWrap: 'nowrap', minWidth: '3rem' }}
+                              >
+                                Action
+                              </div>
+                            </Th>
+                          );
+                        } else {
+                          return (
+                            <Th
+                              key={header.column.columnDef.accessorKey}
+                              colSpan={header.colSpan}
+                              className={classNames(
+                                header.column.columnDef.options?.header?.style
+                                  .borderRight !== false &&
+                                  'dark:!border-r  border-none dark:!border-r-gray-600',
+                                header.column.columnDef.options?.header?.style
+                                  .borderLeft !== false &&
+                                  'dark:!border-l border-none dark:!border-l-gray-600',
+                                header.column.columnDef.options?.header?.style
+                                  .borderTop !== false &&
+                                  'dark:!border-t border-none dark:!border-t-gray-600',
+                                header.column.columnDef.options?.header?.style
+                                  .borderBottom !== false &&
+                                  'dark:!border-b border-none dark:!border-b-gray-600',
+                              )}
+                              style={{
+                                width:
+                                  header.column.columnDef.options?.header?.style
+                                    .width,
+                              }}
+                            >
+                              {header.isPlaceholder ? null : (
+                                <div className="flex justify-between items-center gap-6">
+                                  <div
+                                    {...{
+                                      className: header.column.getCanSort()
+                                        ? 'cursor-pointer select-none capitalize py-1 grow flex gap-0.5 items-center'
+                                        : 'grow',
+                                      onClick:
+                                        header.column.getToggleSortingHandler(),
+                                    }}
+                                    style={{ textWrap: 'nowrap' }}
+                                  >
+                                    {flexRender(
+                                      header.column.columnDef.header,
+                                      header.getContext(),
+                                    )}
+                                    {header.column.columnDef.options?.header
+                                      ?.sort !== false && (
+                                      <Sorter
+                                        sort={header.column.getIsSorted()}
+                                      />
+                                    )}
+                                  </div>
+                                  {header.column.columnDef.options?.header
+                                    ?.filter !== false && (
+                                    <ColumnFilterDropDown
+                                      columnKey={
+                                        header.column.columnDef.accessorKey
+                                      }
+                                      isLastColumn={
+                                        index ===
+                                        header.headerGroup.headers.length - 1
+                                      }
+                                    />
+                                  )}
+                                </div>
+                              )}
+                            </Th>
+                          );
+                        }
+                      })}
+                    </>
+                  )}
+                  {tableType === reportsTableEnum.tableTypes.SELECTABLE && (
+                    <>
+                      <Th className="border-none  dark:border dark:border-gray-600">
+                        <div className="text-center">
+                          <IndeterminateCheckbox
+                            {...{
+                              checked: table.getIsAllRowsSelected(),
+                              indeterminate: table.getIsSomeRowsSelected(),
+                              onChange: table.getToggleAllRowsSelectedHandler(),
+                            }}
+                          />
+                        </div>
+                      </Th>
+                      {headerGroup.headers.map((header, index) => {
+                        return (
+                          <Th
+                            key={header.column.columnDef.accessorKey}
+                            colSpan={header.colSpan}
+                            className={classNames(
+                              header.column.columnDef.options?.header?.style
+                                .borderRight !== false &&
+                                'dark:!border-r  border-none dark:!border-r-gray-600',
+                              header.column.columnDef.options?.header?.style
+                                .borderLeft !== false &&
+                                'dark:!border-l border-none dark:!border-l-gray-600',
+                              header.column.columnDef.options?.header?.style
+                                .borderTop !== false &&
+                                'dark:!border-t border-none dark:!border-t-gray-600',
+                              header.column.columnDef.options?.header?.style
+                                .borderBottom !== false &&
+                                'dark:!border-b border-none dark:!border-b-gray-600',
+                            )}
+                            style={{
+                              width:
+                                header.column.columnDef.options?.header?.style
+                                  .width,
+                            }}
+                          >
+                            {header.isPlaceholder ? null : (
+                              <div className="flex justify-between items-center gap-6">
+                                {header.column.columnDef.id === 'select' ? (
+                                  <div
+                                    {...{
+                                      className: header.column.getCanSort()
+                                        ? 'cursor-pointer select-none capitalize py-1 grow flex gap-0.5 items-center'
+                                        : 'grow',
+                                      onClick:
+                                        header.column.getToggleSortingHandler(),
+                                    }}
+                                    style={{ textWrap: 'nowrap' }}
+                                  >
+                                    {flexRender(
+                                      header.column.columnDef.header,
+                                      header.getContext(),
+                                    )}
+                                  </div>
+                                ) : (
+                                  <>
+                                    <div
+                                      {...{
+                                        className: header.column.getCanSort()
+                                          ? 'cursor-pointer select-none capitalize py-1 grow flex gap-0.5 items-center'
+                                          : 'grow',
+                                        onClick:
+                                          header.column.getToggleSortingHandler(),
+                                      }}
+                                      style={{ textWrap: 'nowrap' }}
+                                    >
+                                      {flexRender(
+                                        header.column.columnDef.header,
+                                        header.getContext(),
+                                      )}
+                                      {header.column.columnDef.options?.header
+                                        ?.sort !== false && (
+                                        <Sorter
+                                          sort={header.column.getIsSorted()}
+                                        />
+                                      )}
+                                    </div>
+                                    {header.column.columnDef.options?.header
+                                      ?.filter !== false && (
+                                      <ColumnFilterDropDown
+                                        columnKey={
+                                          header.column.columnDef.accessorKey
+                                        }
+                                        isLastColumn={
+                                          index ===
+                                          header.headerGroup.headers.length - 1
+                                        }
+                                      />
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            )}
+                          </Th>
+                        );
+                      })}
+                    </>
+                  )}
+                </Tr>
+              ))}
+            </THead>
+            <TBody>
+              {table.getRowModel().rows.map((row, index) => {
+                return (
+                  <Tr
+                    key={row.id}
+                    style={{
+                      backgroundColor: row.original.bgColor,
+                      color: row.original.fontColor,
+                    }}
+                  >
+                    {tableType === reportsTableEnum.tableTypes.DEFAULT && (
+                      <>
+                        <Td className="text-xs border dark:!border-gray-600 border-gray-200 ">
+                          <div className="text-center dark:!text-white text-black">
+                            {getSerialNumber(table, index)}
+                          </div>
+                        </Td>
+                        {row.getVisibleCells().map((cell) => {
+                          if (cell.column.columnDef.accessorKey === 'action') {
+                            return (
+                              <Td
+                                key={cell.id}
+                                className="text-xs border dark:!border-gray-600 border-gray-200 dark:!text-white text-black"
+                              >
+                                <div className="justify-center flex gap-1">
+                                  {cell.column.columnDef.actions.map(
+                                    (action) => {
+                                      return action.action(
+                                        row.index,
+                                        row.original,
+                                      );
+                                    },
+                                  )}
+                                </div>
+                              </Td>
+                            );
+                          } else {
+                            return (
+                              <Td
+                                key={cell.id}
+                                className={classNames(
+                                  cell.column.columnDef.options?.cell.style
+                                    .borderRight !== false &&
+                                    'border-r dark:border-r-gray-600 border-b-gray-200',
+                                  cell.column.columnDef.options?.cell.style
+                                    .borderLeft !== false &&
+                                    'border-l dark:border-l-gray-600 border-b-gray-200',
+                                  cell.column.columnDef.options?.cell.style
+                                    .borderTop !== false &&
+                                    'border-t dark:border-t-gray-600 border-b-gray-200',
+                                  cell.column.columnDef.options?.cell.style
+                                    .borderBottom !== false &&
+                                    'border-b dark:border-b-gray-600 border-b-gray-200',
+                                )}
+                              >
+                                <p
+                                  className="dark:!text-white text-black"
+                                  style={{
+                                    textWrap: 'nowrap',
+                                    paddingBlock:
+                                      cell.column.columnDef.options?.cell.style
+                                        .paddingBlock != null ||
+                                      cell.column.columnDef.options?.cell.style
+                                        .paddingBlock != undefined
+                                        ? cell.column.columnDef.options?.cell
+                                            .style.paddingBlock
+                                        : '4px',
+                                  }}
+                                >
+                                  {flexRender(
+                                    cell.column.columnDef.cell,
+                                    cell.getContext(),
+                                  )}
+                                </p>
+                              </Td>
+                            );
+                          }
+                        })}
+                      </>
+                    )}
+                    {tableType === reportsTableEnum.tableTypes.SELECTABLE && (
+                      <>
+                        <Td className="text-xs border dark:border-gray-600  border-gray-200">
+                          <div className="text-center">
+                            <IndeterminateCheckbox
+                              {...{
+                                checked: row.getIsSelected(),
+                                disabled: row.original.disableSelection
+                                  ? true
+                                  : false,
+                                indeterminate: row.getIsSomeSelected(),
+                                onChange: row.getToggleSelectedHandler(),
+                                className: 'm-0',
+                              }}
+                            />
+                          </div>
+                        </Td>
+                        {row.getVisibleCells().map((cell) => {
+                          return (
+                            <Td
+                              key={cell.id}
+                              className={classNames(
+                                cell.column.columnDef.options?.cell.style
+                                  .borderRight !== false &&
+                                  'border-r dark:border-r-gray-600 border-b-gray-200',
+                                cell.column.columnDef.options?.cell.style
+                                  .borderLeft !== false &&
+                                  'border-l dark:border-l-gray-600 border-b-gray-200',
+                                cell.column.columnDef.options?.cell.style
+                                  .borderTop !== false &&
+                                  'border-t dark:border-t-gray-600 border-b-gray-200',
+                                cell.column.columnDef.options?.cell.style
+                                  .borderBottom !== false &&
+                                  'border-b dark:border-b-gray-600 border-b-gray-200',
+                              )}
+                            >
+                              <p
+                                className="dark:!text-white text-black"
+                                style={{
+                                  textWrap: 'nowrap',
+                                  paddingBlock:
+                                    cell.column.columnDef.options?.cell.style
+                                      .paddingBlock != null ||
+                                    cell.column.columnDef.options?.cell.style
+                                      .paddingBlock != undefined
+                                      ? cell.column.columnDef.options?.cell
+                                          .style.paddingBlock
+                                      : '4px',
+                                }}
+                              >
+                                {flexRender(
+                                  cell.column.columnDef.cell,
+                                  cell.getContext(),
+                                )}
+                              </p>
+                            </Td>
+                          );
+                        })}
+                      </>
+                    )}
+                  </Tr>
+                );
+              })}
+            </TBody>
+          </Table>
+        </div>
+        <div className="mt-8 mb-1">
+          <MainTablePagination
+            table={table}
+            managedColumns={managedColumns}
+            exportFileName={exportFileName}
+            setPaginationState={setPaginationState}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default MainTable;

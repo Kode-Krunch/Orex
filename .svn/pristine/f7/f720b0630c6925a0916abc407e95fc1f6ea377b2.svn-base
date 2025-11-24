@@ -1,0 +1,151 @@
+import { Button, Dialog, Input } from 'components/ui';
+import React, { useContext, useState } from 'react';
+import {
+  autoCompleteTime,
+  getFormattedTime,
+  openNotification,
+} from 'views/Controls/GLOBALFUNACTION';
+import { exportPlayout } from '../utils/utils';
+import { useSelector } from 'react-redux';
+import SchedulerContext from 'views/Scheduling/Scheduler/context/SchedulerContext';
+
+function PartialPlayoutExportDialog({ isDialogOpen, setIsDialogOpen }) {
+  /* REDUX */
+  const channel = useSelector((state) => state.locale.selectedChannel);
+  const channelSettings = useSelector(
+    (state) => state.auth.session.ChannelSettingMain,
+  );
+
+  /* CONTEXT */
+  const { schedulingTableData, date } = useContext(SchedulerContext);
+
+  /* STATES */
+  const [time, setTime] = useState({ startTime: '', endTime: '' });
+
+  /* EVENT HANDLERS */
+  const onDialogClose = () => {
+    setTime({ startTime: '', endTime: '' });
+    setIsDialogOpen(false);
+  };
+
+  const handleExport = async () => {
+    try {
+      const tableData = getTableData();
+      if (tableData.length === 0)
+        openNotification('info', 'No events to export for selected time range');
+      else
+        await exportPlayout(
+          date,
+          channel,
+          tableData,
+          channelSettings.filter(
+            (item) =>
+              item.Channel.ChannelCode === channel.ChannelCode &&
+              item.locations.LocationCode === channel.LocationCode,
+          )[0],
+        );
+      onDialogClose();
+    } catch (error) {
+      openNotification('danger', 'Something went wrong while exporting');
+      console.error(error);
+    }
+  };
+
+  /* HELPER FUNCTIONS */
+  const getTableData = () => {
+    try {
+      let tableData = [];
+      let startRow = null,
+        endRow = null;
+      for (let index = 1; index < schedulingTableData.length; index++) {
+        const row = schedulingTableData[index];
+        if (!startRow && row.Tel_Time >= time.startTime) {
+          startRow = row;
+        }
+        if (
+          startRow &&
+          row.rowIndex > startRow.rowIndex &&
+          row.Tel_Time <= time.endTime
+        ) {
+          endRow = row;
+        }
+        if (!endRow && index === schedulingTableData.length - 1) {
+          endRow = row;
+        }
+      }
+      if (startRow && endRow)
+        tableData = [...schedulingTableData].slice(
+          startRow.rowIndex,
+          endRow.rowIndex + 1,
+        );
+      return tableData;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  return (
+    <Dialog
+      isOpen={isDialogOpen}
+      onClose={onDialogClose}
+      onRequestClose={onDialogClose}
+    >
+      <h5 className="mb-4">Partial Playout Export</h5>
+      <div className="mb-4">
+        <p className="mb-1 text-white">
+          Start Time <span className="text-red-500">*</span>
+        </p>
+        <Input
+          size="sm"
+          value={time.startTime}
+          onChange={(event) =>
+            setTime((prev) => ({
+              ...prev,
+              startTime: getFormattedTime(event, time.startTime),
+            }))
+          }
+          onBlur={() =>
+            setTime((prev) => ({
+              ...prev,
+              startTime: autoCompleteTime(time.startTime),
+            }))
+          }
+          placeholder="HH:MM:SS:FF"
+        />
+      </div>
+      <div>
+        <p className="mb-1 text-white">
+          End Time <span className="text-red-500">*</span>
+        </p>
+        <Input
+          size="sm"
+          value={time.endTime}
+          onChange={(event) =>
+            setTime((prev) => ({
+              ...prev,
+              endTime: getFormattedTime(event, time.endTime),
+            }))
+          }
+          onBlur={() =>
+            setTime((prev) => ({
+              ...prev,
+              endTime: autoCompleteTime(time.endTime),
+            }))
+          }
+          placeholder="HH:MM:SS:FF"
+        />
+      </div>
+      <div className="text-right mt-6">
+        <Button
+          variant="solid"
+          disabled={time.startTime.length !== 11 || time.endTime.length !== 11}
+          onClick={handleExport}
+        >
+          Export
+        </Button>
+      </div>
+    </Dialog>
+  );
+}
+
+export default PartialPlayoutExportDialog;

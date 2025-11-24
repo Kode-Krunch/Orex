@@ -1,0 +1,68 @@
+import classNames from 'classnames';
+import { Tooltip } from 'components/ui';
+import React from 'react';
+import {
+  rowDataTypesEnum,
+  tableTypesEnum,
+} from 'views/Scheduling/Scheduler/enum';
+
+function EventNameCell({ row, isRowCT, column, tableType }) {
+  /* CONSTANTS */
+  const IS_ROW_NTC = row.F_C_S_P === rowDataTypesEnum.NTC;
+  const IS_ROW_LIVE = row.F_C_S_P === rowDataTypesEnum.LIVE;
+
+  return (
+    <>
+      {tableType === tableTypesEnum.SCHEDULING ? (
+        <div className="py-0.5 px-2.5 w-full h-full flex items-center">
+          <span
+            className={classNames(
+              'bg-gray-800 rounded-full h-[22px] w-[26px] mr-2 text-white flex justify-center items-center font-light',
+              IS_ROW_NTC ? 'text-[9px] bg-orange-500' : 'text-[11px]',
+              IS_ROW_LIVE ? 'bg-green-500 text-black !font-semibold' : '',
+            )}
+          >
+            {row.F_C_S_P}
+          </span>
+          <span
+            className={`w-full overflow-hidden whitespace-nowrap text-ellipsis text-[12px] ${
+              isRowCT && 'mb-1'
+            }`}
+          >
+            <span className={`${isRowCT && 'mr-2'}`}>
+              {IS_ROW_NTC && row.NtcTypeName && `${row.NtcTypeName};`}
+              {row[column.accessorKey]}
+            </span>
+            {isRowCT && (
+              <span>
+                [{row.FPC_Time} - {row.FPC_TimeTo}]
+              </span>
+            )}
+          </span>
+        </div>
+      ) : tableType === tableTypesEnum.SECONDARY &&
+        row.F_C_S_P !== rowDataTypesEnum.CONTENT_TERMINATION ? (
+        <Tooltip
+          wrapperClass="py-0.5 px-2.5 w-full h-full flex items-center"
+          placement="left"
+          title={
+            <div className="flex gap-4 justify-between items-center w-40 text-[0.7rem]">
+              <span>Duration: {row.Duration}</span>
+              <span>House ID: {row.HouseID ? row.HouseID : row.House_ID}</span>
+            </div>
+          }
+        >
+          <span className="w-full overflow-hidden whitespace-nowrap text-ellipsis text-[12px]">
+            {row[column.accessorKey]}
+          </span>
+        </Tooltip>
+      ) : (
+        <div className="py-1 px-2.5 overflow-hidden text-ellipsis whitespace-nowrap text-[12px] w-full">
+          {row[column.accessorKey]}
+        </div>
+      )}
+    </>
+  );
+}
+
+export default EventNameCell;

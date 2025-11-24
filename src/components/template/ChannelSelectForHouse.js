@@ -1,0 +1,232 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { Dropdown, Tag, Tooltip } from 'components/ui';
+import { useDispatch, useSelector } from 'react-redux';
+import { apiGetChannelmasterdrop, apiPutchannal } from 'services/MasterService';
+import { setChannelList, setselectedChannel } from 'store/locale/localeSlice';
+import {
+  isChannelSelected,
+  openNotification,
+} from 'views/Controls/GLOBALFUNACTION';
+import Loader from 'views/Controls/Loader';
+import ChannelSelector from 'views/Controls/ChannelSelector';
+import { setChannelSetting } from 'store/auth/sessionSlice';
+import { setUser } from 'store/auth/userSlice';
+import { CLIENT } from 'views/Controls/clientListEnum';
+
+
+
+const ChannelSelectForHouse = () => {
+  /* REDUX STATES */
+
+  const { PasswordExpiry, ChannelCode, LocationCode } = useSelector(
+    (state) => state.auth.user,
+  );
+  const agencyCode = useSelector((state) => state.auth.user.AgencyCode);
+  const Username = useSelector((state) => state.auth.session.Username);
+  const LoginId = useSelector((state) => state.auth.session.LoginId);
+  const Channel = useSelector((state) => state.locale.selectedChannel);
+  const ChannelSettingMain = useSelector(
+    (state) => state.auth.session.ChannelSettingMain,
+  );
+
+  const dispatch = useDispatch();
+
+  /* STATES */
+  const [selectedChannelImg, setSelectedChannelImg] = useState(null);
+  const [channelList, setchannelList] = useState([]);
+  const [showLoader, setShowLoader] = useState(false);
+
+  /* HOOKS */
+  const channelDropDownRef = useRef(null);
+
+  /* USE EFFECTS */
+
+  useEffect(() => {
+    try {
+      (async () => {
+        setShowLoader(true);
+        const channelList = await chenllist();
+        setchannelList(channelList);
+        const chhen = channelList.filter(
+          (item) => item.ChannelCode == ChannelCode,
+        );
+        dispatch(setselectedChannel(...chhen));
+        dispatch(setChannelList(channelList));
+        if (channelList.length > 0) {
+          if (!isChannelSelected(Channel) && channelDropDownRef.current) {
+            channelDropDownRef.current.click();
+          }
+        } else {
+          dispatch(setselectedChannel([]));
+        }
+        setShowLoader(false);
+      })();
+    } catch (error) {
+      openNotification(
+        'danger',
+        'Something went wrong while fetching channel list.',
+      );
+      setShowLoader(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      if (isChannelSelected(Channel)) {
+        setSelectedChannelImg(Channel.imgPath);
+      }
+    } catch (error) { }
+    if (ChannelSettingMain && ChannelSettingMain.length > 0) {
+      const rep = ChannelSettingMain.filter(
+        (item) => item.Channel.ChannelCode == Channel?.ChannelCode,
+      );
+
+      dispatch(setChannelSetting(rep));
+    }
+  }, [Channel]);
+
+  /* HELPER FUNCTIONS */
+
+  const putchenllist = async (LocationCode, ChannelCode) => {
+    const resp = await apiPutchannal(LoginId, LocationCode, ChannelCode);
+  };
+  const chenllist = async () => {
+    let channelList = [];
+    const resp = await apiGetChannelmasterdrop(LoginId);
+    if (resp.status === 200) {
+      const data = resp.data.map((item) => ({
+        value: item.ChannelCode + '-' + item.LocationCode,
+        label:
+          item.ChannelName === CLIENT.USA_Forbes
+            ? item.ChannelName
+            : item.ChannelName === CLIENT.BeIN_Sports
+              ? item.ChannelName + ' ' + item.LocationName
+              : item.ChannelName === CLIENT.NEWS
+                ? item.ChannelName + ' ' + item.LocationName
+                : item.LocationName + ' ' + item.ChannelName,
+        ChannelCode: item.ChannelCode,
+        LocationCode: item.LocationCode,
+        ChannelName: item.ChannelName,
+        ColorClass: 'bg-rose-500',
+        LocationName: item.LocationName,
+        imgPath: item.Channel_Image,
+      }));
+
+      channelList = data;
+      const data2 = channelList?.filter(
+        (item) =>
+          item.ChannelCode == Channel?.ChannelCode &&
+          item.LocationCode == Channel?.LocationCode,
+      );
+      dispatch(
+        setselectedChannel({
+          value: data2[0]?.ChannelCode + '-' + data2[0]?.LocationCode,
+          label: data2[0]?.LocationName + ' ' + data2[0]?.ChannelName,
+          ChannelCode: data2[0]?.ChannelCode,
+          LocationCode: data2[0]?.LocationCode,
+          ChannelName: data2[0]?.ChannelName,
+          ColorClass: 'bg-rose-500',
+          LocationName: data2[0]?.LocationName,
+          imgPath: data2[0]?.imgPath,
+        }),
+      );
+    } else if (!resp.status === 204) {
+      openNotification(
+        'danger',
+        `Unable to fetch channels. Server responded with status code ${resp.status}`,
+      );
+    }
+    return channelList;
+  };
+
+  const channelName = (
+    <div className="flex items-center mt-1 ml-2 mr-2" ref={channelDropDownRef}>
+      <div className="py-1 px-3 border border-gray-600 rounded-full mb-1">
+        {!Array.isArray(Channel) ? (
+          <>
+            <h6 className="!text-yellow-400 inline-block mr-2">
+              {Channel?.ChannelName}
+            </h6>
+            <span className="!text-yellow-400 text-xs align-baseline">
+              {Channel?.LocationName}
+            </span>
+          </>
+        ) : (
+          <h6 className="!text-yellow-400 inline-block mr-2">
+            Channels Not Assigned
+          </h6>
+        )}
+      </div>
+    </div>
+  );
+
+  const channelIcon =
+    channelList.length === 0 ? (
+      <Tooltip
+        title="No channels assigned. Please contact your administrator"
+        placement="bottom"
+        wrapperClass="hover:cursor-pointer"
+      >
+        {channelName}
+      </Tooltip>
+    ) : channelList.length === 1 ? (
+      channelName
+    ) : (
+      <Tooltip
+        title="Select Channel"
+        placement="bottom"
+        wrapperClass="hover:cursor-pointer"
+      >
+        {channelName}
+      </Tooltip>
+    );
+
+  return (
+    <div className="Gbox flex items-center">
+      {channelList.length > 1 ? (
+        <>
+          <p className="ml-2">Select Channel :</p>
+          <Dropdown
+            menuStyle={{ minWidth: 300 }}
+            renderTitle={channelIcon}
+            placement="bottom-end"
+          >
+            <div className="border-b border-gray-200 dark:border-gray-600 px-4 py-2 flex items-center justify-between">
+              <h6>Select Channel</h6>
+            </div>
+            <div className="p-5">
+              <ChannelSelector
+                location={Channel?.LocationCode}
+                channel={Channel?.ChannelCode}
+                channelList={channelList}
+                onChange={(e) => {
+                  dispatch(setselectedChannel(e));
+
+                  putchenllist(e.LocationCode, e.ChannelCode);
+                  dispatch(
+                    setUser({
+                      avatar: 'Anonymous',
+                      userName: Username,
+                      authority: 'user',
+                      email: 'Anonymous',
+                      AgencyCode: agencyCode,
+                      PasswordExpiry: PasswordExpiry,
+                      ChannelCode: e.ChannelCode,
+                      LocationCode: e.LocationCode,
+                    }),
+                  );
+                  channelDropDownRef.current.click();
+                }}
+              />
+            </div>
+          </Dropdown>
+        </>
+      ) : (
+        channelIcon
+      )}
+      <Loader showLoader={showLoader} />
+    </div>
+  );
+};
+
+export default ChannelSelectForHouse;

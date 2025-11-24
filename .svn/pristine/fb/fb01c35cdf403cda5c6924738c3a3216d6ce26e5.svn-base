@@ -1,0 +1,451 @@
+import { Button, Card, FormItem, Select, Input, Dialog, } from 'components/ui';
+import React, { memo, useState, useEffect } from 'react';
+import SelectXs from '../../Controls/SelectXs/SelectXs';
+import { IoMdSave } from 'react-icons/io';
+import { defaultUpdateFormState } from './constants';
+import { apiCallstoreprocedure } from 'services/CommonService';
+import { openNotification } from 'views/Controls/GLOBALFUNACTION';
+import { useSelector } from 'react-redux';
+import { apiGetspottypemasterdrop, } from 'services/DealServices';
+
+/* CONSTANTS */
+const ContentDemo = [{ value: '', label: 'Data Not Found' }];
+
+function NewDealDetails({
+  dealDetails,
+  updateFormState,
+  setUpdateFormState,
+  updateFormFieldOptions,
+  selectedDeal,
+  selectedCategory
+}) {
+
+  /* HOOKS */
+  const LoginId = useSelector((state) => state.auth.session.LoginId);
+
+  /* STATES */
+  const [SpotType, setSpotType] = useState([]);
+  const [formState, setFormState] = useState({});
+  const [secondsForRate, setSecondsForRate] = useState(10);
+  const [dialogIsOpen, setIsOpen] = useState(false)
+
+
+  /* EVENT HANDLERS */
+  const handleFieldChange = (option, key) => {
+
+    let newUpdateFormState = { ...updateFormState };
+    if (key === 'Rate') {
+      newUpdateFormState = {
+        ...newUpdateFormState,
+        Rate: option
+      }
+    }
+    if (key === 'executiveName')
+      newUpdateFormState = {
+        ...newUpdateFormState,
+        [key]: option,
+        clientName: defaultUpdateFormState.clientName,
+        clientCity: defaultUpdateFormState.clientCity,
+        agencyName: defaultUpdateFormState.agencyName,
+        agencyCity: defaultUpdateFormState.agencyCity,
+        payRoute: defaultUpdateFormState.payRoute,
+      };
+    else if (key === 'SpotTypeCode') {
+
+      newUpdateFormState = {
+        ...newUpdateFormState,
+        SpotTypeCode: option,
+        Rate: 0
+      }
+
+    }
+    else if (key === 'clientName')
+      newUpdateFormState = {
+        ...newUpdateFormState,
+        [key]: option,
+        clientCity: defaultUpdateFormState.clientCity,
+        agencyName: defaultUpdateFormState.agencyName,
+        agencyCity: defaultUpdateFormState.agencyCity,
+        payRoute: defaultUpdateFormState.payRoute,
+      };
+    else if (key === 'clientCity')
+      newUpdateFormState = {
+        ...newUpdateFormState,
+        [key]: option,
+        agencyName: defaultUpdateFormState.agencyName,
+        agencyCity: defaultUpdateFormState.agencyCity,
+        payRoute: defaultUpdateFormState.payRoute,
+      };
+    else if (key === 'agencyName')
+      newUpdateFormState = {
+        ...newUpdateFormState,
+        [key]: option,
+        agencyCity: defaultUpdateFormState.agencyCity,
+        payRoute: defaultUpdateFormState.payRoute,
+      };
+    else if (key === 'agencyCity')
+      newUpdateFormState = {
+        ...newUpdateFormState,
+        [key]: option,
+        payRoute: defaultUpdateFormState.payRoute,
+      };
+    else
+      newUpdateFormState = {
+        ...newUpdateFormState,
+        [key]: option,
+      };
+    setUpdateFormState(newUpdateFormState);
+  };
+
+  const onDialogClose = () => {
+    setIsOpen(false)
+  }
+
+  const handleInputChange = (value, name) => {
+    setFormState((prevFormState) => ({
+      ...prevFormState,
+      [name]: value,
+    }));
+  };
+
+  /* USE EFFECTS */
+  useEffect(() => {
+    (async (values) => {
+      const SpotType = await apiGetspottypemasterdrop(values);
+      console.log(SpotType);
+
+      const formattedOptions = SpotType.data.map((option) => ({
+        value: option.SpotTypeCode,
+        label: option.SpotTypeName,
+      }));
+      setSpotType(formattedOptions);
+    })();
+  }, []);
+
+  function calculateValue(inputValue, Second) {
+    const result = (Number(Second) / secondsForRate) * Number(inputValue);
+    const roundedResult = parseFloat(result.toFixed(2));
+    setFormState((prevFormState) => ({
+      ...prevFormState,
+      Amount: roundedResult,
+      NetAmount: roundedResult,
+    }));
+
+    console.log(roundedResult);
+
+    return roundedResult;
+  }
+
+  const updateDeal = async () => {
+    try {
+      const params = {
+        DealNumber: selectedDeal.value,
+        AgencyCode: updateFormState?.agencyName?.value,
+        AgencyCityCode: updateFormState?.agencyCity?.value,
+        ClientCode: updateFormState?.clientName?.value,
+        ClientCityCode: updateFormState?.clientCity?.value,
+        ExecutiveCode: updateFormState?.executiveName?.value,
+        PayrouteCode: updateFormState?.payRoute?.value,
+        LoginCode: LoginId
+      }
+      const response = await apiCallstoreprocedure('Usp_UpdateDealAgencyClient', params)
+      console.log(response.data);
+      if (response.data[0].Status == 'Success') {
+        openNotification('success', response.data[0].Status)
+        window.location.reload()
+      }
+      else {
+        openNotification('warning', response.data[0].Status)
+      }
+    } catch (error) {
+      openNotification('danger', 'Server Error')
+    }
+
+  }
+
+  const updateRate = async () => {
+    try {
+
+      const params = {
+        LoationCode: dealDetails.LocationCode,
+        ChannelCode: dealDetails.ChannelCode,
+        DealNumber: selectedDeal.value,
+        DealLineDetailCode: selectedCategory.DealLineItemNo,
+        SpotTypeCode: updateFormState.SpotTypeCode?.value,
+        Rate: updateFormState.Rate,
+        LoginCode: LoginId,
+      };
+
+      console.log(params);
+
+      const response = await apiCallstoreprocedure('USP_Deal_SpotTypeSpotRateUpdate', { ...params, IS_Update: 0 })
+      console.log(response.data);
+      console.log('Ankit');
+
+      if (response.data[0].LastNo != 'Given Deal Line Item Number against Billing has been done.You are allowed to change Rate!') {
+        const response = await apiCallstoreprocedure('USP_Deal_SpotTypeSpotRateUpdate', { ...params, IS_Update: 1 })
+        console.log(response.data);
+        console.log('Sanket');
+        const count = response.data[0].Count;
+        if (count > 0) {
+          openNotification('success', response.data[0].LastNo);
+        }
+        else {
+          openNotification('warning', response.data[0].LastNo);
+        }
+      }
+      else {
+        const count = response.data[0].Count;
+        if (count > 0) {
+          openNotification('success', response.data[0].LastNo);
+        }
+        else {
+          openNotification('warning', response.data[0].LastNo);
+        }
+      }
+
+      setIsOpen(false)
+
+    } catch (error) {
+      openNotification('danger', 'Server Error')
+    }
+
+  }
+
+  /* HELPER FUNCTIONS */
+  const isFieldDisabled = (field) => {
+    switch (field) {
+      case 'executiveName':
+        return !dealDetails;
+      case 'clientName':
+        return !dealDetails || !updateFormState.executiveName;
+      case 'clientCity':
+        return (
+          !dealDetails ||
+          !updateFormState.executiveName ||
+          !updateFormState.clientName
+        );
+      case 'agencyName':
+        return (
+          !dealDetails ||
+          !updateFormState.executiveName ||
+          !updateFormState.clientName ||
+          !updateFormState.clientCity
+        );
+      case 'agencyCity':
+        return (
+          !dealDetails ||
+          !updateFormState.executiveName ||
+          !updateFormState.clientName ||
+          !updateFormState.clientCity ||
+          !updateFormState.agencyName
+        );
+      case 'payRoute':
+        return (
+          !dealDetails ||
+          !updateFormState.executiveName ||
+          !updateFormState.clientName ||
+          !updateFormState.clientCity ||
+          !updateFormState.agencyName ||
+          !updateFormState.agencyCity
+        );
+      case 'all':
+        return (
+          !dealDetails ||
+          !updateFormState.executiveName ||
+          !updateFormState.clientName ||
+          !updateFormState.clientCity ||
+          !updateFormState.agencyName ||
+          !updateFormState.payRoute
+        );
+      default:
+        return false;
+    }
+  };
+  return (
+    <Card
+      className="h-full col-span-1"
+      bordered={false}
+      bodyClass="pt-2 pb-3 px-0 h-full flex flex-col"
+    >
+      <div className="flex items-center justify-between mb-3 pb-2 px-3 border-b border-dashed border-b-gray-600">
+        <h5>Update Deal</h5>
+        <Button
+          size="sm"
+          variant="solid"
+          icon={<IoMdSave />}
+          className="!px-2"
+          disabled={!dealDetails}
+          onClick={() => setIsOpen(true)}
+        >
+          Update Rate
+        </Button>
+
+        <Button
+          size="sm"
+          variant="solid"
+          icon={<IoMdSave />}
+          className="!px-2"
+          disabled={isFieldDisabled('all')}
+          onClick={updateDeal}
+        >
+          Update
+        </Button>
+      </div>
+      <div className="px-3 flex flex-col gap-5 grow h-0 overflow-hidden hover:overflow-auto transition-all">
+        <div>
+          <p className="text-gray-200 mb-1">
+            Executive Name <span className="text-red-500">*</span>
+          </p>
+          <SelectXs
+            placeholder="Search Executive"
+            options={updateFormFieldOptions.executiveName}
+            value={updateFormState.executiveName}
+            onChange={(option) => handleFieldChange(option, 'executiveName')}
+            isDisabled={isFieldDisabled('executiveName')}
+          ></SelectXs>
+        </div>
+        <div>
+          <p className="text-gray-200 mb-1">
+            Client Name <span className="text-red-500">*</span>
+          </p>
+          <SelectXs
+            placeholder="Search Client"
+            options={updateFormFieldOptions.clientName}
+            value={updateFormState.clientName}
+            onChange={(option) => handleFieldChange(option, 'clientName')}
+            isDisabled={isFieldDisabled('clientName')}
+          ></SelectXs>
+        </div>
+        <div>
+          <p className="text-gray-200 mb-1">
+            Client City <span className="text-red-500">*</span>
+          </p>
+          <SelectXs
+            placeholder="Search City"
+            options={updateFormFieldOptions.clientCity}
+            value={updateFormState.clientCity}
+            onChange={(option) => handleFieldChange(option, 'clientCity')}
+            isDisabled={isFieldDisabled('clientCity')}
+          ></SelectXs>
+        </div>
+        <div>
+          <p className="text-gray-200 mb-1">
+            Agency Name <span className="text-red-500">*</span>
+          </p>
+          <SelectXs
+            placeholder="Search Agency"
+            menuPlacement="top"
+            options={updateFormFieldOptions.agencyName}
+            value={updateFormState.agencyName}
+            onChange={(option) => handleFieldChange(option, 'agencyName')}
+            isDisabled={isFieldDisabled('agencyName')}
+          ></SelectXs>
+        </div>
+        <div>
+          <p className="text-gray-200 mb-1">
+            Agency City <span className="text-red-500">*</span>
+          </p>
+          <SelectXs
+            placeholder="Search City"
+            menuPlacement="top"
+            options={updateFormFieldOptions.agencyCity}
+            value={updateFormState.agencyCity}
+            onChange={(option) => handleFieldChange(option, 'agencyCity')}
+            isDisabled={isFieldDisabled('agencyCity')}
+          ></SelectXs>
+        </div>
+        <div>
+          <p className="text-gray-200 mb-1">
+            Payroute <span className="text-red-500">*</span>
+          </p>
+          <SelectXs
+            placeholder="Search Payroute"
+            menuPlacement="top"
+            options={updateFormFieldOptions.payRoute}
+            value={updateFormState.payRoute}
+            onChange={(option) => handleFieldChange(option, 'payRoute')}
+            isDisabled={isFieldDisabled('payRoute')}
+          ></SelectXs>
+        </div>
+
+        {selectedCategory && <>
+
+          <div>
+            <p className="text-gray-200 mb-1">
+              Spot Type <span className="text-red-500">*</span>
+            </p>
+            <SelectXs
+              placeholder="Search Spot Type"
+              menuPlacement="bottom"
+              options={SpotType}
+              value={updateFormState.SpotTypeCode}
+              onChange={(option) => handleFieldChange(option, 'SpotTypeCode')}
+              isDisabled={isFieldDisabled('SpotTypeCode')}
+            ></SelectXs>
+          </div>
+          <div>
+            <p className="text-gray-200 mb-1">
+              Spot Rate<span className="text-red-500">*</span>
+            </p>
+            <Input
+              size="md"
+              value={updateFormState.Rate}
+              disabled={updateFormState?.SpotTypeCode?.value == 2}
+              style={{
+                fontSize: 25,
+                fontWeight: 600,
+              }}
+              onChange={(e) => {
+                if (
+                  e.target.value.length < 8 &&
+                  /^[0-9.\s]*$/.test(e.target.value)
+                ) {
+                  handleFieldChange(
+                    e.target.value,
+                    'Rate',
+                  );
+                }
+                if (updateFormState.Rate) {
+                  calculateValue(
+                    e.target.value,
+                    updateFormState.Rate,
+                  );
+                }
+              }}
+            />
+
+          </div>
+        </>}
+
+      </div>
+      <div>
+        <Dialog
+          isOpen={dialogIsOpen}
+          onClose={onDialogClose}
+          onRequestClose={onDialogClose}
+        >
+          <h5 className="mb-4">Validation</h5>
+          <p>
+            Would you like to update spot rate in Booking?
+          </p>
+          <div className="text-right mt-6">
+            <Button
+              className="ltr:mr-2 rtl:ml-2"
+              variant="plain"
+              onClick={onDialogClose}
+            >
+              No
+            </Button>
+            <Button variant="solid" onClick={updateRate}>
+              Yes
+            </Button>
+          </div>
+        </Dialog>
+      </div>
+
+    </Card>
+  );
+}
+
+export default memo(NewDealDetails);

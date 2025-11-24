@@ -1,0 +1,49 @@
+.jsjs {
+  width: 100px;
+  height: 100px;
+  background: red;
+  transition: width 2s;
+}
+
+.jsjs:hover {
+  width: 300px;
+}
+
+.telicast {
+  border-width: 1px;
+  padding: 2px;
+  height: 25px;
+  width: 25px;
+  text-align: center;
+}
+
+.telicastBox {
+  height: 80px;
+  /* border: 1px solid red; */
+  overflow: scroll;
+  cursor: pointer;
+}
+.SelectedSongRow {
+  width: 25px;
+  height: 20px;
+  text-align: center;
+  font-weight: bold;
+  border: 1px solid #444;
+}
+.SelectedSongHeader {
+  width: 150px;
+  text-align: center;
+  font-weight: bold;
+  border: 1px solid #444;
+  padding: 2px;
+}
+
+.red {
+  background-color: #d9534f;
+  color: white;
+}
+
+.orange {
+  background-color: #ffb348;
+  color: white;
+}

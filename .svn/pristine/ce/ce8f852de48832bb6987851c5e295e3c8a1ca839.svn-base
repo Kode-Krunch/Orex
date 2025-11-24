@@ -1,0 +1,29 @@
+import { Card } from 'components/ui';
+import React from 'react';
+import HeaderExtra from 'views/Controls/HeaderExtra';
+import TeamTree from './components/TeamTree';
+
+function TeamMasterNew() {
+  return (
+    <Card
+      header={
+        <div className="flex justify-between">
+          <div>
+            <span className="flex items-center">
+              <HeaderExtra
+                ModuleText="Programming"
+                Component="Team Management"
+              />
+            </span>
+          </div>
+        </div>
+      }
+      className="h-full flex flex-col"
+      bodyClass="text-center grow h-0 pt-3 px-2 pb-2"
+    >
+      <TeamTree />
+    </Card>
+  );
+}
+
+export default TeamMasterNew;

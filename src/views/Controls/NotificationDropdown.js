@@ -1,0 +1,153 @@
+import React, { useEffect, useState } from 'react';
+import classNames from 'classnames';
+import withHeaderItem from 'utils/hoc/withHeaderItem';
+import { Avatar, Dropdown, ScrollBar, Badge } from 'components/ui';
+import { HiOutlineBell } from 'react-icons/hi';
+import { Link } from 'react-router-dom';
+import isLastChild from 'utils/isLastChild';
+import { useDispatch, useSelector } from 'react-redux';
+import { CLIENT } from 'views/Controls/clientListEnum';
+import { apiGetMarkNotifAsRead } from 'services/ProgrammingService';
+import { setNotifications as setReduxNotifications } from 'store/locale/localeSlice';
+import { format } from 'date-fns';
+const notificationHeight = 'h-72';
+
+// Component for the notification toggle button
+const NotificationToggleButton = ({ className, badgeCount }) => {
+  return (
+    <div className={classNames('text-2xl', className)}>
+      <Badge badgeStyle={{ top: '3px', right: '6px' }} content={badgeCount}>
+        <HiOutlineBell />
+      </Badge>
+    </div>
+  );
+};
+
+const NotificationDropdown = ({ className }) => {
+  /* REDUX */
+  const channel = useSelector((state) => state.locale.selectedChannel);
+  const redux_notifications = useSelector(
+    (state) => state.locale.notifications,
+  );
+  const direction = useSelector((state) => state.theme.direction);
+  const dispatch = useDispatch();
+
+  /* STATES */
+  const [notifications, setNotifications] = useState([]);
+
+  /* USE EFFECTS */
+  useEffect(() => {
+    setNotifications(redux_notifications.filter((item) => !item.isRead));
+  }, [redux_notifications]);
+
+  /* EVENT HANDLERS */
+  const onOpen = async () => {
+    try {
+      if (notifications.length > 0) await apiGetMarkNotifAsRead();
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const onClose = () => {
+    setNotifications([]);
+    dispatch(
+      setReduxNotifications(
+        redux_notifications.map((item) => ({ ...item, isRead: true })),
+      ),
+    );
+  };
+
+  return (
+    <>
+      {channel.label !== CLIENT.FOOD_INDIA &&
+        channel.label !== CLIENT.FOOD_USA && (
+          <Dropdown
+            renderTitle={
+              <NotificationToggleButton
+                badgeCount={notifications.length}
+                className={className}
+              />
+            }
+            menuClass="p-0 min-w-[280px] md:min-w-[340px]"
+            placement="bottom-end"
+            onOpen={onOpen}
+            onClose={onClose}
+          >
+            <Dropdown.Item variant="header">
+              <div className="border-b border-gray-200 dark:border-gray-600 px-4 py-2 flex items-center justify-between">
+                <h6>Notifications</h6>
+              </div>
+            </Dropdown.Item>
+            <div className={classNames('overflow-y-auto', notificationHeight)}>
+              <ScrollBar direction={direction}>
+                {notifications.length > 0 ? (
+                  notifications.map((notification, index) => (
+                    <div
+                      key={notification.id}
+                      className={`relative flex px-4 py-4 cursor-pointer hover:bg-gray-50 active:bg-gray-100 dark:hover:bg-black dark:hover:bg-opacity-20 ${!isLastChild(notifications, index)
+                          ? 'border-b border-gray-200 dark:border-gray-600'
+                          : ''
+                        }`}
+                    >
+                      <Avatar
+                        shape="circle"
+                        className=" bg-yellow-100 text-yellow-600 dark:bg-yellow-500/20 dark:text-yellow-100 "
+                        {...(notification.notification_metadata.icon
+                          ? { src: notification.notification_metadata.icon }
+                          : {
+                            icon: <HiOutlineBell />,
+                          })}
+                      />
+                      <div className="ltr:ml-2 rtl:mr-2">
+                        <div>
+                          <h6>
+                            {notification.notification_metadata.locationLabel ||
+                              'Bats'}
+                          </h6>
+                          <span>{notification.message}</span>
+                        </div>
+                        <p className="text-xs text-end">
+                          {format(notification.createdAt, 'dd-MM-yyyy')}
+                        </p>
+                      </div>
+                      <Badge
+                        className="absolute top-1 ltr:right-2 mt-1"
+                        innerClass={`${notification.readed === 1
+                            ? 'bg-red-300'
+                            : 'bg-green-300'
+                          } `}
+                      />
+                    </div>
+                  ))
+                ) : (
+                  <div
+                    className={classNames(
+                      'flex items-center justify-center',
+                      notificationHeight,
+                    )}
+                  >
+                    <div className="text-center">
+                      <h6 className="font-semibold">No notifications!</h6>
+                    </div>
+                  </div>
+                )}
+              </ScrollBar>
+            </div>
+            <Dropdown.Item variant="header">
+              <div className="flex justify-center border-t border-gray-200 dark:border-gray-600 px-4 py-2">
+                <Link
+                  to="/ActiveLog"
+                  className="font-semibold cursor-pointer p-2 px-3 text-gray-600 hover:text-gray-900 dark:text-gray-200 dark:hover:text-white"
+                >
+                  View All Activity
+                </Link>
+              </div>
+            </Dropdown.Item>
+          </Dropdown>
+        )}
+    </>
+  );
+};
+
+export default withHeaderItem(NotificationDropdown);

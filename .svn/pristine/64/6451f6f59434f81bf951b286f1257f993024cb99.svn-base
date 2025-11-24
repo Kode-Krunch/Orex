@@ -1,0 +1,785 @@
+import { useRef, useEffect, useState } from 'react';
+import Table from 'components/ui/Table';
+import { useSelector } from 'react-redux';
+import {
+  Button,
+  Card,
+  Dialog,
+  FormItemcompact,
+  Input,
+  Select,
+  Switcher,
+  Tooltip,
+} from 'components/ui';
+import { HiFolderAdd, HiPencilAlt, HiTrash } from 'react-icons/hi';
+import {
+  apiGetcontentscenedetailsid,
+  apiGetcontentsegdetailsid,
+  apiGetscenetypemasterDrop,
+} from 'services/ProgrammingService';
+import {
+  formatDurationHHMMSSFF,
+  formatOnHHMMSSFFBlur,
+  handleChangeWithFrameSingleValue,
+
+  openNotification,
+  parseDuration,
+  parseDurationE,
+} from 'views/Controls/GLOBALFUNACTION';
+import { Toast } from 'primereact/toast';
+const ContentDemo = [{ value: '', label: 'Data Not Found' }];
+const { Tr, Th, Td, THead, TBody } = Table;
+
+function SegDetails(props) {
+  const {
+    errors,
+    touched,
+    values,
+    data,
+    setData,
+    op,
+    EOM,
+    setEOM,
+    dataiwanttoshow,
+    setdataiwanttoshow,
+    setSOM,
+    SOM,
+    setSegmentDuration,
+    SegmentDuration,
+    setoptions3,
+    options3,
+    setChecked,
+    checked,
+    selectedItem,
+  } = props;
+
+  const { Content } = useSelector((state) => state.base.common);
+  const ChannelSetting = useSelector(
+    (state) => state.auth.session.ChannelSetting,
+  );
+  const { MAXSegment, Segcaption, Segcaption1, Segcaption2 } = useSelector(
+    (state) => state.auth.user,
+  );
+
+  const [Scene, setScene] = useState('');
+  const [SegmentNo1, setSegmentNo1] = useState('');
+  const [OffSetStartTime, setOffSetStartTime] = useState('');
+  const [OffSetEndTime, setOffSetEndTime] = useState('');
+  const [SegmentNo, setSegmentNo] = useState('');
+  const [ClipID, setClipID] = useState('000');
+  const [SegmentCaption, setSegmentCaption] = useState(
+    Content.Channel?.ChannelCode > 0
+      ? Content.locations.LocationCode
+      : `${MAXSegment}is
+        ${Segcaption},
+       ${Segcaption1},
+        ${Segcaption2}`,
+  );
+  const [Remark, setRemark] = useState('');
+  const [checkedNTC, setCheckedNTC] = useState(true);
+  const [checked2, setChecked2] = useState(false);
+  const [AddSegment, setAddSegment] = useState(false);
+  const [editData, seteditData] = useState(['']);
+  const [AutoSegment, setAutoSegment] = useState(false);
+
+  const toast = useRef(null);
+  const timecodeToFrames = (timecode, fps = 24) => {
+    const [hours, minutes, seconds, frames] = timecode.split(':').map(Number);
+    return (hours * 3600 + minutes * 60 + seconds) * fps + frames;
+  };
+
+
+  function framesToTimecode(totalFrames, fps = 24) {
+    const hours = Math.floor(totalFrames / (3600 * fps));
+    totalFrames %= 3600 * fps;
+
+    const minutes = Math.floor(totalFrames / (60 * fps));
+    totalFrames %= 60 * fps;
+
+    const seconds = Math.floor(totalFrames / fps);
+    const frames = totalFrames % fps;
+
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}:${String(frames).padStart(2, '0')}`;
+  }
+
+
+  const handleEdit = (editedSegmentNo) => {
+    const index = data.findIndex((item) => item.SegmentNo == editedSegmentNo);
+    if (index !== -1) {
+      const newData = [...data];
+      const currentSOM = SOM;
+      const currentEOM = EOM;
+      const fps = Number(ChannelSetting[0]?.FramePerSec || 24);
+
+      // 1. Validate SOM and EOM present
+      if (!currentSOM || !currentEOM) {
+        openNotification('warning', 'SOM and EOM cannot be blank');
+        return;
+      }
+
+      // 2. Validate FF frames < fps
+      const somFrames = parseInt(currentSOM.split(':')[3], 10);
+      const eomFrames = parseInt(currentEOM.split(':')[3], 10);
+      if (somFrames >= fps || eomFrames >= fps) {
+        openNotification('warning', `Frame (FF) should be less than ${fps}`);
+        return;
+      }
+
+      const startFrame = timecodeToFrames(currentSOM, fps);
+      const endFrame = timecodeToFrames(currentEOM, fps);
+
+      // Make duration inclusive
+
+
+
+      // 3. Validate EOM > SOM (inclusive end frame)
+      if (endFrame < startFrame) {
+        openNotification('warning', 'EOM must be greater than or equal to SOM');
+        return;
+      }
+
+      // 4. Validate SOM >= previous segment's EOM (if any)
+      if (index > 0) {
+        const prevEOM = data[index - 1].EOM;
+        if (startFrame < timecodeToFrames(prevEOM, fps)) {
+          openNotification('warning', 'SOM must be equal or greater than previous segment EOM');
+          return;
+        }
+      }
+
+      // 5. Calculate duration frames (inclusive)
+      const durationFrames = endFrame - startFrame;
+
+      const segmentDuration = framesToTimecode(durationFrames, fps);
+
+      // 6. Update segment data
+      newData[index] = {
+        SOM: currentSOM,
+        EOM: currentEOM,
+        SegmentNo: SegmentNo,
+        SegmentDuration: segmentDuration,
+        ClipID: ClipID,
+        SegmentCaption: SegmentCaption,
+        Remark: Remark,
+        checked: checked,
+      };
+
+      // 7. Sum total duration frames for all segments
+      const totalDurationFrames = newData.reduce((sum, seg) => {
+        return sum + timecodeToFrames(seg.SegmentDuration, fps);
+      }, 0);
+
+      const slotDurationFrames = (selectedItem?.SlotDuration || 0) * 60 * fps;
+
+      // 8. Check total duration ≤ slot duration
+      if (totalDurationFrames <= slotDurationFrames) {
+        setData(newData);
+        values.EpisodeDuration = framesToTimecode(totalDurationFrames, fps);
+      } else {
+        openNotification('warning', 'Episode Duration should not exceed Content Slot Duration');
+        return;
+      }
+    }
+
+    // 9. Reset fields
+    seteditData({});
+    setSOM('');
+    setEOM('');
+    setSegmentNo('');
+    setSegmentDuration('');
+    setClipID('');
+    setSegmentCaption('');
+    setRemark('');
+    setChecked(false);
+    setAddSegment(false);
+  };
+
+
+
+  useEffect(() => {
+    // if (data.length == 0) {
+    if (values.MaximumSegments && values.EpisodeDuration.length == 11) {
+    }
+  }, [values.EpisodeDuration]);
+
+  const [SceneType, setSceneType] = useState([]);
+  useEffect(() => {
+    (async (values) => {
+      const res = await apiGetscenetypemasterDrop();
+      const formattedOptions = res.data.map((option) => ({
+        value: option.SceneTypeCode,
+        label: option.SceneTypeName,
+      }));
+      setSceneType(formattedOptions);
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (Content) {
+      SegDetailsdata();
+    }
+  }, [Content]);
+
+  const SegDetailsdata = async () => {
+    const ContentType = await apiGetcontentscenedetailsid(Content.SegmentCode);
+    const transformedData = ContentType.data.map((item) => ({
+      SegmentNo: item.SegmentNo,
+      SceneTypeCode: {
+        value: item.SceneTypeCode,
+        label: item.SceneTypeCode,
+      },
+      SceneOffsetStart: item.SceneOffsetStart,
+      SceneOffsetEnd: item.SceneOffsetEnd,
+    }));
+    setdataiwanttoshow(transformedData);
+  };
+  // const { Content } = useSelector((state) => state.base.common);
+  const SegScenata = async () => {
+    const ContentType = await apiGetcontentsegdetailsid(Content.SegmentCode);
+    const transformedData = ContentType.data.map((item) => ({
+      SegmentNo: item.SegmentNo,
+      SOM: item.TCIN,
+      EOM: item.TCOUT,
+      SegmentCaption: item.SegmentCaption,
+      SegmentDuration: item.SegmentDuration,
+      ClipID: item.VideoID,
+      Remark: item.SegmentRemark,
+      checked: item.IsActive,
+    }));
+    setData(transformedData);
+  };
+  useEffect(() => {
+    if (Content) {
+      SegScenata();
+    }
+  }, [Content]);
+
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+    const newValue = value.replace(/\D/g, '');
+
+    let formattedValue = '';
+    for (let i = 0; i < Math.min(newValue.length, 8); i += 2) {
+      if (i > 0) formattedValue += ':';
+      formattedValue += newValue.substr(i, 2);
+
+      const len = formattedValue.length;
+
+      if (len === 2) {
+        if (parseInt(formattedValue) > 23) return;
+      }
+
+      if (len === 5) {
+        const mm = parseInt(formattedValue.substring(3, 5));
+        if (mm > 59) return;
+      }
+
+      if (len === 8) {
+        const ss = parseInt(formattedValue.substring(6, 8));
+        if (ss > 59) return;
+      }
+
+      if (len === 11) {
+        let ms = parseInt(formattedValue.substring(9, 11));
+        if (ms > Number(ChannelSetting[0]?.FramePerSec || 24)) return;
+        if (ms === Number(ChannelSetting[0]?.FramePerSec || 24)) {
+          formattedValue = formattedValue.substring(0, 9) + '00';
+        }
+      }
+    }
+
+    if (EOM < formattedValue) {
+      setChecked2(true);
+    } else {
+      setChecked2(false);
+      setSOM(formattedValue);
+    }
+  };
+
+
+  const handleChange2 = (event) => {
+    const { name, value } = event.target;
+    const newValue = value.replace(/\D/g, '');
+
+    let formattedValue = '';
+    for (let i = 0; i < Math.min(newValue.length, 8); i += 2) {
+      if (i > 0) formattedValue += ':';
+      formattedValue += newValue.substr(i, 2);
+      if (formattedValue.split('').length == 2) {
+        if (parseInt(formattedValue) > 23) return;
+      }
+      if (formattedValue.split('').length == 5) {
+        if (parseInt(formattedValue.substring(3, 5)) > 59) return;
+      }
+
+      if (formattedValue.split('').length == 8) {
+        if (parseInt(formattedValue.substring(6, 8)) > 59) return;
+      }
+      if (formattedValue.split('').length == 11) {
+        if (parseInt(formattedValue.substring(9, 11)) > 24) return;
+      }
+    }
+    if (SOM > formattedValue) {
+      // alert('not more then SOM');
+      setChecked2(true);
+    } else {
+      setChecked2(false);
+      const resultMilliseconds =
+        parseDurationE(Number(ChannelSetting[0]?.FramePerSec || 24), formattedValue) -
+        parseDurationE(Number(ChannelSetting[0]?.FramePerSec || 24), SOM);
+      const resultTime = formatDurationHHMMSSFF(
+        Number(ChannelSetting[0]?.FramePerSec || 24),
+        resultMilliseconds,
+      );
+      setSegmentDuration(resultTime);
+    }
+
+    setEOM(formattedValue);
+  };
+
+  const handleBlur = (event) => {
+    const { name, value } = event.target;
+    const formattedValue = formatOnHHMMSSFFBlur(value, Number(ChannelSetting[0]?.FramePerSec || 24));
+    if (name == 'OffSetStartTime') {
+      setOffSetStartTime(formattedValue);
+      return;
+    }
+    if (name == 'OffSetEndTime') {
+      setOffSetEndTime(formattedValue);
+      return;
+    }
+  };
+  return (
+    <>
+      <Toast ref={toast} />
+
+      <Dialog
+        isOpen={AddSegment}
+        width={500}
+        onClose={() => {
+          setAddSegment(!AddSegment);
+          seteditData(['']);
+          setSOM('');
+          setEOM('');
+          setSegmentNo('');
+          setSegmentDuration('');
+          setClipID('');
+          setSegmentCaption('');
+          setRemark('');
+          setChecked(false);
+        }}
+      >
+        <div className="grid grid-cols-5 gap-4">
+          <div className="col-span-1">
+            <FormItemcompact
+              asterisk
+              label="Seg No"
+              invalid={errors.SegmentNo && touched.SegmentNo}
+              errorMessage={errors.SegmentNo}
+            >
+              {editData.SegmentNo ? (
+                <Input
+                  size="sm"
+                  type="text"
+                  autoComplete="off"
+                  name="SegmentNo"
+                  placeholder="SegmentNo"
+                  value={editData.SegmentNo}
+                  disabled
+                />
+              ) : (
+                <Select
+                  options={options3}
+                  value={options3.find((option) => option.value == SegmentNo)}
+                  onChange={(e) => setSegmentNo(e.value)}
+                  isDisabled={editData.SegmentNo ? true : false}
+                />
+              )}
+            </FormItemcompact>
+          </div>
+          <div className="col-span-2">
+            <FormItemcompact
+              asterisk
+              label="Commercial Allowed"
+              invalid={errors.BreakAllowed && touched.BreakAllowed}
+              errorMessage={errors.BreakAllowed}
+            >
+              <div>
+                <Switcher
+                  checked={checked}
+                  onChange={() => setChecked(!checked)}
+                />
+              </div>
+              <br />
+            </FormItemcompact>
+          </div>
+          <div className="col-span-2">
+            <FormItemcompact
+              asterisk
+              label="NTC Allowed"
+              invalid={errors.NTCAllowed && touched.NTCAllowed}
+              errorMessage={errors.NTCAllowed}
+            >
+              <div>
+                <Switcher
+                  checked={checkedNTC}
+                  onChange={() => setCheckedNTC(!checkedNTC)}
+                />
+              </div>
+              <br />
+            </FormItemcompact>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="col-span-1">
+            <FormItemcompact
+              asterisk
+              label="SOM"
+              invalid={errors.SOM && touched.SOM}
+              errorMessage={errors.SOM}
+            >
+              <Input
+                size="sm"
+                type="text"
+                value={SOM}
+                placeholder="HH:MM:SS:FF"
+                onChange={handleChange}
+              />
+            </FormItemcompact>
+          </div>
+          <div className="col-span-1">
+            <FormItemcompact
+              asterisk
+              label="EOM"
+              invalid={errors.EOM && touched.EOM}
+              errorMessage={errors.EOM}
+            >
+              <Input size="sm" value={EOM} onChange={handleChange2} />
+            </FormItemcompact>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="col-span-1">
+            <FormItemcompact
+              asterisk
+              label="Segment Duration"
+              invalid={errors.SegmentDuration && touched.SegmentDuration}
+              errorMessage={errors.SegmentDuration}
+            >
+              <Input
+                size="sm"
+                type="text"
+                autoComplete="off"
+                name="SegmentDuration"
+                placeholder="Segment Duration"
+                value={SegmentDuration}
+                disabled
+              />
+            </FormItemcompact>
+          </div>
+          <div className="col-span-1">
+            <FormItemcompact
+              asterisk
+              label="ClipID"
+              invalid={errors.ClipID && touched.ClipID}
+              errorMessage={errors.ClipID}
+            >
+              <Input
+                size="sm"
+                type="text"
+                autoComplete="off"
+                name="ClipID"
+                disabled={ChannelSetting[0]?.IsTapeCounterFlag == 1}
+                placeholder="ClipID"
+                step="2"
+                value={ClipID}
+                onChange={(e) => {
+                  setClipID(e.target.value);
+                }}
+              />
+            </FormItemcompact>
+          </div>
+        </div>
+        <div className="col-span-1">
+          <FormItemcompact
+            asterisk
+            label="Segment Caption"
+            invalid={errors.SegmentCaption && touched.SegmentCaption}
+            errorMessage={errors.SegmentCaption}
+            style={{
+              width: '250px',
+            }}
+          >
+            <Input
+              size="sm"
+              type="text"
+              autoComplete="off"
+              name="SegmentCaption"
+              placeholder="SegmentCaption"
+              step="2"
+              value={SegmentCaption}
+              onChange={(e) => {
+                setSegmentCaption(e.target.value);
+              }}
+            />
+          </FormItemcompact>
+        </div>
+        <div className="col-span-1">
+          <FormItemcompact
+            asterisk
+            label="Remark"
+            invalid={errors.Remark && touched.Remark}
+            errorMessage={errors.Remark}
+            style={{
+              width: '250px',
+            }}
+          >
+            <Input
+              size="sm"
+              type="text"
+              autoComplete="off"
+              name="Remark"
+              placeholder="Remark"
+              step="2"
+              value={Remark}
+              onChange={(e) => {
+                setRemark(e.target.value);
+              }}
+            />
+          </FormItemcompact>
+        </div>
+        <br />
+        <FormItemcompact>
+          <Button
+            variant="solid"
+            type="submit"
+            onClick={() => handleEdit(editData.SegmentNo)}
+          >
+            Edit
+          </Button>
+        </FormItemcompact>
+      </Dialog>
+
+      <Dialog
+        isOpen={AutoSegment}
+        onClose={() => setAutoSegment(!AutoSegment)}
+        width={750}
+      >
+        <Card header="Seconday Details">
+          <p className="text-lg text-white">Program Duration</p>
+          <div className="flex">
+            <p>From &nbsp;{SegmentNo1.SOM}</p>&nbsp;To&nbsp;
+            <p>{SegmentNo1.EOM}</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <FormItemcompact label="Scene Type Name">
+              <Select
+                options={SceneType}
+                value={
+                  SceneType != undefined
+                    ? SceneType.filter((option) => option.value === Scene.value)
+                    : ContentDemo.filter((option) => option.value)
+                }
+                onChange={(e) => setScene(e)}
+              ></Select>
+            </FormItemcompact>
+            <FormItemcompact label="Segment No">
+              <Input value={SegmentNo1.SegmentNo} size="sm" disabled></Input>
+            </FormItemcompact>
+            <FormItemcompact label="OffSet Start Time">
+              <Input
+                placeholder="OffSet Start Time"
+                name="OffSetStartTime"
+                size="sm"
+                value={OffSetStartTime}
+                onChange={(e) =>
+                  handleChangeWithFrameSingleValue(e, setOffSetStartTime)
+                }
+                onBlur={handleBlur}
+              />
+            </FormItemcompact>
+            <FormItemcompact label="OffSet End Time">
+              <Input
+                placeholder="OffSet End Time"
+                value={OffSetEndTime}
+                size="sm"
+                name="OffSetEndTime"
+                onChange={(e) =>
+                  handleChangeWithFrameSingleValue(e, setOffSetEndTime)
+                }
+                onBlur={handleBlur}
+              />
+            </FormItemcompact>
+          </div>
+          <div className=" col-span-4 flex justify-end">
+            <Button
+              className="mb-2 mt-2"
+              size="sm"
+              onClick={() => {
+                const abx = dataiwanttoshow.some(
+                  (item) => item.SegmentNo == SegmentNo1.value,
+                );
+                console.log(abx);
+                if (abx) {
+                  // alert('Already exist');
+                } else {
+                  if (
+                    parseDuration(OffSetStartTime) >=
+                    parseDuration(SegmentNo1.SOM) &&
+                    parseDuration(OffSetStartTime) <=
+                    parseDuration(SegmentNo1.EOM)
+                  ) {
+                  } else {
+                    openNotification(
+                      'warning',
+                      'OffSet Duration should be between Segment Duration!!',
+                    );
+                    return;
+                  }
+
+                  if (
+                    parseDuration(OffSetEndTime) >=
+                    parseDuration(SegmentNo1.SOM) &&
+                    parseDuration(OffSetEndTime) <=
+                    parseDuration(SegmentNo1.EOM)
+                  ) {
+                  } else {
+                    openNotification(
+                      'warning',
+                      'OffSet Duration should be between Segment Duration!!!',
+                    );
+                    return;
+                  }
+
+                  setdataiwanttoshow([
+                    ...dataiwanttoshow,
+                    {
+                      SegmentNo: SegmentNo1.SegmentNo,
+
+                      SceneTypeCode: Scene,
+                      SceneOffsetStart: OffSetStartTime,
+                      SceneOffsetEnd: OffSetEndTime,
+                    },
+                  ]);
+                }
+              }}
+            >
+              Add
+            </Button>
+          </div>
+
+          <Table compact>
+            <THead>
+              <Tr>
+                <Th>SG.No</Th>
+                <Th>Scene Name</Th>
+                <Th>Off set Start</Th>
+                <Th>Off set End</Th>
+                <Th>Action</Th>
+              </Tr>
+            </THead>
+            <TBody>
+              {dataiwanttoshow.map((detail, index) => (
+                <Tr className="cursor-pointer">
+                  <Td>{detail.SegmentNo}</Td>
+                  <Td>{detail.SceneTypeCode.label}</Td>
+                  <Td>{detail.SceneOffsetStart}</Td>
+                  <Td>{detail.SceneOffsetEnd}</Td>
+                  <Td>
+                    <Button
+                      size="xs"
+                      onClick={() => {
+                        const filteredContracts = dataiwanttoshow.filter(
+                          (items, index) =>
+                            items.SegmentNo !== detail.SegmentNo,
+                        );
+
+                        setdataiwanttoshow(filteredContracts);
+                      }}
+                      icon={<HiTrash />}
+                    />
+                  </Td>
+                </Tr>
+              ))}
+            </TBody>
+          </Table>
+        </Card>
+      </Dialog>
+
+      <div>
+        <Table compact>
+          <THead>
+            <Tr>
+              <Th style={{ textTransform: 'capitalize' }}>SG.No</Th>
+              <Th style={{ textTransform: 'capitalize' }}>SOM</Th>
+              <Th style={{ textTransform: 'capitalize' }}>EOM</Th>
+              <Th style={{ textTransform: 'capitalize' }}>Caption</Th>
+              <Th style={{ textTransform: 'capitalize' }}>Duration</Th>
+              <Th style={{ textTransform: 'capitalize' }}>ClipID</Th>
+              <Th style={{ textTransform: 'capitalize' }}>Action</Th>
+            </Tr>
+          </THead>
+
+          <TBody>
+            {data.map((detail, index) => (
+              <Tr
+                style={{ border: '1px solid white' }}
+                className="cursor-pointer"
+              >
+                <Td>{detail.SegmentNo}</Td>
+                <Td>{detail.SOM}</Td>
+                <Td>{detail.EOM}</Td>
+                <Td>{detail.SegmentCaption}</Td>
+                <Td>{detail.SegmentDuration}</Td>
+                <Td>{detail.ClipID}</Td>
+                <Td>
+                  <div className="flex items-center">
+                    <div className="mr-2">
+                      <Tooltip title="Edit">
+                        <Button
+                          size="xs"
+                          shape="circle"
+                          type="button"
+                          onClick={() => {
+                            // //console.log(detail)
+                            setAddSegment(!AddSegment);
+                            seteditData(detail);
+                            setSOM(detail.SOM);
+                            setEOM(detail.EOM);
+                            setSegmentNo(detail.SegmentNo);
+                            setSegmentDuration(detail.SegmentDuration);
+                            setClipID(detail.ClipID);
+                            setSegmentCaption(detail.SegmentCaption);
+                            setRemark(detail.Remark);
+                            setChecked(detail.checked);
+                          }}
+                          icon={<HiPencilAlt />}
+                        />
+                      </Tooltip>
+                    </div>
+                    <div>
+                      <Tooltip title="Attach Secondary">
+                        <Button
+                          size="xs"
+                          shape="circle"
+                          type="button"
+                          icon={<HiFolderAdd />}
+                          onClick={() => {
+                            setAutoSegment(!AutoSegment);
+
+                            setSegmentNo1(detail);
+                          }}
+                        ></Button>
+                      </Tooltip>
+                    </div>
+                  </div>
+                </Td>
+              </Tr>
+            ))}
+          </TBody>
+        </Table>
+      </div>
+    </>
+  );
+}
+export default SegDetails;

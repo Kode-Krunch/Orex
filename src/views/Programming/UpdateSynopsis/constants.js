@@ -1,0 +1,191 @@
+import { Badge, Tooltip } from 'components/ui';
+
+const STATUS_COLORS = {
+  1: 'bg-emerald-500',
+  0: 'bg-red-500',
+};
+
+const EPISODE_COLUMNS = [
+  {
+    header: 'Content',
+    accessorKey: 'ContentMaster.ContentName',
+    cell: (props) => {
+      const row = props.row.original;
+      return (
+        <div className="flex items-center">
+          <Tooltip title={row.ContentMaster?.ContentName}>
+            <Badge
+              style={{ minWidth: '9px' }}
+              className={STATUS_COLORS[row.IsActive]}
+            />
+            <span
+              className="ml-2 rtl:mr-2 capitalize"
+              style={{
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                maxWidth: '200px',
+              }}
+            >
+              {row.ContentMaster?.ContentName}
+            </span>
+          </Tooltip>
+        </div>
+      );
+    },
+  },
+  {
+    header: () => (<span style={{
+      maxWidth: 50,
+    }}>SE</span>),
+    accessorKey: 'SeasonNo',
+    cell: (props) => {
+      const row = props.row.original;
+      return (
+        <span
+          style={{
+            maxWidth: 10,
+          }}
+        >
+          {row.SeasonNo}
+        </span>
+      );
+    },
+  },
+  {
+    header: () => (<span style={{
+      maxWidth: 20,
+    }}>EP</span>),
+    accessorKey: 'EpisodeNo',
+    cell: (props) => {
+      const row = props.row.original;
+      return (
+        <span
+          style={{
+            maxWidth: 10,
+            width: 5
+          }}
+        >
+          {row.EpisodeNo}
+        </span>
+      );
+    },
+  },
+  // {
+
+  //   header: () => (<span style={{
+  //     maxWidth: 60,
+  //   }}>Seg</span>),
+  //   accessorKey: 'MaximumSegments',
+  //   cell: (props) => {
+  //     const row = props.row.original;
+  //     return (
+  //       <span
+  //         style={{
+  //           maxWidth: 10,
+  //           width: 5
+  //         }}
+  //       >
+  //         {row.MaximumSegments}
+  //       </span>
+  //     );
+  //   },
+  // },
+
+  // {
+  //   header: 'Dur',
+  //   accessorKey: 'EpisodeDurationinMin',
+  //   cell: (props) => {
+  //     const row = props.row.original;
+  //     return (
+  //       <span
+  //         style={{
+  //           maxWidth: 10,
+  //           width: 5
+  //         }}
+  //       >
+  //         {row.EpisodeDurationinMin}
+  //       </span>
+  //     );
+  //   },
+  // },
+
+  // {
+  //   header: 'Total Seg & Dur',
+  //   accessorKey: 'MaximumSegments',
+  //   cell: (props) => {
+  //     const row = props.row.original;
+
+  //     return (
+  //       <Tooltip title={row.EpisodeCaption}>
+  //         <span
+  //           className="ml-2 rtl:mr-2 capitalize"
+  //           style={{
+  //             display: 'inline-block',
+  //             overflow: 'hidden',
+  //             textOverflow: 'ellipsis',
+  //             whiteSpace: 'nowrap',
+  //             maxWidth: '200px',
+  //           }}
+  //         >
+  //           {'Total Seg ' + row.MaximumSegments + ' & ' + 'Total Dur ' + row.EpisodeDurationinMin}
+  //         </span>
+  //       </Tooltip>
+  //     );
+  //   },
+  // },
+
+  {
+    header: 'Episode Caption',
+    accessorKey: 'EpisodeCaption',
+    cell: (props) => {
+      const row = props.row.original;
+
+      return (
+        <Tooltip title={row.EpisodeCaption}>
+          <span
+            className="ml-2 rtl:mr-2 capitalize"
+            style={{
+              display: 'inline-block',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              maxWidth: '200px',
+            }}
+          >
+            {row.EpisodeCaption}
+          </span>
+        </Tooltip>
+      );
+    },
+  },
+  {
+    header: 'Synopsis',
+    accessorKey: 'LongSynopsis',
+    cell: (props) => {
+      const row = props.row.original;
+
+      return (
+        <Tooltip title={row.LongSynopsis}>
+          <span
+            className="ml-2 rtl:mr-2 capitalize"
+            style={{
+              display: 'inline-block',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              maxWidth: '200px',
+            }}
+          >
+            {row.LongSynopsis}
+          </span>
+        </Tooltip>
+      );
+    },
+  }
+
+];
+
+const EPISODES_TABLE_TOOLBAR_OPTIONS = { groupBy: false, manageColumns: false };
+
+export { STATUS_COLORS, EPISODE_COLUMNS, EPISODES_TABLE_TOOLBAR_OPTIONS };

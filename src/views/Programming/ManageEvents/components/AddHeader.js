@@ -1,0 +1,121 @@
+import { Select } from 'components/ui';
+import React, { useEffect } from 'react';
+import { apiGroupMasterGet } from 'services/ProgrammingService';
+import { openNotification } from 'views/Controls/GLOBALFUNACTION';
+import { viewsEnum } from '../enum';
+
+function AddHeader({
+  curView,
+  eventOptions,
+  selectedEvent,
+  setSelectedEvent,
+  selectedEventGroup,
+  setSelectedEventGroup,
+  eventGroupOptions,
+  setEventGroupOptions,
+  groupWiseSelectedEntities,
+  setShowLoader,
+  isDisabledEventSelection,
+}) {
+  /* USE EFFECTS */
+  useEffect(() => {
+    (async () => {
+      try {
+        await setEventGroupOptionsFromAPI();
+      } catch (error) {
+        console.error(error);
+      }
+    })();
+  }, []);
+
+  /* HELPER FUNCTIONS */
+  const setEventGroupOptionsFromAPI = async () => {
+    try {
+      setShowLoader(true);
+      const response = await apiGroupMasterGet();
+      if (response.status === 200) {
+        setEventGroupOptions(
+          response.data.map((item) => {
+            return { ...item, value: item.GroupCode, label: item.GroupName };
+          }),
+        );
+      } else if (response.status === 204) {
+        setEventGroupOptions([]);
+      } else {
+        openNotification(
+          'danger',
+          `Unable to fetch Event Groups. Server responsed with status code ${response.status}`,
+        );
+      }
+      setShowLoader(false);
+    } catch (error) {
+      setShowLoader(false);
+      throw error;
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-4 gap-8">
+      <div className="flex flex-col gap-1">
+        <p className="text-slate-300">
+          Event <span className="text-red-500">*</span>
+        </p>
+        <Select
+          placeholder="Select"
+          size="sm"
+          options={eventOptions}
+          {...(curView === viewsEnum.ADD &&
+            !selectedEvent &&
+            !selectedEventGroup &&
+            Object.keys(groupWiseSelectedEntities).length === 0
+            ? {
+              menuIsOpen:
+                !selectedEvent &&
+                !selectedEventGroup &&
+                Object.keys(groupWiseSelectedEntities).length === 0,
+            }
+            : {})}
+          value={eventOptions.filter(
+            (item) => item.ContentCode === selectedEvent.value,
+          )}
+          onChange={(event) => {
+            setSelectedEvent(event);
+          }}
+          isDisabled={isDisabledEventSelection || !!selectedEvent?.ContentCode}
+        />
+      </div>
+      <div className="flex flex-col gap-1">
+        <p className="text-slate-300">
+          Event Group <span className="text-red-500">*</span>
+        </p>
+        <Select
+          placeholder="Select"
+          size="sm"
+          options={eventGroupOptions}
+          value={
+            eventGroupOptions.filter(
+              (item) => item.label === selectedEventGroup,
+            ).length === 1
+              ? eventGroupOptions.filter(
+                (item) => item.label === selectedEventGroup,
+              )[0].value
+              : ''
+          }
+          isDisabled={!selectedEvent}
+          onChange={(event) => {
+            setSelectedEventGroup(event.label);
+          }}
+          {...(curView === viewsEnum.ADD &&
+            !selectedEventGroup &&
+            Object.keys(groupWiseSelectedEntities).length === 0
+            ? {
+              menuIsOpen: selectedEvent && !selectedEventGroup,
+            }
+            : {})}
+        />
+      </div>
+    </div>
+  );
+}
+
+export default AddHeader;

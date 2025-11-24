@@ -1,0 +1,93 @@
+import { Button, Dialog } from 'components/ui';
+import { format } from 'date-fns';
+import React, { useContext } from 'react';
+import { useSelector } from 'react-redux';
+import SchedulerContext from 'views/Scheduling/Scheduler/context/SchedulerContext';
+
+function UnsavedWorkExistDialog({
+  isOpen,
+  setIsOpen,
+  clickedDateEvent,
+  setClickedDateEvent,
+}) {
+  /* REDUX */
+  const channel = useSelector((state) => state.locale.selectedChannel);
+
+  /* CONTEXT */
+  const { setDate, setLoadUnsavedWork, unsavedWorkState } =
+    useContext(SchedulerContext);
+
+  /* EVENT HANDLERS */
+  const handleClose = () => {
+    try {
+      setClickedDateEvent(null);
+      setIsOpen(false);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleSubmit = (loadUnsavedWork) => {
+    try {
+      setDate(clickedDateEvent.start);
+      setLoadUnsavedWork(loadUnsavedWork);
+      handleClose();
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  return (
+    <>
+      {clickedDateEvent && unsavedWorkState && (
+        <Dialog
+          isOpen={isOpen}
+          onClose={handleClose}
+          onRequestClose={handleClose}
+        >
+          <h5 className="mb-4">Unsaved work detected</h5>
+          <div className="mt-4 flex flex-col">
+            <div className="py-3 border-b border-dashed border-b-gray-700 flex justify-between">
+              <p className="text-[0.95rem]">Channel</p>
+              <p className="text-white text-base">
+                {channel.LocationName} {channel.ChannelName}
+              </p>
+            </div>
+            <div className="py-3 border-b border-dashed border-b-gray-700 flex justify-between">
+              <p className="text-[0.95rem]">Schedule date</p>
+              <p className="text-white  text-base">
+                {format(clickedDateEvent.start, 'dd-MMM-yyyy')}
+              </p>
+            </div>
+            <div className="py-3 border-b border-dashed border-b-gray-700 flex justify-between">
+              <p className="text-[0.95rem]">Last worked timestamp</p>
+              <p className="text-white text-base">
+                {format(
+                  unsavedWorkState.timeStamp,
+                  'hh:mm aaaa, dd-MMM-yyyy',
+                ).replaceAll('.', '')}
+              </p>
+            </div>
+          </div>
+          <div className="mt-6 flex justify-between items-center">
+            <p className="text-white">Do you want to load unsaved work now?</p>
+            <div>
+              <Button
+                className="mr-2"
+                variant="plain"
+                onClick={() => handleSubmit(false)}
+              >
+                No
+              </Button>
+              <Button variant="solid" onClick={() => handleSubmit(true)}>
+                Yes
+              </Button>
+            </div>
+          </div>
+        </Dialog>
+      )}
+    </>
+  );
+}
+
+export default UnsavedWorkExistDialog;
