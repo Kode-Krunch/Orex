@@ -1,2 +1,0 @@
-"use strict";(self.webpackChunkelstar=self.webpackChunkelstar||[]).push([[7261],{97261:(e,b,g)=>{g.d(b,{H:()=>l});const l=()=>{const e=["bg-indigo-500","bg-red-500","bg-green-500","bg-blue-500","bg-yellow-500","bg-purple-500","bg-pink-500","bg-teal-500"];return e[Math.floor(Math.random()*e.length)]}}}]);
-//# sourceMappingURL=7261.95f43563.chunk.js.map

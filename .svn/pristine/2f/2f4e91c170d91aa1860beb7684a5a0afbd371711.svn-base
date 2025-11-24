@@ -1,2 +1,0 @@
-.star{cursor:pointer;font-size:30px}.filled{color:gold}.half-filled{display:inline-block;position:relative}.half-filled:before{color:gold;content:"★";overflow:hidden;position:absolute;width:50%}
-/*# sourceMappingURL=6986.10d5f4fb.chunk.css.map*/

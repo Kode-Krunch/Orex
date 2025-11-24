@@ -1,6 +1,0 @@
-const notificationWebSocketAPIEnums = {
-  PYTHON_API: 'pythonApi',
-  NODE_API: 'nodeApi',
-};
-
-export { notificationWebSocketAPIEnums };
